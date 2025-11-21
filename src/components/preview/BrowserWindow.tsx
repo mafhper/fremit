@@ -10,7 +10,10 @@ export function BrowserWindow() {
         showTitle,
         windowTitle,
         imageUrl,
-        imageScale
+        imageScale,
+        autoResize,
+        windowWidth,
+        windowHeight
     } = useStore();
 
     const shadowStyle = {
@@ -26,20 +29,22 @@ export function BrowserWindow() {
         <div
             className={cn(
                 "relative transition-all duration-300 ease-in-out overflow-hidden",
-                darkMode ? "bg-gray-900" : "bg-white"
+                darkMode ? "bg-gray-900" : "bg-white",
+                !autoResize && "flex flex-col"
             )}
             style={{
                 borderRadius: windowRadius,
-                width: 'fit-content',
+                width: autoResize ? 'fit-content' : `${windowWidth}px`,
+                height: autoResize ? 'auto' : `${windowHeight}px`,
+                minWidth: autoResize ? '300px' : undefined,
                 maxWidth: '100%',
-                maxHeight: '100%',
                 ...shadowStyle,
             }}
         >
             {/* Title Bar */}
             {(windowType !== 'none') && (
                 <div className={cn(
-                    "flex items-center px-4 h-10 gap-4 select-none relative",
+                    "flex items-center px-4 h-10 gap-4 select-none relative shrink-0",
                     darkMode ? "bg-gray-800/50" : "bg-gray-100/50"
                 )}>
                     {/* Mac Controls (Left) */}
@@ -91,22 +96,30 @@ export function BrowserWindow() {
             )}
 
             {/* Content Area */}
-            <div className="relative overflow-hidden bg-white" style={{
-                width: 'min(90vw, 800px)',
-                height: 'auto',
-                aspectRatio: '16/10',
-                maxHeight: 'min(65vh, 600px)',
-            }}>
+            <div className={cn(
+                "relative overflow-hidden bg-white",
+                !autoResize && "flex-1"
+            )}>
                 {imageUrl ? (
                     <img
                         crossOrigin="anonymous"
                         src={imageUrl}
                         alt="Preview"
-                        className="w-full h-full object-contain transition-transform duration-300"
-                        style={{ transform: `scale(${imageScale})` }}
+                        className={cn(
+                            "transition-transform duration-300",
+                            autoResize ? "block" : "w-full h-full object-cover"
+                        )}
+                        style={{
+                            width: autoResize ? 'auto' : undefined,
+                            height: autoResize ? 'auto' : undefined,
+                            maxWidth: autoResize ? 'min(90vw, 800px)' : undefined,
+                            maxHeight: autoResize ? 'min(65vh, 800px)' : undefined,
+                            minWidth: autoResize ? '100%' : undefined,
+                            transform: `scale(${imageScale})`
+                        }}
                     />
                 ) : (
-                    <div className="absolute inset-0 flex items-center justify-center bg-gray-100 text-gray-400">
+                    <div className="flex items-center justify-center bg-gray-100 text-gray-400 h-full" style={{ width: autoResize ? '800px' : '100%', height: autoResize ? '500px' : '100%' }}>
                         <div className="text-center p-8">
                             <p>No image loaded</p>
                             <p className="text-xs mt-2">Drag & drop or paste an URL</p>

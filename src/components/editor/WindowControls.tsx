@@ -9,6 +9,9 @@ export function WindowControls() {
         darkMode,
         showTitle,
         windowTitle,
+        windowWidth,
+        windowHeight,
+        autoResize,
         setConfig
     } = useStore();
 
@@ -81,6 +84,39 @@ export function WindowControls() {
                     step={1}
                     onValueChange={([v]: number[]) => setConfig({ windowRadius: v })}
                 />
+            </div>
+
+            <div className="space-y-4 pt-2 border-t border-border/50">
+                <div className="flex items-center justify-between">
+                    <Label>Auto Resize</Label>
+                    <Switch
+                        checked={autoResize}
+                        onCheckedChange={(c: boolean) => setConfig({ autoResize: c })}
+                    />
+                </div>
+
+                {!autoResize && (
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label>Width</Label>
+                            <input
+                                type="number"
+                                className="w-full bg-background border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                value={windowWidth}
+                                onChange={(e) => setConfig({ windowWidth: Number(e.target.value) })}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Height</Label>
+                            <input
+                                type="number"
+                                className="w-full bg-background border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                value={windowHeight}
+                                onChange={(e) => setConfig({ windowHeight: Number(e.target.value) })}
+                            />
+                        </div>
+                    </div>
+                )}
             </div>
 
             {showTitle && (

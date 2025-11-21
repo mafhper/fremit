@@ -16,6 +16,9 @@ export interface AppState {
     darkMode: boolean;
     showTitle: boolean;
     windowTitle: string;
+    windowWidth: number;
+    windowHeight: number;
+    autoResize: boolean;
 
     // Background
     bgType: BackgroundType;
@@ -44,6 +47,9 @@ export const useStore = create<AppState>((set) => ({
     darkMode: true,
     showTitle: true,
     windowTitle: 'Fremit App',
+    windowWidth: 800,
+    windowHeight: 600,
+    autoResize: true,
 
     bgType: 'gradient',
     bgColor: '#ffffff',
