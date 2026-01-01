@@ -38,6 +38,8 @@ build
 coverage
 *.lcov
 .nyc_output
+_dev/
+_performance-reports/
 
 # Temporary files
 *.tmp
@@ -52,3 +54,4 @@ Thumbs.db
 # Package manager lock files (keep package-lock.json, ignore others)
 yarn.lock
 pnpm-lock.yaml
+/performance-reports/manual
