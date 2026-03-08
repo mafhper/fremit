@@ -1,151 +1,259 @@
-import { useState, useRef, useCallback } from 'react';
+import { type ClipboardEvent, type FormEvent, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { ClipboardPanelIcon, LinkPanelIcon, UploadPanelIcon } from '@/components/icons/AppIcons';
+import { Button } from '@/components/ui';
+import { useI18n } from '@/i18n/useI18n';
+import {
+  SourceResolutionError,
+  detectSourceMode,
+  resolveFileSource,
+  resolveSourceFromUrl,
+} from '@/lib/sourceResolver';
+import { cn } from '@/lib/utils';
 import { useStore } from '@/store/useStore';
-import { Upload, Link as LinkIcon, Loader2 } from 'lucide-react';
-import { getProxiedUrl, cn } from '@/lib/utils';
 
-// Helper to generate a descriptive title from URL
-function getUrlTitle(url: string): string {
-    try {
-        const urlObj = new URL(url);
-        const pathname = urlObj.pathname.replace(/^\/$/, '').replace(/\/$/, '');
-        return pathname ? `${urlObj.hostname}${pathname}` : urlObj.hostname;
-    } catch {
-        return 'Image';
+interface SourceControlsProps {
+  variant?: 'home' | 'editor';
+}
+
+function getErrorMessage(error: unknown, fallbackMessage: string) {
+  if (error instanceof SourceResolutionError) {
+    return {
+      code: error.code,
+      message: error.message,
+    };
+  }
+
+  return {
+    code: 'unknown',
+    message: fallbackMessage,
+  };
+}
+
+export function SourceControls({ variant = 'home' }: SourceControlsProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const { copy } = useI18n();
+  const isEditor = variant === 'editor';
+
+  const source = useStore((state) => state.source);
+  const frame = useStore((state) => state.frame);
+  const setDraftUrl = useStore((state) => state.setDraftUrl);
+  const startSourceLoading = useStore((state) => state.startSourceLoading);
+  const commitResolvedSource = useStore((state) => state.commitResolvedSource);
+  const failSourceLoading = useStore((state) => state.failSourceLoading);
+  const clearSourceError = useStore((state) => state.clearSourceError);
+
+  const goToEditor = () => {
+    if (!location.pathname.startsWith('/editor')) {
+      navigate('/editor');
     }
-}
+  };
 
-export function ImageUpload() {
-    const { setImage, setConfig } = useStore();
-    const [isLoading, setIsLoading] = useState(false);
-    const [dragActive, setDragActive] = useState(false);
-    const [urlInput, setUrlInput] = useState('');
-    const inputRef = useRef<HTMLInputElement>(null);
+  const handleResolved = async (task: Promise<Awaited<ReturnType<typeof resolveSourceFromUrl>>>) => {
+    clearSourceError();
+    try {
+      const resolved = await task;
+      commitResolvedSource(resolved);
+      goToEditor();
+    } catch (error) {
+      const { code, message } = getErrorMessage(error, copy.source.genericError);
+      failSourceLoading(code, message);
+    }
+  };
 
-    const handleFile = useCallback((file: File) => {
-        if (!file.type.startsWith('image/')) return;
+  const handleFile = async (file: File, mode: 'upload' | 'clipboard-image' = 'upload') => {
+    startSourceLoading(mode);
+    await handleResolved(resolveFileSource(file, mode));
+  };
 
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            setImage(e.target?.result as string);
-            // Reset title when uploading new image
-            setConfig({ windowTitle: file.name });
-        };
-        reader.readAsDataURL(file);
-    }, [setImage, setConfig]);
+  const handleUrlSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!source.draftUrl.trim()) return;
 
-    const handleDrop = (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setDragActive(false);
+    try {
+      const mode = detectSourceMode(source.draftUrl);
+      startSourceLoading(mode, source.draftUrl.trim());
+      await handleResolved(
+        resolveSourceFromUrl(
+          source.draftUrl,
+          mode === 'website-url'
+            ? {
+                viewportWidth: frame.windowWidth,
+                viewportHeight: frame.windowHeight,
+              }
+            : {},
+        ),
+      );
+    } catch (error) {
+      const { code, message } = getErrorMessage(error, copy.source.genericError);
+      failSourceLoading(code, message);
+    }
+  };
 
-        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-            handleFile(e.dataTransfer.files[0]);
-        }
-    };
+  const handleClipboardRead = async () => {
+    try {
+      if (!navigator.clipboard?.read) {
+        throw new SourceResolutionError(
+          'clipboard-unavailable',
+          'Clipboard image read is not supported here. Paste directly or upload a screenshot.',
+        );
+      }
 
-    const handleDrag = (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (e.type === "dragenter" || e.type === "dragover") {
-            setDragActive(true);
-        } else if (e.type === "dragleave") {
-            setDragActive(false);
-        }
-    };
+      const items = await navigator.clipboard.read();
+      const imageItem = items.find((item) => item.types.some((type) => type.startsWith('image/')));
 
-    const handleUrlSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!urlInput) return;
+      if (!imageItem) {
+        throw new SourceResolutionError(
+          'clipboard-empty',
+          'No image was found in your clipboard. Copy a screenshot and try again.',
+        );
+      }
 
-        setIsLoading(true);
-        try {
-            // Check if it's likely an image URL
-            const isImage = urlInput.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) != null;
+      const imageType = imageItem.types.find((type) => type.startsWith('image/'));
+      if (!imageType) {
+        throw new SourceResolutionError('clipboard-empty', 'No image was found in your clipboard.');
+      }
 
-            if (isImage) {
-                const proxiedUrl = getProxiedUrl(urlInput);
-                setImage(proxiedUrl);
-                setConfig({ windowTitle: urlInput.split('/').pop() || 'Image' });
-            } else {
-                // Try to fetch metadata via microlink.io with screenshot for better preview
-                try {
-                    const response = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(urlInput)}&screenshot=true&meta=false`);
-                    const data = await response.json();
+      const blob = await imageItem.getType(imageType);
+      const file = new File([blob], 'clipboard-image.png', { type: blob.type });
+      await handleFile(file, 'clipboard-image');
+    } catch (error) {
+      const { code, message } = getErrorMessage(error, copy.source.genericError);
+      failSourceLoading(code, message);
+    }
+  };
 
-                    if (data.status === 'success' && data.data) {
-                        const { screenshot, image, title } = data.data;
+  const handlePaste = async (event: ClipboardEvent<HTMLDivElement>) => {
+    const imageItem = Array.from(event.clipboardData.items).find((item) => item.type.startsWith('image/'));
+    if (!imageItem) return;
 
-                        // Prefer screenshot over OG image (screenshot shows actual page, not just logo)
-                        if (screenshot && screenshot.url) {
-                            setImage(getProxiedUrl(screenshot.url));
-                            setConfig({ windowTitle: title || getUrlTitle(urlInput) });
-                        } else if (image && image.url) {
-                            setImage(getProxiedUrl(image.url));
-                            setConfig({ windowTitle: title || getUrlTitle(urlInput) });
-                        } else {
-                            // Fallback if no image found in metadata
-                            setImage(getProxiedUrl(urlInput));
-                            setConfig({ windowTitle: getUrlTitle(urlInput) });
-                        }
-                    } else {
-                        throw new Error("Failed to fetch metadata");
-                    }
-                } catch (err) {
-                    console.warn("Failed to fetch OG data, falling back to direct URL", err);
-                    setImage(getProxiedUrl(urlInput));
-                    setConfig({ windowTitle: getUrlTitle(urlInput) });
-                }
+    const file = imageItem.getAsFile();
+    if (!file) return;
+
+    event.preventDefault();
+    await handleFile(file, 'clipboard-image');
+  };
+
+  return (
+    <div className="space-y-3" onPaste={handlePaste} data-testid={variant === 'home' ? 'home-source' : 'editor-source'}>
+      <div
+        className={cn(
+          isEditor
+            ? 'rounded-[1.2rem] border border-border/70 bg-[hsl(var(--surface-muted))/0.55] p-3 transition'
+            : 'surface-card rounded-[1.75rem] border p-4 transition md:p-5',
+          dragActive ? 'border-accent shadow-[0_0_0_3px_hsl(var(--accent)/0.16)]' : '',
+        )}
+        onDragEnter={(event) => {
+          event.preventDefault();
+          setDragActive(true);
+        }}
+        onDragLeave={(event) => {
+          event.preventDefault();
+          setDragActive(false);
+        }}
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={async (event) => {
+          event.preventDefault();
+          setDragActive(false);
+          const file = event.dataTransfer.files?.[0];
+          if (file) await handleFile(file);
+        }}
+      >
+        <input
+          ref={inputRef}
+          type="file"
+          className="hidden"
+          accept="image/*"
+          onChange={async (event) => {
+            const file = event.target.files?.[0];
+            if (file) {
+              await handleFile(file);
+              event.target.value = '';
             }
-        } catch (error) {
-            console.error("Error loading URL:", error);
-        } finally {
-            setIsLoading(false);
-            // Clear input after processing (success or failure) to allow new URL
-            setUrlInput('');
-        }
-    };
+          }}
+        />
 
-    return (
-        <div className="space-y-4">
-            <div
-                className={cn(
-                    "border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors",
-                    dragActive ? "border-primary bg-primary/5" : "border-border hover:border-primary/50",
-                )}
-                onDragEnter={handleDrag}
-                onDragLeave={handleDrag}
-                onDragOver={handleDrag}
-                onDrop={handleDrop}
-                onClick={() => inputRef.current?.click()}
-            >
+        <div className={cn('space-y-4', isEditor && 'space-y-3')}>
+          <form onSubmit={handleUrlSubmit} className={cn('space-y-3', isEditor && 'space-y-2')}>
+            <label className={cn('text-sm font-medium text-[hsl(var(--text-muted))]', isEditor && 'text-xs uppercase tracking-[0.18em]')} htmlFor="source-url">
+              {copy.source.label}
+            </label>
+            <div className={cn('flex flex-col gap-3 sm:flex-row', isEditor && 'sm:items-stretch')}>
+              <div className="relative flex-1">
+                <LinkPanelIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[hsl(var(--text-soft))]" />
                 <input
-                    ref={inputRef}
-                    type="file"
-                    className="hidden"
-                    accept="image/*"
-                    onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+                  id="source-url"
+                  type="text"
+                  placeholder={copy.source.placeholder}
+                  className={cn(
+                    'w-full border border-input bg-background text-sm text-foreground outline-none transition placeholder:text-[hsl(var(--text-soft))] focus:border-accent focus:ring-2 focus:ring-accent/20',
+                    isEditor ? 'h-11 rounded-[1rem] px-11' : 'h-12 rounded-2xl px-11',
+                  )}
+                  value={source.draftUrl}
+                  onChange={(event) => setDraftUrl(event.target.value)}
                 />
-                <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                    <Upload className="w-8 h-8" />
-                    <p className="text-sm font-medium">Click or drop image</p>
-                </div>
+                {source.status === 'loading' && (
+                  <span className="absolute right-4 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-accent animate-pulse" />
+                )}
+              </div>
+              <Button type="submit" className={cn(isEditor ? 'h-11 rounded-[1rem] px-5' : 'h-12 rounded-2xl px-6')}>
+                {source.status === 'loading' ? copy.source.loading : copy.source.submit}
+              </Button>
             </div>
+          </form>
 
-            <form onSubmit={handleUrlSubmit} className="relative">
-                <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input
-                    type="text"
-                    placeholder="Paste URL..."
-                    className="w-full bg-background border rounded-md pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                    value={urlInput}
-                    onChange={(e) => setUrlInput(e.target.value)}
-                />
-                {isLoading && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                    </div>
-                )}
-            </form>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              className={cn(
+                'surface-muted flex items-center gap-3 border text-left transition hover:border-accent/40 hover:bg-[hsl(var(--surface))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                isEditor ? 'justify-center rounded-[1rem] px-3 py-2.5' : 'rounded-2xl px-4 py-3',
+              )}
+            >
+              <UploadPanelIcon className="h-5 w-5 text-accent" />
+              <div className={cn(isEditor && 'flex items-center gap-2')}>
+                <p className="text-sm font-semibold text-foreground">{copy.source.upload}</p>
+                {!isEditor && <p className="text-xs text-[hsl(var(--text-soft))]">{copy.source.uploadHint}</p>}
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleClipboardRead}
+              className={cn(
+                'surface-muted flex items-center gap-3 border text-left transition hover:border-accent/40 hover:bg-[hsl(var(--surface))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                isEditor ? 'justify-center rounded-[1rem] px-3 py-2.5' : 'rounded-2xl px-4 py-3',
+              )}
+            >
+              <ClipboardPanelIcon className="h-5 w-5 text-primary" />
+              <div className={cn(isEditor && 'flex items-center gap-2')}>
+                <p className="text-sm font-semibold text-foreground">{copy.source.paste}</p>
+                {!isEditor && <p className="text-xs text-[hsl(var(--text-soft))]">{copy.source.pasteHint}</p>}
+              </div>
+            </button>
+          </div>
+
+          {source.status === 'loading' && (
+            <p className={cn('text-sm text-[hsl(var(--text-muted))]', isEditor && 'text-xs')}>{copy.source.loading}</p>
+          )}
         </div>
-    );
+      </div>
+
+      {source.errorMessage && (
+        <div className="rounded-[1.25rem] border border-accent/30 bg-accent/10 p-4 text-sm text-foreground">
+          <p className="font-semibold">{copy.source.fallbackTitle}</p>
+          <p className="mt-2 leading-6 text-[hsl(var(--text-muted))]">{source.errorMessage}</p>
+          <p className="mt-2 text-xs uppercase tracking-[0.18em] text-[hsl(var(--text-soft))]">
+            {copy.source.fallbackAction}
+          </p>
+        </div>
+      )}
+    </div>
+  );
 }
+
+export { SourceControls as ImageUpload };

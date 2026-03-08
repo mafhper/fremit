@@ -1,9 +1,13 @@
-import { MainLayout } from "@/components/layout/MainLayout";
+import { RouterProvider } from 'react-router-dom';
+import { router } from '@/app/router';
+import { I18nProvider } from '@/i18n/provider';
 
 function App() {
   return (
-    <MainLayout />
-  )
+    <I18nProvider>
+      <RouterProvider router={router} />
+    </I18nProvider>
+  );
 }
 
-export default App
+export default App;

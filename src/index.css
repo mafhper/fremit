@@ -1,77 +1,218 @@
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src:
+    local('Fraunces SemiBold'),
+    local('Fraunces-SemiBold'),
+    url('/fonts/fraunces-600.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src:
+    local('Fraunces Bold'),
+    local('Fraunces-Bold'),
+    url('/fonts/fraunces-700.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src:
+    local('Manrope Regular'),
+    local('Manrope-Regular'),
+    url('/fonts/manrope-400.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src:
+    local('Manrope Medium'),
+    local('Manrope-Medium'),
+    url('/fonts/manrope-500.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src:
+    local('Manrope SemiBold'),
+    local('Manrope-SemiBold'),
+    url('/fonts/manrope-600.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src:
+    local('Manrope Bold'),
+    local('Manrope-Bold'),
+    url('/fonts/manrope-700.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src:
+    local('Manrope ExtraBold'),
+    local('Manrope-ExtraBold'),
+    url('/fonts/manrope-800.ttf') format('truetype');
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 6%;
+    --background: 30 32% 95%;
+    --foreground: 214 30% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 6%;
+    --card-foreground: 214 30% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 6%;
+    --popover-foreground: 214 30% 15%;
 
-    --primary: 0 0% 6%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 212 61% 17%;
+    --primary-foreground: 38 60% 97%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 0 0% 6%;
+    --secondary: 195 27% 88%;
+    --secondary-foreground: 214 30% 15%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 32 22% 88%;
+    --muted-foreground: 214 15% 36%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 0 0% 6%;
+    --accent: 19 82% 60%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 72% 56%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 0 0% 6%;
+    --border: 30 18% 79%;
+    --input: 30 18% 79%;
+    --ring: 19 82% 60%;
 
-    --radius: 0.5rem;
+    --surface: 0 0% 100%;
+    --surface-muted: 30 20% 92%;
+    --surface-subtle: 195 26% 90%;
+    --text-muted: 214 15% 36%;
+    --text-soft: 214 12% 46%;
+    --shell-glow: 196 38% 84%;
+    --shell-accent: 20 72% 82%;
+
+    --radius: 1rem;
   }
 
   .dark {
-    --background: 0 0% 6%;
-    --foreground: 210 40% 98%;
+    --background: 220 44% 7%;
+    --foreground: 40 36% 93%;
 
-    --card: 0 0% 6%;
-    --card-foreground: 210 40% 98%;
+    --card: 218 31% 11%;
+    --card-foreground: 40 36% 93%;
 
-    --popover: 0 0% 6%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 218 31% 11%;
+    --popover-foreground: 40 36% 93%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 0 0% 6%;
+    --primary: 40 36% 93%;
+    --primary-foreground: 220 44% 7%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 214 25% 18%;
+    --secondary-foreground: 40 36% 93%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 215 22% 15%;
+    --muted-foreground: 214 16% 70%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 19 82% 60%;
+    --accent-foreground: 220 44% 7%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 72% 56%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --border: 215 19% 22%;
+    --input: 215 19% 22%;
+    --ring: 19 82% 60%;
+
+    --surface: 218 31% 11%;
+    --surface-muted: 217 28% 14%;
+    --surface-subtle: 212 29% 17%;
+    --text-muted: 214 16% 76%;
+    --text-soft: 214 16% 64%;
+    --shell-glow: 214 52% 18%;
+    --shell-accent: 18 43% 16%;
   }
-}
 
-@layer base {
   * {
     @apply border-border;
   }
 
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Manrope', 'Segoe UI', sans-serif;
+    min-height: 100vh;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: 'Fraunces', Georgia, serif;
+    letter-spacing: -0.03em;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+
+  .app-shell {
+    background-image:
+      radial-gradient(circle at top, hsl(var(--shell-glow) / 0.35), transparent 52%),
+      linear-gradient(180deg, hsl(var(--background)), hsl(var(--surface-muted)));
+  }
+
+  .surface-card {
+    background:
+      linear-gradient(180deg, hsl(var(--surface) / 0.98), hsl(var(--surface) / 0.9));
+    border-color: hsl(var(--border) / 0.75);
+    box-shadow:
+      inset 0 1px 0 hsl(0 0% 100% / 0.08),
+      0 14px 28px hsl(220 25% 4% / 0.06);
+  }
+
+  .surface-muted {
+    background:
+      linear-gradient(180deg, hsl(var(--surface-muted) / 0.92), hsl(var(--surface-muted) / 0.8));
+    border-color: hsl(var(--border) / 0.72);
+    box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.06);
+  }
+
+  ::selection {
+    background: rgba(241, 115, 79, 0.24);
   }
 }

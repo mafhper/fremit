@@ -1,96 +1,92 @@
 import { useState } from 'react';
-import { Download, Loader2 } from 'lucide-react';
-import { toPng, toJpeg } from 'html-to-image';
-import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui";
+import { toJpeg, toPng } from 'html-to-image';
+import { ExportPanelIcon } from '@/components/icons/AppIcons';
+import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui';
+import { useI18n } from '@/i18n/useI18n';
 import { useStore } from '@/store/useStore';
 
 export function DownloadButton() {
-    const [isLoading, setIsLoading] = useState(false);
-    const [format, setFormat] = useState<'png' | 'jpeg'>('png');
-    const { windowTitle } = useStore();
+  const { copy } = useI18n();
+  const [isLoading, setIsLoading] = useState(false);
+  const frameTitle = useStore((state) => state.frame.windowTitle);
+  const exportConfig = useStore((state) => state.export);
+  const updateExport = useStore((state) => state.updateExport);
 
-    const handleDownload = async () => {
-        const node = document.getElementById('fremit-preview');
-        if (!node) return;
+  const handleDownload = async () => {
+    const node = document.getElementById('fremit-preview');
+    if (!node) return;
 
-        setIsLoading(true);
-        try {
-            // Wait longer for images and fonts to load/render fully
-            await new Promise(resolve => setTimeout(resolve, 500));
+    setIsLoading(true);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 150));
 
-            const options = {
-                quality: 0.95,
-                pixelRatio: 2,
-                cacheBust: true,
-                skipFonts: false,
-                filter: (node: HTMLElement) => {
-                    // Exclude any elements that might cause issues
-                    const exclusions = ['noscript', 'script', 'style'];
-                    return !exclusions.includes(node.tagName?.toLowerCase());
-                },
-            };
+      const options = {
+        quality: 0.96,
+        pixelRatio: exportConfig.scale,
+        cacheBust: true,
+        skipFonts: false,
+      };
 
-            let dataUrl;
-            // Render twice to avoid artifacts (common html-to-image issue)
-            if (format === 'png') {
-                await toPng(node, options); // First pass to warm up
-                dataUrl = await toPng(node, options); // Second pass for actual capture
-            } else {
-                await toJpeg(node, options); // First pass to warm up
-                dataUrl = await toJpeg(node, options); // Second pass for actual capture
-            }
+      const dataUrl =
+        exportConfig.format === 'png'
+          ? await toPng(node, options)
+          : await toJpeg(node, options);
 
-            // Generate filename from windowTitle
-            const sanitized = windowTitle
-                .toLowerCase()
-                .replace(/[^a-z0-9.-]/g, '_')
-                .replace(/_+/g, '_')
-                .replace(/^_|_$/g, '');
+      const filenameBase =
+        frameTitle
+          .toLowerCase()
+          .replace(/[^a-z0-9.-]/g, '_')
+          .replace(/_+/g, '_')
+          .replace(/^_|_$/g, '') || 'fremit-export';
 
-            const filename = sanitized && sanitized !== 'fremit_app'
-                ? `fremit-export_${sanitized}.${format}`
-                : `fremit-export.${format}`;
+      const anchor = document.createElement('a');
+      anchor.download = `${filenameBase}.${exportConfig.format}`;
+      anchor.href = dataUrl;
+      anchor.click();
+    } catch (error) {
+      console.error('Failed to export image:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-            const link = document.createElement('a');
-            link.download = filename;
-            link.href = dataUrl;
-            link.click();
-        } catch (err) {
-            console.error('Failed to export image:', err);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    return (
-        <div className="space-y-4">
-            <div className="flex gap-2">
-                <Select value={format} onValueChange={(v: 'png' | 'jpeg') => setFormat(v)}>
-                    <SelectTrigger className="w-[100px]">
-                        <SelectValue placeholder="Format" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="png">PNG</SelectItem>
-                        <SelectItem value="jpeg">JPG</SelectItem>
-                    </SelectContent>
-                </Select>
-
-                <Button
-                    className="flex-1 gap-2"
-                    onClick={handleDownload}
-                    disabled={isLoading}
-                >
-                    {isLoading ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                        <Download className="w-4 h-4" />
-                    )}
-                    Download
-                </Button>
-            </div>
-            <p className="text-xs text-muted-foreground text-center">
-                Export at 2x resolution (Retina)
-            </p>
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-2">
+          <label className="text-xs uppercase tracking-[0.22em] text-[hsl(var(--text-soft))]">{copy.controls.format}</label>
+          <Select value={exportConfig.format} onValueChange={(value: 'png' | 'jpeg') => updateExport({ format: value })}>
+            <SelectTrigger className="rounded-2xl">
+              <SelectValue placeholder={copy.controls.format} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="png">PNG</SelectItem>
+              <SelectItem value="jpeg">JPG</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-    );
+
+        <div className="space-y-2">
+          <label className="text-xs uppercase tracking-[0.22em] text-[hsl(var(--text-soft))]">{copy.controls.scale}</label>
+          <Select value={String(exportConfig.scale)} onValueChange={(value) => updateExport({ scale: Number(value) as 1 | 2 | 3 })}>
+            <SelectTrigger className="rounded-2xl">
+              <SelectValue placeholder={copy.controls.scale} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">1x</SelectItem>
+              <SelectItem value="2">2x</SelectItem>
+              <SelectItem value="3">3x</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Button className="h-12 w-full rounded-2xl" onClick={handleDownload} disabled={isLoading}>
+        <ExportPanelIcon className="mr-2 h-4 w-4" />
+        {isLoading ? `${copy.controls.exportButton}...` : copy.controls.exportButton}
+      </Button>
+
+      <p className="text-sm leading-6 text-[hsl(var(--text-muted))]">{copy.controls.exportHint}</p>
+    </div>
+  );
 }

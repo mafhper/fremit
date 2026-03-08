@@ -1,202 +1,107 @@
 # Fremit
 
-A modern web tool for creating beautiful browser window mockups with custom backgrounds and styling options. Perfect for showcasing websites, applications, and designs in a professional format.
+Turn links, screenshots, and image URLs into cleaner presentation assets.
+
+![Fremit home in light mode](docs/readme/home-light.png)
+
+![Fremit editor using a Mark-Lee link](docs/readme/usage-mark-lee.png)
+
+Fremit is a static app for turning screenshots, image URLs, and best-effort website previews into cleaner presentation assets. It runs entirely on GitHub Pages and is now structured as a product site plus a dedicated editor.
 
 ## Live Demo
 
-Access the live application at: [https://mafhper.github.io/fremit/](https://mafhper.github.io/fremit/)
+[https://mafhper.github.io/fremit/](https://mafhper.github.io/fremit/)
 
-## Features
+## What Changed
 
-- **Multiple Input Methods**: Upload local images or paste URLs (direct images or website links)
-- **Automatic Screenshot Generation**: Fetches OpenGraph images or screenshots from website URLs
-- **Browser Window Styles**: Choose between macOS, Windows, or no window chrome
-- **Customizable Backgrounds**: Solid colors, linear/radial gradients, or custom images
-- **Dark/Light Mode**: Toggle between dark and light window themes
-- **Export Options**: Download as PNG or JPEG at 2x resolution (Retina quality)
-- **Responsive Design**: Works seamlessly on desktop and mobile devices
-- **Theme Support**: System-wide theme detection and manual override
+- Product shell with routes for `/`, `/features`, `/how-it-works`, `/limitations`, `/faq`, and `/editor`
+- Dedicated editor canvas instead of a single tool-only screen
+- Explicit source pipeline for `upload`, `clipboard-image`, `image-url`, and `website-url`
+- Best-effort URL handling with visible fallback guidance instead of silent broken previews
+- Separate frame families for desktop browser chrome and generic mobile/tablet device frames
+- Export controls for PNG/JPG at `1x`, `2x`, or `3x`
 
-## Technologies Used
+## Current Feature Set
 
-### Core Stack
-- **React 18.2** - UI framework
-- **TypeScript 5.9** - Type-safe development
-- **Vite 7.2** - Build tool and dev server
-- **Zustand 5.0** - Lightweight state management
+- Upload screenshots or paste images from the clipboard
+- Import direct image URLs
+- Try website URLs through Microlink screenshot or Open Graph fallback
+- Keep the last valid composition when a new website preview fails
+- Switch between desktop browser frames and simple phone/tablet frames
+- Use portrait or landscape orientation for phone/tablet frames
+- Tune viewport preset, shadow, radius, fit mode, background, and export scale
 
-### Styling
-- **Tailwind CSS 3.4** - Utility-first CSS framework
-- **PostCSS** - CSS processing and autoprefixing
-- **Radix UI** - Accessible component primitives
+## Honest URL Behavior
 
-### Image Processing
-- **html-to-image 1.11** - Screenshot generation
-- **colorthief 2.6** - Automatic color palette extraction
-- **images.weserv.nl** - CORS proxy for external images
-- **microlink.io API** - Website metadata and screenshot extraction
+Fremit does not run a real browser in the backend. Website URLs are resolved in this order:
 
-### UI Components
-- **Lucide React** - Icon library
-- **class-variance-authority** - Component variant management
-- **tailwind-merge** - Utility class merging
+1. Microlink screenshot
+2. Open Graph image
+3. Manual fallback message asking for a screenshot
+
+If no reliable preview is available, the current composition stays in place.
+
+## Stack
+
+- React 19
+- TypeScript 5.9
+- Vite 7
+- React Router
+- Zustand
+- Tailwind CSS
+- Radix UI primitives
+- `html-to-image`
+- `colorthief`
+- `images.weserv.nl`
+- Microlink
+- Vitest
+- Playwright
 
 ## Getting Started
 
-### Prerequisites
-
-- Node.js 18+ and npm
-- Git
-
-### Installation
-
-1. Clone the repository:
 ```bash
-git clone https://github.com/mafhper/fremit.git
-cd fremit
+bun install
+bun run dev
 ```
 
-2. Install dependencies:
-```bash
-npm install
-```
+The dev server runs on Vite's default port unless you pass a custom one.
 
-3. Start the development server:
-```bash
-npm run dev
-```
-
-The application will be available at `http://localhost:5173`
-
-### Building for Production
+## Scripts
 
 ```bash
-npm run build
+bun run dev
+bun run build
+bun run lint
+bun run test
+bun run test:smoke
 ```
 
-The production build will be created in the `dist` directory.
+## GitHub Pages
 
-### Deploying to GitHub Pages
+This project is configured for GitHub Pages deployment through `.github/workflows/deploy.yml`.
 
-This project is configured for automatic deployment via GitHub Actions.
+- GitHub Actions installs with `bun install --frozen-lockfile`
+- GitHub Actions builds with `bun run build`
+- `vite.config.ts` uses `base: '/fremit/'`
+- `public/404.html` handles SPA deep-link fallback
+- `src/main.tsx` restores redirected routes after a Pages refresh
 
-**Automatic Deployment:**
+## Project Notes
 
-1. Push your code to the `main` branch:
-```bash
-git add .
-git commit -m "Your commit message"
-git push origin main
-```
+- The app is intentionally static and zero-cost.
+- Mobile and tablet frames are generic by design, not hardware simulations.
+- Long-lived project history and saved presets are still out of scope for this phase.
+- `bun.lock` is the only lockfile and Bun is the only supported package manager for this repo.
 
-2. The GitHub Actions workflow (`.github/workflows/deploy.yml`) will automatically:
-   - Install dependencies
-   - Build the project
-   - Deploy to GitHub Pages
+## Verification
 
-3. Enable GitHub Pages in your repository settings:
-   - Go to Settings > Pages
-   - Source: Choose "GitHub Actions"
+The current repo passes:
 
-The site will be available at `https://[username].github.io/fremit/`
-
-**Manual Deployment:**
-
-If you prefer to deploy manually:
-
-```bash
-npm run build
-# Then deploy the dist folder to your hosting provider
-```
-
-## Project Structure
-
-```
-fremit/
-├── public/              # Static assets
-│   ├── favicon.svg     # Adaptive favicon
-│   └── icon.svg        # App icon
-├── src/
-│   ├── components/     # React components
-│   │   ├── editor/    # Editor controls (sidebar)
-│   │   ├── layout/    # Layout components
-│   │   ├── preview/   # Preview area components
-│   │   └── ui/        # Reusable UI primitives
-│   ├── hooks/         # Custom React hooks
-│   ├── lib/           # Utility functions
-│   ├── store/         # Zustand state management
-│   ├── types/         # TypeScript type definitions
-│   ├── App.tsx        # Root component
-│   ├── index.css      # Global styles and themes
-│   └── main.tsx       # App entry point
-├── index.html         # HTML template
-├── package.json       # Dependencies and scripts
-├── tailwind.config.js # Tailwind configuration
-├── tsconfig.json      # TypeScript configuration
-└── vite.config.ts     # Vite configuration
-```
-
-## How It Works
-
-1. **Image Input**: Users can upload local images or paste URLs. The system automatically detects image URLs vs. website URLs.
-
-2. **Metadata Extraction**: For website URLs, Fremit uses the microlink.io API to fetch OpenGraph images and page titles, with fallback to screenshots.
-
-3. **Color Extraction**: The ColorThief library analyzes uploaded images and automatically generates complementary gradient backgrounds.
-
-4. **CORS Handling**: External images are proxied through images.weserv.nl to avoid CORS issues during both preview and export.
-
-5. **Export**: The html-to-image library captures the preview area as a PNG or JPEG, with double-rendering to prevent artifacts.
-
-## Configuration
-
-### Theme Customization
-
-Edit `src/index.css` to modify the color scheme. The theme uses CSS custom properties for easy customization:
-
-```css
-:root {
-  --background: 0 0% 100%;
-  --foreground: 0 0% 6%;
-  --primary: 0 0% 6%;
-  /* ... */
-}
-```
-
-### Default Settings
-
-Modify `src/store/useStore.ts` to change default values:
-
-```typescript
-windowType: 'mac',        // Browser window style
-windowShadow: 'xl',       // Shadow size
-darkMode: true,           // Dark/light window
-bgType: 'gradient',       // Background type
-padding: 64,              // Default padding
-// ...
-```
-
-## Browser Support
-
-- Chrome/Edge 90+
-- Firefox 88+
-- Safari 14+
-
-## Known Limitations
-
-- Screenshot quality for some websites may vary depending on microlink.io availability
-- Very large images may take longer to export
-- Some websites may not provide OpenGraph images
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit pull requests or open issues for bugs and feature requests.
+- `bun run build`
+- `bun run lint`
+- `bun run test`
+- `bun run test:smoke`
 
 ## License
 
-MIT License - feel free to use this project for personal or commercial purposes.
-
-## Acknowledgments
-
-- Inspired by modern design tools and mockup generators
-- Built with open-source technologies and APIs
+MIT

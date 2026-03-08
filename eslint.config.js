@@ -5,6 +5,9 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
+process.env.BASELINE_BROWSER_MAPPING_IGNORE_OLD_DATA = 'true'
+process.env.BROWSERSLIST_IGNORE_OLD_DATA = 'true'
+
 export default defineConfig([
   globalIgnores(['dist']),
   {

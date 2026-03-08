@@ -1,37 +1,39 @@
 import { useEffect } from 'react';
 import ColorThief from 'colorthief';
 import { useStore } from '@/store/useStore';
-import { getProxiedUrl } from '@/lib/utils';
 
 export function useImageColors() {
-    const { imageUrl, setConfig } = useStore();
+  const imageUrl = useStore((state) => state.source.active?.resolvedImageUrl);
+  const updateBackground = useStore((state) => state.updateBackground);
 
-    useEffect(() => {
-        if (!imageUrl) return;
+  useEffect(() => {
+    if (!imageUrl) return;
 
-        const img = new Image();
-        img.crossOrigin = 'Anonymous';
-        img.src = getProxiedUrl(imageUrl);
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = imageUrl;
 
-        img.onload = () => {
-            try {
-                const colorThief = new ColorThief();
-                const palette = colorThief.getPalette(img, 2);
+    img.onload = () => {
+      try {
+        const colorThief = new ColorThief();
+        const palette = colorThief.getPalette(img, 4);
 
-                if (palette && palette.length >= 2) {
-                    const color1 = `rgb(${palette[0].join(',')})`;
-                    const color2 = `rgb(${palette[1].join(',')})`;
+        if (palette && palette.length >= 3) {
+          const color1 = `rgb(${palette[0].join(',')})`;
+          const color2 = `rgb(${palette[1].join(',')})`;
+          const color3 = `rgb(${palette[2].join(',')})`;
 
-                    // Set a nice gradient based on dominant colors
-                    setConfig({
-                        bgType: 'gradient',
-                        bgGradient: `linear-gradient(135deg, ${color1}, ${color2})`,
-                        bgColor: color1 // Fallback or solid option
-                    });
-                }
-            } catch (error) {
-                console.error('Failed to extract colors:', error);
-            }
-        };
-    }, [imageUrl, setConfig]);
+          updateBackground({
+            bgType: 'gradient',
+            bgGradientType: 'linear',
+            bgGradientDirection: 140,
+            bgGradient: `linear-gradient(140deg, ${color1} 0%, ${color2} 54%, ${color3} 100%)`,
+            bgColor: color2,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to extract colors:', error);
+      }
+    };
+  }, [imageUrl, updateBackground]);
 }

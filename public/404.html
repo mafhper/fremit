@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Redirecting…</title>
+    <script>
+      (function () {
+        var locationPath = window.location.pathname.split('/').filter(Boolean);
+        var repoBase = locationPath.length ? '/' + locationPath[0] + '/' : '/';
+        sessionStorage.setItem('gh-pages-redirect', window.location.pathname + window.location.search + window.location.hash);
+        window.location.replace(window.location.origin + repoBase);
+      })();
+    </script>
+  </head>
+  <body></body>
+</html>

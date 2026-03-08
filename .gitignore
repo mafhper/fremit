@@ -55,3 +55,27 @@ Thumbs.db
 yarn.lock
 pnpm-lock.yaml
 /performance-reports/manual
+/test-results
+/playwright-report
+/.gemini
+GEMINI.md
+
+# Codex local private files
+AGENTS.md
+.codex/
+.dev/
+.gemini/
+.claude/
+.qwen/
+.kimi/
+
+# Codex local private files
+.agents/
+.gemini-clipboard/
+.roo/
+.cursor/
+.windsurf/
+.claude-code/
+CLAUDE.md
+QWEN.md
+KIMI.md
