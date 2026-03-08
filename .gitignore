@@ -1,20 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+build/
+dist/
+dist-ssr/
+coverage/
+.nyc_output/
+.cache/
+*.lcov
+*.local
+
+# Test artifacts
+playwright-report/
+test-results/
+_performance-reports/
+performance-reports/*
+
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-
-# Dependencies
-node_modules
-
-# Build outputs
-dist
-dist-ssr
-build
-*.local
 
 # Environment files
 .env
@@ -23,59 +33,49 @@ build
 .env.test.local
 .env.production.local
 
-# Editor directories and files
+# Temporary files
+*.tmp
+*.temp
+
+# Editors and IDEs
+.idea/
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
 
-# Testing
-coverage
-*.lcov
-.nyc_output
-_dev/
-_performance-reports/
-
-# Temporary files
-*.tmp
-*.temp
-.cache
-
 # OS files
-Thumbs.db
+.DS_Store
 .AppleDouble
 .LSOverride
+Thumbs.db
 
-# Package manager lock files (keep package-lock.json, ignore others)
+# Package manager lockfiles not used in this repo
 yarn.lock
 pnpm-lock.yaml
-/performance-reports/manual
-/test-results
-/playwright-report
-/.gemini
-GEMINI.md
 
-# Codex local private files
-AGENTS.md
+# Private agent/tooling directories
+.agents/
+.claude/
+.claude-code/
 .codex/
+.cursor/
 .dev/
 .gemini/
-.claude/
-.qwen/
-.kimi/
-
-# Codex local private files
-.agents/
 .gemini-clipboard/
+.kimi/
+.qwen/
 .roo/
-.cursor/
 .windsurf/
-.claude-code/
+_dev/
+.dev/
+
+# Private agent/tooling files
+AGENTS.md
 CLAUDE.md
-QWEN.md
+GEMINI.md
 KIMI.md
+QWEN.md
