@@ -1,5 +1,5 @@
 import path from "path"
-import { execSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 
@@ -8,7 +8,7 @@ process.env.BROWSERSLIST_IGNORE_OLD_DATA = 'true'
 
 function getLastCommit() {
   try {
-    const [hash, date, ...subjectParts] = execSync('git log -1 --date=short --format=%h|%cs|%s', {
+    const [hash, date, ...subjectParts] = execFileSync('git', ['log', '-1', '--date=short', '--format=%h|%cs|%s'], {
       stdio: ['ignore', 'pipe', 'ignore'],
     })
       .toString()
