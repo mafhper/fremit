@@ -4,22 +4,11 @@ Turn links, screenshots, and image URLs into cleaner presentation assets.
 
 ![Fremit home in light mode](docs/readme/home-light.png)
 
-![Fremit editor using a Mark-Lee link](docs/readme/usage-mark-lee.png)
-
 Fremit is a static app for turning screenshots, image URLs, and best-effort website previews into cleaner presentation assets. It runs entirely on GitHub Pages and is now structured as a product site plus a dedicated editor.
 
 ## Live Demo
 
 [https://mafhper.github.io/fremit/](https://mafhper.github.io/fremit/)
-
-## What Changed
-
-- Product shell with routes for `/`, `/features`, `/how-it-works`, `/limitations`, `/faq`, and `/editor`
-- Dedicated editor canvas instead of a single tool-only screen
-- Explicit source pipeline for `upload`, `clipboard-image`, `image-url`, and `website-url`
-- Best-effort URL handling with visible fallback guidance instead of silent broken previews
-- Separate frame families for desktop browser chrome and generic mobile/tablet device frames
-- Export controls for PNG/JPG at `1x`, `2x`, or `3x`
 
 ## Current Feature Set
 
@@ -57,6 +46,8 @@ If no reliable preview is available, the current composition stays in place.
 - Vitest
 - Playwright
 
+![Fremit editor using a Mark-Lee link](docs/readme/usage-mark-lee.png)
+
 ## Getting Started
 
 ```bash
@@ -91,7 +82,6 @@ This project is configured for GitHub Pages deployment through `.github/workflow
 - The app is intentionally static and zero-cost.
 - Mobile and tablet frames are generic by design, not hardware simulations.
 - Long-lived project history and saved presets are still out of scope for this phase.
-- `bun.lock` is the only lockfile and Bun is the only supported package manager for this repo.
 
 ## Verification
 

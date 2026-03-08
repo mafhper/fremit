@@ -1,5 +1,5 @@
 import * as Popover from '@radix-ui/react-popover';
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Link, NavLink, Outlet } from 'react-router-dom';
 import { MenuPanelIcon } from '@/components/icons/AppIcons';
 import iconUrl from '/icon.svg?url';
 import { LocaleSelector } from '@/components/layout/LocaleSelector';
@@ -7,7 +7,6 @@ import { ThemeSelector } from '@/components/layout/ThemeSelector';
 import { Button } from '@/components/ui';
 import { useApplyTheme } from '@/hooks/useApplyTheme';
 import { useI18n } from '@/i18n/useI18n';
-import { useStore } from '@/store/useStore';
 
 const navItems = [
   { to: '/', key: 'home' as const },
@@ -17,11 +16,7 @@ const navItems = [
 
 export function ProductLayout() {
   useApplyTheme();
-  const location = useLocation();
   const { copy } = useI18n();
-  const themePreference = useStore((state) => state.appShell.themePreference);
-  const isHomeRoute = location.pathname === '/';
-  const currentThemeLabel = themePreference === 'dark' ? copy.theme.dark : copy.theme.light;
 
   return (
     <div className="app-shell flex min-h-svh flex-col text-foreground">
@@ -114,15 +109,7 @@ export function ProductLayout() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              {isHomeRoute && (
-                <span className="text-[hsl(var(--text-soft))]">
-                  {copy.theme.colorSelector} · {copy.theme.current}: {currentThemeLabel}
-                </span>
-              )}
-              <ThemeSelector />
-            </div>
-            <span>{copy.footer.language}</span>
+            <ThemeSelector />
             <LocaleSelector />
           </div>
         </div>

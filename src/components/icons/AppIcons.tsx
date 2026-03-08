@@ -40,6 +40,16 @@ export function UploadPanelIcon({ className }: IconProps) {
   );
 }
 
+export function SourcePanelIcon({ className }: IconProps) {
+  return (
+    <IconFrame className={className}>
+      <rect x="4" y="6" width="16" height="12" rx="3" fill="currentColor" opacity="0.12" />
+      <path d="M12 6.8v6.2m0 0 2.5-2.5M12 13l-2.5-2.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M8 16.7h8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </IconFrame>
+  );
+}
+
 export function ClipboardPanelIcon({ className }: IconProps) {
   return (
     <IconFrame className={className}>
@@ -67,6 +77,19 @@ export function DevicePanelIcon({ className }: IconProps) {
       <rect x="15.5" y="7.5" width="5" height="10" rx="1.8" stroke="currentColor" strokeWidth="1.7" />
       <rect x="5.7" y="7.2" width="5.6" height="9.6" rx="1.2" stroke="currentColor" strokeWidth="1.7" />
       <circle cx="8.5" cy="17.2" r="0.8" fill="currentColor" />
+    </IconFrame>
+  );
+}
+
+export function BrowserPanelIcon({ className }: IconProps) {
+  return (
+    <IconFrame className={className}>
+      <rect x="3.5" y="5.2" width="17" height="13.6" rx="3" fill="currentColor" opacity="0.12" />
+      <rect x="5.4" y="8.6" width="13.2" height="8.1" rx="1.6" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M3.8 8.4h16.4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <circle cx="6.7" cy="6.8" r="0.75" fill="currentColor" />
+      <circle cx="9.5" cy="6.8" r="0.75" fill="currentColor" opacity="0.82" />
+      <circle cx="12.3" cy="6.8" r="0.75" fill="currentColor" opacity="0.6" />
     </IconFrame>
   );
 }

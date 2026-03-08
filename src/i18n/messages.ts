@@ -44,8 +44,6 @@ export interface MessageSchema {
     workflow: ContentSection[];
     featuresTitle: string;
     features: ContentSection[];
-    noteTitle: string;
-    noteBody: string;
   };
   faq: {
     eyebrow: string;
@@ -208,8 +206,6 @@ export const messages: Record<Locale, MessageSchema> = {
           body: 'Solid, gradient, or image backgrounds plus export scale control.',
         },
       ],
-      noteTitle: 'When to use a screenshot',
-      noteBody: 'For authenticated pages, dynamic apps, or anything that exposes a poor preview, a manual screenshot remains the safest input.',
     },
     faq: {
       eyebrow: 'FAQ',
@@ -394,8 +390,6 @@ export const messages: Record<Locale, MessageSchema> = {
           body: 'Fundos sólidos, gradientes ou imagem com controle de escala na exportação.',
         },
       ],
-      noteTitle: 'Quando usar screenshot',
-      noteBody: 'Para páginas autenticadas, apps dinâmicos ou qualquer preview ruim, screenshot continua sendo a entrada mais segura.',
     },
     faq: {
       eyebrow: 'FAQ',
@@ -580,8 +574,6 @@ export const messages: Record<Locale, MessageSchema> = {
           body: 'Fondos sólidos, gradientes o imagen con control de escala para exportar.',
         },
       ],
-      noteTitle: 'Cuándo usar captura',
-      noteBody: 'Para páginas autenticadas, apps dinámicas o cualquier preview pobre, la captura sigue siendo la entrada más segura.',
     },
     faq: {
       eyebrow: 'FAQ',

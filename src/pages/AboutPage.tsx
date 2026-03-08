@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom';
-import { DevicePanelIcon, ExportPanelIcon, LinkPanelIcon } from '@/components/icons/AppIcons';
+import { BrowserPanelIcon, ExportPanelIcon, SourcePanelIcon } from '@/components/icons/AppIcons';
 import { Button } from '@/components/ui';
 import { useI18n } from '@/i18n/useI18n';
 
-const icons = [LinkPanelIcon, DevicePanelIcon, ExportPanelIcon];
+const icons = [SourcePanelIcon, BrowserPanelIcon, ExportPanelIcon];
 
 export function AboutPage() {
   const { copy } = useI18n();
@@ -29,7 +29,7 @@ export function AboutPage() {
 
           <div className="mt-6 grid gap-4 md:grid-cols-3">
             {copy.about.workflow.map((section, index) => {
-              const Icon = icons[index] ?? LinkPanelIcon;
+              const Icon = icons[index] ?? SourcePanelIcon;
 
               return (
                 <article
@@ -47,24 +47,17 @@ export function AboutPage() {
           </div>
         </section>
 
-        <section className="mt-10 grid items-start gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
-          <div className="surface-card rounded-[1.9rem] border p-6 md:p-7">
+        <section className="mt-10 surface-card rounded-[1.9rem] border p-6 md:p-7">
+          <div className="max-w-2xl">
             <h2 className="text-3xl font-semibold tracking-tight">{copy.about.featuresTitle}</h2>
-            <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              {copy.about.features.map((section) => (
-                <article key={section.title} className="rounded-[1.2rem] border border-border/70 bg-[hsl(var(--surface-muted))/0.68] p-5">
-                  <h3 className="text-xl font-semibold tracking-tight">{section.title}</h3>
-                  <p className="mt-3 text-sm leading-7 text-[hsl(var(--text-muted))]">{section.body}</p>
-                </article>
-              ))}
-            </div>
           </div>
-
-          <div className="surface-muted rounded-[1.9rem] border p-6 md:p-7">
-            <h2 className="text-3xl font-semibold tracking-tight">{copy.about.noteTitle}</h2>
-            <p className="mt-4 text-sm leading-7 text-[hsl(var(--text-muted))] md:text-base">
-              {copy.about.noteBody}
-            </p>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            {copy.about.features.map((section) => (
+              <article key={section.title} className="rounded-[1.2rem] border border-border/70 bg-[hsl(var(--surface-muted))/0.68] p-5">
+                <h3 className="text-xl font-semibold tracking-tight">{section.title}</h3>
+                <p className="mt-3 text-sm leading-7 text-[hsl(var(--text-muted))]">{section.body}</p>
+              </article>
+            ))}
           </div>
         </section>
       </section>
