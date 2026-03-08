@@ -44,6 +44,10 @@ export interface MessageSchema {
     workflow: ContentSection[];
     featuresTitle: string;
     features: ContentSection[];
+    developerTitle: string;
+    developerBody: string;
+    developerOpenSource: string;
+    developerProjects: string;
   };
   faq: {
     eyebrow: string;
@@ -132,6 +136,7 @@ export interface MessageSchema {
   footer: {
     language: string;
     lastCommit: string;
+    repository: string;
   };
 }
 
@@ -206,6 +211,11 @@ export const messages: Record<Locale, MessageSchema> = {
           body: 'Solid, gradient, or image backgrounds plus export scale control.',
         },
       ],
+      developerTitle: 'About mafhper',
+      developerBody: 'I believe in a free web, enriched by applications made with care. Simple tools that solve real problems.',
+      developerOpenSource:
+        'All of my projects are open source. You can explore the code, contribute, fork them, or simply learn from them. The web should belong to everyone.',
+      developerProjects: 'See other projects',
     },
     faq: {
       eyebrow: 'FAQ',
@@ -324,6 +334,7 @@ export const messages: Record<Locale, MessageSchema> = {
     footer: {
       language: 'Language',
       lastCommit: 'Last commit',
+      repository: 'Repository',
     },
   },
   'pt-BR': {
@@ -390,6 +401,12 @@ export const messages: Record<Locale, MessageSchema> = {
           body: 'Fundos sólidos, gradientes ou imagem com controle de escala na exportação.',
         },
       ],
+      developerTitle: 'Sobre mafhper',
+      developerBody:
+        'Acredito em uma web livre, enriquecida com aplicações feitas com carinho. Ferramentas simples que resolvem problemas reais.',
+      developerOpenSource:
+        'Todos os meus projetos são open source. Você pode explorar o código, contribuir, fazer fork, ou simplesmente aprender. A web deve ser de todos.',
+      developerProjects: 'Ver outros projetos',
     },
     faq: {
       eyebrow: 'FAQ',
@@ -508,6 +525,7 @@ export const messages: Record<Locale, MessageSchema> = {
     footer: {
       language: 'Idioma',
       lastCommit: 'Último commit',
+      repository: 'Repositório',
     },
   },
   es: {
@@ -574,6 +592,12 @@ export const messages: Record<Locale, MessageSchema> = {
           body: 'Fondos sólidos, gradientes o imagen con control de escala para exportar.',
         },
       ],
+      developerTitle: 'Sobre mafhper',
+      developerBody:
+        'Creo en una web libre, enriquecida con aplicaciones hechas con cuidado. Herramientas simples que resuelven problemas reales.',
+      developerOpenSource:
+        'Todos mis proyectos son open source. Puedes explorar el código, contribuir, hacer fork o simplemente aprender. La web debe ser de todos.',
+      developerProjects: 'Ver otros proyectos',
     },
     faq: {
       eyebrow: 'FAQ',
@@ -692,6 +716,7 @@ export const messages: Record<Locale, MessageSchema> = {
     footer: {
       language: 'Idioma',
       lastCommit: 'Último commit',
+      repository: 'Repositorio',
     },
   },
 };

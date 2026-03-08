@@ -1,6 +1,6 @@
 import * as Popover from '@radix-ui/react-popover';
 import { Link, NavLink, Outlet } from 'react-router-dom';
-import { MenuPanelIcon } from '@/components/icons/AppIcons';
+import { GitHubPanelIcon, MenuPanelIcon } from '@/components/icons/AppIcons';
 import iconUrl from '/icon.svg?url';
 import { LocaleSelector } from '@/components/layout/LocaleSelector';
 import { ThemeSelector } from '@/components/layout/ThemeSelector';
@@ -17,6 +17,12 @@ const navItems = [
 export function ProductLayout() {
   useApplyTheme();
   const { copy } = useI18n();
+  const commitLabel = __APP_LAST_COMMIT__.subject || __APP_LAST_COMMIT__.hash;
+  const commitPreview = commitLabel.length > 44 ? `${commitLabel.slice(0, 44).trimEnd()}...` : commitLabel;
+  const commitTitle = [__APP_LAST_COMMIT__.subject, __APP_LAST_COMMIT__.hash, __APP_LAST_COMMIT__.date]
+    .filter(Boolean)
+    .join(' · ');
+  const commitUrl = `${__APP_REPOSITORY__.url}/commit/${__APP_LAST_COMMIT__.hash}`;
 
   return (
     <div className="app-shell flex min-h-svh flex-col text-foreground">
@@ -102,10 +108,16 @@ export function ProductLayout() {
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 py-3 text-xs text-[hsl(var(--text-soft))] md:flex-row md:items-center md:justify-between md:px-6">
           <div className="flex flex-wrap items-center gap-3">
             <span>{copy.footer.lastCommit}</span>
-            <span className="rounded-full border border-border/80 px-3 py-1 text-[hsl(var(--text-muted))]">
-              {__APP_LAST_COMMIT__.hash}
-              {__APP_LAST_COMMIT__.date ? ` · ${__APP_LAST_COMMIT__.date}` : ''}
-            </span>
+            <a
+              href={commitUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex max-w-full items-center gap-2 rounded-full border border-border/80 px-3 py-1 text-[hsl(var(--text-muted))] transition hover:border-border hover:bg-[hsl(var(--surface-muted))] hover:text-foreground"
+              title={commitTitle}
+            >
+              <GitHubPanelIcon className="h-4 w-4 shrink-0" />
+              <span className="max-w-[17rem] truncate sm:max-w-[22rem] md:max-w-[26rem]">{commitPreview}</span>
+            </a>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { BrowserPanelIcon, ExportPanelIcon, SourcePanelIcon } from '@/components/icons/AppIcons';
+import { BrowserPanelIcon, ExportPanelIcon, GitHubPanelIcon, SourcePanelIcon } from '@/components/icons/AppIcons';
 import { Button } from '@/components/ui';
 import { useI18n } from '@/i18n/useI18n';
 
@@ -58,6 +58,38 @@ export function AboutPage() {
                 <p className="mt-3 text-sm leading-7 text-[hsl(var(--text-muted))]">{section.body}</p>
               </article>
             ))}
+          </div>
+        </section>
+
+        <section className="mt-10 surface-card rounded-[1.9rem] border p-6 md:p-7">
+          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-start gap-4">
+              <img
+                src={__APP_DEVELOPER__.avatarUrl}
+                alt={__APP_DEVELOPER__.name}
+                className="h-16 w-16 rounded-2xl border border-border/70 object-cover"
+                referrerPolicy="no-referrer"
+              />
+              <div className="max-w-2xl">
+                <h2 className="text-3xl font-semibold tracking-tight">{copy.about.developerTitle}</h2>
+                <p className="mt-3 text-sm leading-7 text-[hsl(var(--text-muted))] md:text-base">{copy.about.developerBody}</p>
+                <p className="mt-3 text-sm leading-7 text-[hsl(var(--text-muted))] md:text-base">{copy.about.developerOpenSource}</p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <Button asChild variant="outline" className="rounded-full px-5">
+                <a href={__APP_DEVELOPER__.profileUrl} target="_blank" rel="noreferrer">
+                  <GitHubPanelIcon className="mr-2 h-4 w-4" />
+                  GitHub
+                </a>
+              </Button>
+              <Button asChild className="rounded-full px-5">
+                <a href={__APP_DEVELOPER__.siteUrl} target="_blank" rel="noreferrer">
+                  {copy.about.developerProjects}
+                </a>
+              </Button>
+            </div>
           </div>
         </section>
       </section>
