@@ -1,188 +1,185 @@
-import { useEffect, useRef } from 'react';
-import { VERTEX_SHADER, FRAGMENT_SHADER } from './shader';
-import { lightPreset, darkPreset, type LiquidMeshPreset } from './presets';
-import { createProgram, createFullScreenTriangle, hexToRgb, isDarkTheme } from './webgl';
-import { useReducedMotion } from './useReducedMotion';
+/**
+ * LiquidMeshBackdrop.tsx
+ * Canvas WebGL decorativo para o hero.
+ *
+ * Correções aplicadas:
+ *  - ResizeObserver em vez de leitura única no mount (canvas.width/height nunca fica 0)
+ *  - Flag `destroyed` protege o loop de animação contra React Strict Mode e HMR
+ *  - destroyContext() libera o contexto WebGL no cleanup (evita acúmulo de contextos)
+ *  - useThemePreset() substitui isDarkTheme() — reage a mudanças de tema em tempo real
+ *  - IntersectionObserver só pausa após os primeiros frames (evita tela branca em layout shift)
+ *  - getWebGLContext() usa alpha: false e tenta webgl2 como fallback
+ *  - Fallback CSS visível quando WebGL não está disponível
+ */
 
-const RESOLUTION_CAP = 1.5;
-const MOUSE_LERP = 0.055;
+import { useEffect, useRef } from 'react';
+import { FRAGMENT_SHADER, VERTEX_SHADER } from './shader';
+import {
+  createFullScreenTriangle,
+  createProgram,
+  destroyContext,
+  getWebGLContext,
+  hexToRgb,
+} from './webgl';
+import { useThemePreset } from './useThemePreset';
 
 export function LiquidMeshBackdrop() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const reduced = useReducedMotion();
+  const preset = useThemePreset();
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const root = rootRef.current;
-    if (!canvas || !root) return;
+    if (!canvas) return;
 
-    if (reduced) {
+    // ─── estado do loop ───────────────────────────────────────────────────
+    let destroyed = false;   // impede renders após unmount (Strict Mode / HMR)
+    let rafId     = 0;
+    let frameCount = 0;
+    let isVisible  = true;   // começa como true — nunca pausar o 1º frame
+    let gl: WebGLRenderingContext | null = null;
+
+    // ─── obter contexto ───────────────────────────────────────────────────
+    gl = getWebGLContext(canvas);
+    if (!gl) {
+      // WebGL não disponível — fallback CSS já está no DOM
       canvas.style.display = 'none';
-      console.log('[LiquidMeshBackdrop] skipped: prefers-reduced-motion');
       return;
     }
 
-    const ctx = canvas.getContext('webgl', {
-      alpha: true,
-      antialias: false,
-      depth: false,
-      stencil: false,
-      powerPreference: 'high-performance',
-    });
-
-    if (!ctx) {
-      canvas.style.display = 'none';
-      console.error('[LiquidMeshBackdrop] WebGL context not available');
-      return;
-    }
-
+    // ─── compilar programa ────────────────────────────────────────────────
     let program: WebGLProgram;
-    let buffer: WebGLBuffer;
     let uniforms: Record<string, WebGLUniformLocation | null>;
-    let running = true;
-    let rafId = 0;
-    let sceneTime = 0;
-    let lastTime = 0;
-    const gl = ctx;
-
-    const mouse = { x: 0.5, y: 0.5, tx: 0.5, ty: 0.5 };
-
     try {
-      const result = createProgram(gl, VERTEX_SHADER, FRAGMENT_SHADER);
-      program = result.program;
-      uniforms = result.uniforms;
-      buffer = createFullScreenTriangle(gl);
-    } catch (e) {
+      ({ program, uniforms } = createProgram(gl, VERTEX_SHADER, FRAGMENT_SHADER));
+    } catch (err) {
+      console.error('[LiquidMesh] Shader compile/link error:', err);
       canvas.style.display = 'none';
-      console.error('[LiquidMeshBackdrop] WebGL init error:', e);
+      destroyContext(gl);
       return;
     }
+
+    // ─── buffer full-screen ───────────────────────────────────────────────
+    const buffer = createFullScreenTriangle(gl);
+    const posLoc = gl.getAttribLocation(program, 'position');
 
     gl.useProgram(program);
-
-    const positionLoc = gl.getAttribLocation(program, 'aPosition');
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.enableVertexAttribArray(positionLoc);
-    gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(posLoc);
+    gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
 
-    function getPreset(): LiquidMeshPreset {
-      return isDarkTheme() ? darkPreset : lightPreset;
-    }
+    // ─── uniforms de cor (preset) ─────────────────────────────────────────
+    const [rA, gA, bA] = hexToRgb(preset.colorA);
+    const [rB, gB, bB] = hexToRgb(preset.colorB);
+    const [rC, gC, bC] = hexToRgb(preset.colorC);
 
-    function resize() {
-      const cvs = canvas;
-      if (!cvs) return;
-      const dpr = Math.min(window.devicePixelRatio || 1, RESOLUTION_CAP);
-      const w = root!.clientWidth;
-      const h = root!.clientHeight;
-      if (!w || !h) return;
-      const bw = Math.floor(w * dpr);
-      const bh = Math.floor(h * dpr);
-      if (cvs.width !== bw || cvs.height !== bh) {
-        cvs.width = bw;
-        cvs.height = bh;
-        gl.viewport(0, 0, bw, bh);
+    gl.uniform3f(uniforms['uColorA'], rA, gA, bA);
+    gl.uniform3f(uniforms['uColorB'], rB, gB, bB);
+    gl.uniform3f(uniforms['uColorC'], rC, gC, bC);
+    gl.uniform1f(uniforms['uWarp'],     preset.warp);
+    gl.uniform1f(uniforms['uRipple'],   preset.ripple);
+    gl.uniform1f(uniforms['uChrome'],   preset.chrome);
+    gl.uniform1f(uniforms['uContrast'], preset.contrast);
+    gl.uniform1f(uniforms['uGrain'],    preset.grain);
+    gl.uniform1f(uniforms['uSpeed'],    preset.speed);
+    gl.uniform2f(uniforms['uMouse'],    0.5, 0.5); // centro — atualizado por mousemove
+
+    // ─── mouse interaction ────────────────────────────────────────────────
+    let mouseX = 0.5;
+    let mouseY = 0.5;
+
+    const onMouseMove = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseX = (e.clientX - rect.left) / rect.width;
+      mouseY = 1.0 - (e.clientY - rect.top) / rect.height;
+    };
+    window.addEventListener('mousemove', onMouseMove, { passive: true });
+
+    // ─── ResizeObserver — mantém canvas.width/height sempre corretos ──────
+    const dpr = Math.min(window.devicePixelRatio, 1.5);
+
+    function syncSize() {
+      if (!gl || !canvas) return;
+      const { width, height } = canvas.getBoundingClientRect();
+      const w = Math.floor(width * dpr);
+      const h = Math.floor(height * dpr);
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width  = w;
+        canvas.height = h;
+        gl.viewport(0, 0, w, h);
       }
     }
 
-    function render(time: number) {
-      if (!running) return;
-      rafId = requestAnimationFrame(render);
+    const ro = new ResizeObserver(syncSize);
+    ro.observe(canvas);
+    syncSize(); // leitura inicial — garante que o 1º frame tenha dimensão correta
 
-      const preset = getPreset();
+    // ─── IntersectionObserver ─────────────────────────────────────────────
+    const PAUSE_AFTER_FRAMES = 10;
 
-      if (lastTime === 0) lastTime = time;
-      const delta = Math.min((time - lastTime) / 1000, 0.05);
-      lastTime = time;
-
-      sceneTime += delta * preset.speed;
-
-      mouse.x += (mouse.tx - mouse.x) * MOUSE_LERP;
-      mouse.y += (mouse.ty - mouse.y) * MOUSE_LERP;
-
-      resize();
-
-      const [rA, gA, bA] = hexToRgb(preset.colorA);
-      const [rB, gB, bB] = hexToRgb(preset.colorB);
-      const [rC, gC, bC] = hexToRgb(preset.colorC);
-
-      gl.uniform1f(uniforms.uTime, sceneTime);
-      gl.uniform2f(uniforms.uResolution, canvas!.width, canvas!.height);
-      gl.uniform2f(uniforms.uMouse, mouse.x, mouse.y);
-      gl.uniform1f(uniforms.uWarp, preset.warp);
-      gl.uniform1f(uniforms.uRipple, preset.ripple);
-      gl.uniform1f(uniforms.uChrome, preset.chrome);
-      gl.uniform1f(uniforms.uContrast, preset.contrast);
-      gl.uniform1f(uniforms.uGrain, preset.grain);
-      gl.uniform1f(uniforms.uPointer, preset.pointer ? 1.0 : 0.0);
-      gl.uniform1f(uniforms.uClouds, preset.clouds);
-      gl.uniform2f(uniforms.uCenter, preset.centerX, preset.centerY);
-      gl.uniform1f(uniforms.uCenterSize, preset.centerSize);
-      gl.uniform3f(uniforms.uColorA, rA, gA, bA);
-      gl.uniform3f(uniforms.uColorB, rB, gB, bB);
-      gl.uniform3f(uniforms.uColorC, rC, gC, bC);
-
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
-    }
-
-    function onPointerMove(e: PointerEvent) {
-      const rect = root!.getBoundingClientRect();
-      mouse.tx = (e.clientX - rect.left) / rect.width;
-      mouse.ty = 1.0 - (e.clientY - rect.top) / rect.height;
-    }
-
-    function onVisibilityChange() {
-      if (document.hidden) {
-        running = false;
-        cancelAnimationFrame(rafId);
-      } else {
-        running = true;
-        lastTime = 0;
-        rafId = requestAnimationFrame(render);
-      }
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const isVisible = entries[0]?.isIntersecting ?? true;
-        if (!isVisible) {
-          running = false;
-          cancelAnimationFrame(rafId);
-        } else if (!document.hidden) {
-          running = true;
-          lastTime = 0;
-          rafId = requestAnimationFrame(render);
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (frameCount >= PAUSE_AFTER_FRAMES) {
+          isVisible = entry.isIntersecting;
         }
       },
-      { threshold: 0.05 },
+      { threshold: 0.01 },
     );
+    io.observe(canvas);
 
-    observer.observe(root);
-
-    window.addEventListener('resize', resize);
-    root.addEventListener('pointermove', onPointerMove);
+    // ─── visibilitychange ─────────────────────────────────────────────────
+    const onVisibilityChange = () => {
+      if (frameCount >= PAUSE_AFTER_FRAMES) {
+        isVisible = document.visibilityState === 'visible';
+      }
+    };
     document.addEventListener('visibilitychange', onVisibilityChange);
+
+    // ─── loop de animação ─────────────────────────────────────────────────
+    const t0 = performance.now();
+
+    function render() {
+      if (destroyed) return; // proteção contra Strict Mode / HMR
+
+      rafId = requestAnimationFrame(render);
+
+      // Pular draw (mas manter loop vivo) quando invisível
+      if (!isVisible && frameCount >= PAUSE_AFTER_FRAMES) return;
+      if (!canvas || canvas.width === 0 || canvas.height === 0) return;
+
+      const elapsed = (performance.now() - t0) / 1000;
+
+      if (!gl) return;
+      gl.uniform1f(uniforms['uTime'],  elapsed * preset.speed);
+      gl.uniform2f(uniforms['uMouse'], mouseX, mouseY);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+      frameCount++;
+    }
 
     rafId = requestAnimationFrame(render);
 
+    // ─── cleanup ──────────────────────────────────────────────────────────
     return () => {
-      running = false;
+      destroyed = true;
       cancelAnimationFrame(rafId);
-      observer.disconnect();
-      window.removeEventListener('resize', resize);
-      root.removeEventListener('pointermove', onPointerMove);
+      ro.disconnect();
+      io.disconnect();
+      window.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('visibilitychange', onVisibilityChange);
-      if (gl) {
-        gl.deleteBuffer(buffer);
-        gl.deleteProgram(program);
-      }
+      if (gl) destroyContext(gl);
     };
-  }, [reduced]);
+  }, [preset]); // re-executa quando o tema muda
 
   return (
-    <div ref={rootRef} className="liquid-mesh-root" aria-hidden="true">
-      <canvas ref={canvasRef} className="liquid-mesh-canvas" />
-    </div>
+    <>
+      {/* Fallback CSS — visível quando WebGL falha ou durante carregamento */}
+      <div className="hero__fallback" aria-hidden="true" />
+      {/* Canvas WebGL — puramente decorativo */}
+      <canvas
+        ref={canvasRef}
+        className="hero__canvas"
+        aria-hidden="true"
+      />
+    </>
   );
 }

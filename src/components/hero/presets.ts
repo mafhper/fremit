@@ -1,50 +1,49 @@
-export interface LiquidMeshPreset {
+/**
+ * presets.ts
+ * Paletas e parâmetros WebGL por tema (claro / escuro).
+ *
+ * Tema claro: base branca, reflexo azul suave, acento azul vivo.
+ * Tema escuro: base preta, profundidade azul-marinho, ciano elétrico.
+ *
+ * Valores calibrados para produzir variação visual perceptível:
+ *  - contrast ≥ 0.65 (abaixo disso o efeito fica imperceptível)
+ *  - speed    ≥ 0.35 (abaixo disso o movimento é muito lento para notar)
+ *  - chrome   ≥ 0.60 para o tema escuro (necessário com base preta)
+ */
+
+export interface LiquidPreset {
   speed: number;
   warp: number;
   ripple: number;
   chrome: number;
   contrast: number;
   grain: number;
-  clouds: number;
-  centerX: number;
-  centerY: number;
-  centerSize: number;
-  pointer: boolean;
-  colorA: string;
-  colorB: string;
-  colorC: string;
+  colorA: string; // camada inferior (base)
+  colorB: string; // reflexo principal
+  colorC: string; // acento / highlight
 }
 
-export const lightPreset: LiquidMeshPreset = {
-  speed: 0.55,
-  warp: 0.75,
-  ripple: 0.55,
-  chrome: 0.70,
-  contrast: 0.75,
-  grain: 0.04,
-  clouds: 0.6,
-  centerX: 0.58,
-  centerY: 0.34,
-  centerSize: 1.32,
-  pointer: true,
-  colorA: '#ffffff',
-  colorB: '#dbeafe',
-  colorC: '#3b82f6',
-};
-
-export const darkPreset: LiquidMeshPreset = {
-  speed: 0.55,
-  warp: 0.85,
-  ripple: 0.60,
-  chrome: 0.85,
-  contrast: 0.80,
-  grain: 0.06,
-  clouds: 0.65,
-  centerX: 0.58,
-  centerY: 0.34,
-  centerSize: 1.32,
-  pointer: true,
-  colorA: '#000000',
-  colorB: '#1e3a5f',
-  colorC: '#38bdf8',
-};
+export const liquidPresets = {
+  light: {
+    speed:    0.35,
+    warp:     0.62,
+    ripple:   0.38,
+    chrome:   0.55,
+    contrast: 0.68,
+    grain:    0.04,
+    colorA: '#ffffff', // base branca
+    colorB: '#dbeafe', // azul-100 — reflexo suave
+    colorC: '#3b82f6', // azul-500 — acento vivo
+  },
+  dark: {
+    speed:    0.42,
+    warp:     0.74,
+    ripple:   0.48,
+    chrome:   0.78,
+    contrast: 0.72,
+    grain:    0.06,
+    colorA: '#000000', // base preta
+    colorB: '#1e3a5f', // azul-marinho profundo
+    colorC: '#38bdf8', // sky-400 — ciano elétrico
+  },
+} as const satisfies Record<string, LiquidPreset>;

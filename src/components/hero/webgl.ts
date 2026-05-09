@@ -70,7 +70,37 @@ export function hexToRgb(hex: string): [number, number, number] {
   ];
 }
 
-export function isDarkTheme(): boolean {
-  if (typeof document === 'undefined') return false;
-  return document.documentElement.classList.contains('dark');
+/**
+ * Tenta obter um WebGLRenderingContext com as opções ideais para um hero decorativo.
+ * Tenta `webgl` primeiro; cai para `webgl2` (retornado como WebGLRenderingContext).
+ * Retorna null se nenhum dos dois estiver disponível.
+ */
+export function getWebGLContext(canvas: HTMLCanvasElement): WebGLRenderingContext | null {
+  const opts: WebGLContextAttributes = {
+    alpha: false,
+    antialias: false,
+    depth: false,
+    stencil: false,
+    powerPreference: 'high-performance',
+    preserveDrawingBuffer: false,
+  };
+
+  return (
+    (canvas.getContext('webgl', opts) as WebGLRenderingContext | null) ??
+    (canvas.getContext('webgl2', opts) as WebGLRenderingContext | null)
+  );
+}
+
+/**
+ * Libera o contexto WebGL de forma segura.
+ * Usar sempre no cleanup do useEffect para evitar acúmulo de contextos
+ * (limite de ~16 por página no Chrome) durante HMR ou remontagens frequentes.
+ */
+export function destroyContext(gl: WebGLRenderingContext): void {
+  try {
+    const ext = gl.getExtension('WEBGL_lose_context');
+    ext?.loseContext();
+  } catch {
+    // Extensão não disponível em todos os browsers — falha silenciosa é aceitável
+  }
 }

@@ -7,7 +7,7 @@ export function HomePage() {
 
   return (
     <main className="flex flex-1 flex-col">
-      <section className="hero relative flex flex-col overflow-hidden">
+      <section className="hero relative flex flex-1 flex-col overflow-hidden min-h-svh">
         <LiquidMeshBackdrop />
         <div className="hero-fade" aria-hidden="true" />
         <div className="hero__content">
