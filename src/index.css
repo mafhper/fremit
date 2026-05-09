@@ -1,79 +1,4 @@
-@font-face {
-  font-family: 'Fraunces';
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src:
-    local('Fraunces SemiBold'),
-    local('Fraunces-SemiBold'),
-    url('/fonts/fraunces-600.ttf') format('truetype');
-}
-
-@font-face {
-  font-family: 'Fraunces';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src:
-    local('Fraunces Bold'),
-    local('Fraunces-Bold'),
-    url('/fonts/fraunces-700.ttf') format('truetype');
-}
-
-@font-face {
-  font-family: 'Manrope';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src:
-    local('Manrope Regular'),
-    local('Manrope-Regular'),
-    url('/fonts/manrope-400.ttf') format('truetype');
-}
-
-@font-face {
-  font-family: 'Manrope';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src:
-    local('Manrope Medium'),
-    local('Manrope-Medium'),
-    url('/fonts/manrope-500.ttf') format('truetype');
-}
-
-@font-face {
-  font-family: 'Manrope';
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src:
-    local('Manrope SemiBold'),
-    local('Manrope-SemiBold'),
-    url('/fonts/manrope-600.ttf') format('truetype');
-}
-
-@font-face {
-  font-family: 'Manrope';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src:
-    local('Manrope Bold'),
-    local('Manrope-Bold'),
-    url('/fonts/manrope-700.ttf') format('truetype');
-}
-
-@font-face {
-  font-family: 'Manrope';
-  font-style: normal;
-  font-weight: 800;
-  font-display: swap;
-  src:
-    local('Manrope ExtraBold'),
-    local('Manrope-ExtraBold'),
-    url('/fonts/manrope-800.ttf') format('truetype');
-}
+@import '@fontsource/inter';
 
 @tailwind base;
 @tailwind components;
@@ -81,81 +6,92 @@
 
 @layer base {
   :root {
-    --background: 30 32% 95%;
-    --foreground: 214 30% 15%;
+    /* 60-30-10 palette — Cool Blues */
+    --color-base:        210 20% 98%;
+    --color-base-elevated: 0 0% 100%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 214 30% 15%;
+    --color-secondary:    213 25% 88%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 214 30% 15%;
+    --color-primary:      224 76% 48%;
+    --color-primary-fore: 0 0% 100%;
 
-    --primary: 212 61% 17%;
-    --primary-foreground: 38 60% 97%;
+    --color-accent:       212 80% 52%;
+    --color-accent-fore:  0 0% 100%;
 
-    --secondary: 195 27% 88%;
-    --secondary-foreground: 214 30% 15%;
+    --color-destructive:    0 72% 56%;
+    --color-destructive-fore: 0 0% 100%;
 
-    --muted: 32 22% 88%;
-    --muted-foreground: 214 15% 36%;
+    /* Text */
+    --foreground:         210 25% 12%;
+    --text-muted:         213 18% 38%;
+    --text-soft:          213 14% 52%;
 
-    --accent: 19 82% 60%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 72% 56%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 30 18% 79%;
-    --input: 30 18% 79%;
-    --ring: 19 82% 60%;
-
-    --surface: 0 0% 100%;
-    --surface-muted: 30 20% 92%;
-    --surface-subtle: 195 26% 90%;
-    --text-muted: 214 15% 36%;
-    --text-soft: 214 12% 46%;
-    --shell-glow: 196 38% 84%;
-    --shell-accent: 20 72% 82%;
-
+    /* Surface & Shape */
+    --surface:            0 0% 100%;
+    --surface-muted:      210 40% 96%;
+    --border:             214 32% 91%;
+    --ring:               212 80% 52%;
     --radius: 1rem;
+
+    /* Backward-compat aliases */
+    --background: var(--color-base);
+    --accent: var(--color-accent);
+    --accent-foreground: var(--color-accent-fore);
+    --primary: var(--color-primary);
+    --primary-foreground: var(--color-primary-fore);
+    --destructive: var(--color-destructive);
+    --destructive-foreground: var(--color-destructive-fore);
+    --muted: var(--color-secondary);
+    --muted-foreground: var(--text-muted);
+    --card: var(--color-base-elevated);
+    --card-foreground: var(--foreground);
+    --popover: var(--color-base-elevated);
+    --popover-foreground: var(--foreground);
+    --input: var(--border);
   }
 
   .dark {
-    --background: 220 44% 7%;
-    --foreground: 40 36% 93%;
+    --color-base:        215 28% 7%;
+    --color-base-elevated: 217 33% 12%;
 
-    --card: 218 31% 11%;
-    --card-foreground: 40 36% 93%;
+    --color-secondary:    215 22% 14%;
 
-    --popover: 218 31% 11%;
-    --popover-foreground: 40 36% 93%;
+    --color-primary:      198 93% 60%;
+    --color-primary-fore: 215 63% 7%;
 
-    --primary: 40 36% 93%;
-    --primary-foreground: 220 44% 7%;
+    --color-accent:       210 90% 62%;
+    --color-accent-fore:  0 0% 100%;
 
-    --secondary: 214 25% 18%;
-    --secondary-foreground: 40 36% 93%;
+    --color-destructive:    0 72% 56%;
+    --color-destructive-fore: 0 0% 100%;
 
-    --muted: 215 22% 15%;
-    --muted-foreground: 214 16% 70%;
+    /* Text */
+    --foreground:         210 15% 95%;
+    --text-muted:         213 20% 68%;
+    --text-soft:          213 16% 55%;
 
-    --accent: 19 82% 60%;
-    --accent-foreground: 220 44% 7%;
+    /* Surface & Shape */
+    --surface:            217 33% 12%;
+    --surface-muted:      215 22% 14%;
+    --border:             209 41% 20%;
+    --ring:               210 90% 62%;
+    --radius: 1rem;
 
-    --destructive: 0 72% 56%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 215 19% 22%;
-    --input: 215 19% 22%;
-    --ring: 19 82% 60%;
-
-    --surface: 218 31% 11%;
-    --surface-muted: 217 28% 14%;
-    --surface-subtle: 212 29% 17%;
-    --text-muted: 214 16% 76%;
-    --text-soft: 214 16% 64%;
-    --shell-glow: 214 52% 18%;
-    --shell-accent: 18 43% 16%;
+    /* Backward-compat aliases */
+    --background: var(--color-base);
+    --accent: var(--color-accent);
+    --accent-foreground: var(--color-accent-fore);
+    --primary: var(--color-primary);
+    --primary-foreground: var(--color-primary-fore);
+    --destructive: var(--color-destructive);
+    --destructive-foreground: var(--color-destructive-fore);
+    --muted: var(--color-secondary);
+    --muted-foreground: var(--text-muted);
+    --card: var(--color-base-elevated);
+    --card-foreground: var(--foreground);
+    --popover: var(--color-base-elevated);
+    --popover-foreground: var(--foreground);
+    --input: var(--border);
   }
 
   * {
@@ -168,15 +104,14 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Manrope', 'Segoe UI', sans-serif;
+    font-family: 'Inter', 'Segoe UI Variable Text', 'Aptos', ui-sans-serif, system-ui, sans-serif;
     min-height: 100vh;
   }
 
   h1,
   h2,
   h3 {
-    font-family: 'Fraunces', Georgia, serif;
-    letter-spacing: -0.03em;
+    letter-spacing: -0.02em;
   }
 
   button,
@@ -192,27 +127,25 @@
 
   .app-shell {
     background-image:
-      radial-gradient(circle at top, hsl(var(--shell-glow) / 0.35), transparent 52%),
+      radial-gradient(circle at top, hsl(var(--color-accent) / 0.06), transparent 52%),
       linear-gradient(180deg, hsl(var(--background)), hsl(var(--surface-muted)));
   }
 
   .surface-card {
-    background:
-      linear-gradient(180deg, hsl(var(--surface) / 0.98), hsl(var(--surface) / 0.9));
+    background: hsl(var(--color-base-elevated));
     border-color: hsl(var(--border) / 0.75);
     box-shadow:
       inset 0 1px 0 hsl(0 0% 100% / 0.08),
-      0 14px 28px hsl(220 25% 4% / 0.06);
+      0 14px 28px hsl(215 28% 4% / 0.06);
   }
 
   .surface-muted {
-    background:
-      linear-gradient(180deg, hsl(var(--surface-muted) / 0.92), hsl(var(--surface-muted) / 0.8));
+    background: hsl(var(--surface-muted));
     border-color: hsl(var(--border) / 0.72);
     box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.06);
   }
 
   ::selection {
-    background: rgba(241, 115, 79, 0.24);
+    background: hsl(var(--color-accent) / 0.2);
   }
 }
