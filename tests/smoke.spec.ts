@@ -23,17 +23,17 @@ test('public mobile menu exposes navigation and open app', async ({ page }) => {
 
   await expect(page.getByRole('link', { name: /Home|Início|Inicio/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /About|Sobre/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'FAQ' })).toBeVisible();
   await expect(page.getByRole('link', { name: /Open app|Abrir app/i })).toBeVisible();
 });
 
-test('about and faq routes expose the simplified public IA', async ({ page }) => {
+test('about page exposes workflow, features, FAQ, and developer sections', async ({ page }) => {
   await page.goto('/fremit/about');
   await page.waitForLoadState('networkidle');
+
   await expect(page.getByRole('heading', { name: /How to use Fremit\.|Como usar o Fremit\./i })).toBeVisible({ timeout: 15000 });
   await expect(page.getByText('How it works').or(page.getByText('Como funciona'))).toBeVisible({ timeout: 15000 });
 
-  await page.goto('/fremit/faq');
+  await page.goto('/fremit/about#faq');
   await page.waitForLoadState('networkidle');
   await expect(page.getByRole('heading', { name: /Frequently asked questions\.|Perguntas frequentes\./i })).toBeVisible({ timeout: 15000 });
   await expect(page.getByText('Limitations of URL mode').or(page.getByText('Limitações do modo URL'))).toBeVisible({ timeout: 15000 });
