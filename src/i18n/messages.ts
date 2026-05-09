@@ -171,7 +171,7 @@ export const messages: Record<Locale, MessageSchema> = {
     },
     home: {
       title: 'Paste, edit, and export.',
-      subtitle: 'Link, screenshot, or image. Adjust and export.',
+      subtitle: 'A link, an image, or a screenshot. Adjust the frame and export.',
     },
     about: {
       eyebrow: 'About',
@@ -361,7 +361,7 @@ export const messages: Record<Locale, MessageSchema> = {
     },
     home: {
       title: 'Cole, edite e exporte.',
-      subtitle: 'Link, screenshot ou imagem. Ajuste e exporte.',
+      subtitle: 'Um link, uma imagem ou uma captura. Ajuste a moldura e exporte.',
     },
     about: {
       eyebrow: 'Sobre',
@@ -552,7 +552,7 @@ export const messages: Record<Locale, MessageSchema> = {
     },
     home: {
       title: 'Pega, edita y exporta.',
-      subtitle: 'Enlace, captura o imagen. Ajusta y exporta.',
+      subtitle: 'Un enlace, una imagen o una captura. Ajusta el marco y exporta.',
     },
     about: {
       eyebrow: 'Sobre',

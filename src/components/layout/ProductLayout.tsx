@@ -1,5 +1,5 @@
 import * as Popover from '@radix-ui/react-popover';
-import { Link, NavLink, Outlet } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { GitHubPanelIcon, MenuPanelIcon } from '@/components/icons/AppIcons';
 import iconUrl from '/icon.svg?url';
 import { LocaleSelector } from '@/components/layout/LocaleSelector';
@@ -7,16 +7,32 @@ import { ThemeSelector } from '@/components/layout/ThemeSelector';
 import { Button } from '@/components/ui';
 import { useApplyTheme } from '@/hooks/useApplyTheme';
 import { useI18n } from '@/i18n/useI18n';
+import { useEffect, useState } from 'react';
 
 const navItems = [
   { to: '/', key: 'home' as const },
   { to: '/about', key: 'about' as const },
-  { to: '/faq', key: 'faq' as const },
 ];
 
 export function ProductLayout() {
   useApplyTheme();
   const { copy } = useI18n();
+  const location = useLocation();
+  const isHome = location.pathname === '/';
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    if (!isHome) {
+      setScrolled(true);
+      return;
+    }
+    setScrolled(false);
+    const onScroll = () => setScrolled(window.scrollY > 60);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [isHome]);
+
   const commitLabel = __APP_LAST_COMMIT__.subject || __APP_LAST_COMMIT__.hash;
   const commitPreview = commitLabel.length > 44 ? `${commitLabel.slice(0, 44).trimEnd()}...` : commitLabel;
   const commitTitle = [__APP_LAST_COMMIT__.subject, __APP_LAST_COMMIT__.hash, __APP_LAST_COMMIT__.date]
@@ -24,11 +40,17 @@ export function ProductLayout() {
     .join(' · ');
   const commitUrl = `${__APP_REPOSITORY__.url}/commit/${__APP_LAST_COMMIT__.hash}`;
 
+  const headerClass = scrolled
+    ? 'border-b border-border/80 bg-background/80 backdrop-blur'
+    : 'border-b border-transparent bg-transparent';
+
+  const brandClass = scrolled ? 'text-foreground' : 'text-foreground/90';
+
   return (
     <div className="app-shell flex min-h-svh flex-col text-foreground">
-      <header className="border-b border-border/80 bg-background/80 backdrop-blur">
+      <header className={`fixed top-0 right-0 left-0 z-50 transition-all duration-500 ${headerClass}`}>
         <div className="mx-auto grid h-16 w-full max-w-6xl grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 md:px-6">
-          <Link to="/" className="flex items-center gap-3 justify-self-start">
+          <Link to="/" className={`flex items-center gap-3 justify-self-start transition-colors ${brandClass}`}>
             <img src={iconUrl} alt={copy.brandName} className="h-9 w-9" />
             <span className="text-base font-semibold tracking-tight">{copy.brandName}</span>
           </Link>
@@ -41,8 +63,8 @@ export function ProductLayout() {
                 end={item.to === '/'}
                 className={({ isActive }) =>
                   isActive
-                    ? 'rounded-full bg-[hsl(var(--surface))] px-4 py-2 text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-                    : 'rounded-full px-4 py-2 transition hover:bg-[hsl(var(--surface))] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                    ? 'rounded-full bg-[hsl(var(--surface)/0.9)] px-4 py-2 text-foreground shadow-sm backdrop-blur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                    : 'rounded-full px-4 py-2 transition hover:bg-[hsl(var(--surface)/0.7)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
                 }
               >
                 {copy.nav[item.key]}
@@ -102,7 +124,9 @@ export function ProductLayout() {
         </div>
       </header>
 
-      <Outlet />
+      <div className="pt-16 flex-1 flex flex-col">
+        <Outlet />
+      </div>
 
       <footer className="border-t border-border/80 bg-background/70 backdrop-blur">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 py-3 text-xs text-[hsl(var(--text-soft))] md:flex-row md:items-center md:justify-between md:px-6">
