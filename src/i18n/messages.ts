@@ -15,7 +15,6 @@ export interface MessageSchema {
   nav: {
     home: string;
     about: string;
-    faq: string;
     openApp: string;
     menu: string;
     backToSite: string;
@@ -48,15 +47,14 @@ export interface MessageSchema {
     developerBody: string;
     developerOpenSource: string;
     developerProjects: string;
-  };
-  faq: {
-    eyebrow: string;
-    title: string;
-    intro: string;
-    questions: FaqItem[];
-    limitationsTitle: string;
-    limitationsIntro: string;
-    limitations: FaqItem[];
+    faq: {
+      title: string;
+      intro: string;
+      questions: FaqItem[];
+      limitationsTitle: string;
+      limitationsIntro: string;
+      limitations: FaqItem[];
+    };
   };
   source: {
     label: string;
@@ -152,7 +150,6 @@ export const messages: Record<Locale, MessageSchema> = {
     nav: {
       home: 'Home',
       about: 'About',
-      faq: 'FAQ',
       openApp: 'Open app',
       menu: 'Menu',
       backToSite: 'Back to site',
@@ -216,45 +213,44 @@ export const messages: Record<Locale, MessageSchema> = {
       developerOpenSource:
         'All of my projects are open source. You can explore the code, contribute, fork them, or simply learn from them. The web should belong to everyone.',
       developerProjects: 'See other projects',
-    },
-    faq: {
-      eyebrow: 'FAQ',
-      title: 'Frequently asked questions.',
-      intro: 'Short answers about use, export, and the limits of URL mode.',
-      questions: [
-        {
-          question: 'Why does a link fail sometimes?',
-          answer: 'URL mode depends on Microlink plus whatever screenshot or metadata the target site exposes. Some sites do not expose a usable preview.',
-        },
-        {
-          question: 'When should I use a manual screenshot?',
-          answer: 'Use a screenshot for private pages, apps behind login, dynamic views, or when the URL preview does not match what you see.',
-        },
-        {
-          question: 'Can I export phone and tablet mockups?',
-          answer: 'Yes. The editor includes generic phone and tablet frames with portrait and landscape orientation.',
-        },
-        {
-          question: 'What can I export?',
-          answer: 'The current canvas can be exported as PNG or JPG with the selected scale.',
-        },
-      ],
-      limitationsTitle: 'Limitations of URL mode',
-      limitationsIntro: 'These points define the real boundary of URL capture in Fremit.',
-      limitations: [
-        {
-          question: 'Do private or authenticated pages work?',
-          answer: 'No. The static URL flow cannot access private sessions or content behind authentication.',
-        },
-        {
-          question: 'Do single-page apps always resolve correctly?',
-          answer: 'Not always. If the target site does not publish a usable preview, Fremit cannot reconstruct the live state of the page.',
-        },
-        {
-          question: 'Will a failed link erase my current canvas?',
-          answer: 'No. A failed URL keeps the last working composition in place and asks for a screenshot instead.',
-        },
-      ],
+      faq: {
+        title: 'Frequently asked questions.',
+        intro: 'Short answers about use, export, and the limits of URL mode.',
+        questions: [
+          {
+            question: 'Why does a link fail sometimes?',
+            answer: 'URL mode relies on what the target site exposes. Some sites simply do not provide a usable preview.',
+          },
+          {
+            question: 'When should I use a manual screenshot?',
+            answer: 'Use a screenshot for private pages, apps behind login, dynamic views, or when the URL preview does not match.',
+          },
+          {
+            question: 'Can I export phone and tablet mockups?',
+            answer: 'Yes. The editor includes generic phone and tablet frames with portrait and landscape orientation.',
+          },
+          {
+            question: 'What can I export?',
+            answer: 'The current canvas can be exported as PNG or JPG at your chosen scale.',
+          },
+        ],
+        limitationsTitle: 'Limitations of URL mode',
+        limitationsIntro: 'These points define the real boundary of URL capture in Fremit.',
+        limitations: [
+          {
+            question: 'Do private or authenticated pages work?',
+            answer: 'No. URL mode cannot access private sessions or authenticated content.',
+          },
+          {
+            question: 'Do single-page apps always resolve correctly?',
+            answer: 'Not always. If the site does not publish a usable preview, Fremit cannot reconstruct the live page.',
+          },
+          {
+            question: 'Will a failed link erase my current canvas?',
+            answer: 'No. A failed URL keeps your last working composition and prompts for a screenshot.',
+          },
+        ],
+      },
     },
     source: {
       label: 'Link or image URL',
@@ -342,7 +338,6 @@ export const messages: Record<Locale, MessageSchema> = {
     nav: {
       home: 'Início',
       about: 'Sobre',
-      faq: 'FAQ',
       openApp: 'Abrir app',
       menu: 'Menu',
       backToSite: 'Voltar ao site',
@@ -407,45 +402,44 @@ export const messages: Record<Locale, MessageSchema> = {
       developerOpenSource:
         'Todos os meus projetos são open source. Você pode explorar o código, contribuir, fazer fork, ou simplesmente aprender. A web deve ser de todos.',
       developerProjects: 'Ver outros projetos',
-    },
-    faq: {
-      eyebrow: 'FAQ',
-      title: 'Perguntas frequentes.',
-      intro: 'Respostas curtas sobre uso, exportação e os limites do modo URL.',
-      questions: [
-        {
-          question: 'Por que um link falha às vezes?',
-          answer: 'O modo URL depende do Microlink e do preview que o site de destino publica. Alguns sites não expõem uma captura ou metadata utilizável.',
-        },
-        {
-          question: 'Quando devo usar um screenshot manual?',
-          answer: 'Use screenshot em páginas privadas, apps com login, views dinâmicas ou quando o preview da URL não bate com o que você vê.',
-        },
-        {
-          question: 'Consigo exportar mockups de phone e tablet?',
-          answer: 'Sim. O editor inclui molduras genéricas de phone e tablet com orientação portrait e landscape.',
-        },
-        {
-          question: 'O que posso exportar?',
-          answer: 'O canvas atual pode ser exportado em PNG ou JPG com a escala selecionada.',
-        },
-      ],
-      limitationsTitle: 'Limitações do modo URL',
-      limitationsIntro: 'Esses pontos definem o limite real da captura por URL dentro do Fremit.',
-      limitations: [
-        {
-          question: 'Páginas privadas ou autenticadas funcionam?',
-          answer: 'Não. O fluxo estático por URL não acessa sessão privada nem conteúdo atrás de autenticação.',
-        },
-        {
-          question: 'Apps SPA sempre resolvem corretamente?',
-          answer: 'Nem sempre. Se o site não publicar um preview utilizável, o Fremit não consegue reconstruir o estado vivo da página.',
-        },
-        {
-          question: 'Um link com falha apaga meu canvas atual?',
-          answer: 'Não. Quando uma URL falha, a última composição válida continua na tela e o app pede um screenshot.',
-        },
-      ],
+      faq: {
+        title: 'Perguntas frequentes.',
+        intro: 'Respostas curtas sobre uso, exportação e os limites do modo URL.',
+        questions: [
+          {
+            question: 'Por que um link falha às vezes?',
+            answer: 'O modo URL depende do que o site de destino expõe. Alguns sites simplesmente não fornecem um preview utilizável.',
+          },
+          {
+            question: 'Quando devo usar um screenshot manual?',
+            answer: 'Use screenshot em páginas privadas, apps com login, views dinâmicas ou quando o preview da URL não bater.',
+          },
+          {
+            question: 'Consigo exportar mockups de phone e tablet?',
+            answer: 'Sim. O editor inclui molduras genéricas de phone e tablet com orientação portrait e landscape.',
+          },
+          {
+            question: 'O que posso exportar?',
+            answer: 'O canvas atual pode ser exportado em PNG ou JPG na escala escolhida.',
+          },
+        ],
+        limitationsTitle: 'Limitações do modo URL',
+        limitationsIntro: 'Esses pontos definem o limite real da captura por URL dentro do Fremit.',
+        limitations: [
+          {
+            question: 'Páginas privadas ou autenticadas funcionam?',
+            answer: 'Não. O modo URL não acessa sessões privadas nem conteúdo autenticado.',
+          },
+          {
+            question: 'Apps SPA sempre resolvem corretamente?',
+            answer: 'Nem sempre. Se o site não publicar um preview utilizável, o Fremit não consegue reconstruir a página ao vivo.',
+          },
+          {
+            question: 'Um link com falha apaga meu canvas atual?',
+            answer: 'Não. Uma URL com falha mantém sua última composição e pede um screenshot.',
+          },
+        ],
+      },
     },
     source: {
       label: 'Link ou URL da imagem',
@@ -533,7 +527,6 @@ export const messages: Record<Locale, MessageSchema> = {
     nav: {
       home: 'Inicio',
       about: 'Sobre',
-      faq: 'FAQ',
       openApp: 'Abrir app',
       menu: 'Menú',
       backToSite: 'Volver al sitio',
@@ -598,45 +591,44 @@ export const messages: Record<Locale, MessageSchema> = {
       developerOpenSource:
         'Todos mis proyectos son open source. Puedes explorar el código, contribuir, hacer fork o simplemente aprender. La web debe ser de todos.',
       developerProjects: 'Ver otros proyectos',
-    },
-    faq: {
-      eyebrow: 'FAQ',
-      title: 'Preguntas frecuentes.',
-      intro: 'Respuestas cortas sobre uso, exportación y los límites del modo URL.',
-      questions: [
-        {
-          question: '¿Por qué falla un enlace a veces?',
-          answer: 'El modo URL depende de Microlink y del preview que el sitio de destino publique. Algunos sitios no exponen una captura o metadata utilizable.',
-        },
-        {
-          question: '¿Cuándo debo usar una captura manual?',
-          answer: 'Usa una captura en páginas privadas, apps con login, vistas dinámicas o cuando el preview de la URL no coincide con lo que ves.',
-        },
-        {
-          question: '¿Puedo exportar mockups de phone y tablet?',
-          answer: 'Sí. El editor incluye marcos genéricos de phone y tablet con orientación portrait y landscape.',
-        },
-        {
-          question: '¿Qué puedo exportar?',
-          answer: 'El canvas actual puede exportarse en PNG o JPG con la escala seleccionada.',
-        },
-      ],
-      limitationsTitle: 'Limitaciones del modo URL',
-      limitationsIntro: 'Estos puntos definen el límite real de la captura por URL dentro de Fremit.',
-      limitations: [
-        {
-          question: '¿Funcionan páginas privadas o autenticadas?',
-          answer: 'No. El flujo estático por URL no accede a sesiones privadas ni contenido detrás de autenticación.',
-        },
-        {
-          question: '¿Las SPA siempre resuelven bien?',
-          answer: 'No siempre. Si el sitio no publica un preview utilizable, Fremit no puede reconstruir el estado vivo de la página.',
-        },
-        {
-          question: '¿Un enlace fallido borra el canvas actual?',
-          answer: 'No. Cuando una URL falla, la última composición válida se mantiene y la app pide una captura.',
-        },
-      ],
+      faq: {
+        title: 'Preguntas frecuentes.',
+        intro: 'Respuestas cortas sobre uso, exportación y los límites del modo URL.',
+        questions: [
+          {
+            question: '¿Por qué falla un enlace a veces?',
+            answer: 'El modo URL depende de lo que el sitio de destino exponga. Algunos sitios simplemente no ofrecen un preview utilizable.',
+          },
+          {
+            question: '¿Cuándo debo usar una captura manual?',
+            answer: 'Usa una captura en páginas privadas, apps con login, vistas dinámicas o cuando el preview de la URL no coincida.',
+          },
+          {
+            question: '¿Puedo exportar mockups de phone y tablet?',
+            answer: 'Sí. El editor incluye marcos genéricos de phone y tablet con orientación portrait y landscape.',
+          },
+          {
+            question: '¿Qué puedo exportar?',
+            answer: 'El canvas actual puede exportarse en PNG o JPG a la escala que elijas.',
+          },
+        ],
+        limitationsTitle: 'Limitaciones del modo URL',
+        limitationsIntro: 'Estos puntos definen el límite real de la captura por URL dentro de Fremit.',
+        limitations: [
+          {
+            question: '¿Funcionan páginas privadas o autenticadas?',
+            answer: 'No. El modo URL no accede a sesiones privadas ni contenido autenticado.',
+          },
+          {
+            question: '¿Las SPA siempre resuelven bien?',
+            answer: 'No siempre. Si el sitio no publica un preview utilizable, Fremit no puede reconstruir la página en vivo.',
+          },
+          {
+            question: '¿Un enlace fallido borra el canvas actual?',
+            answer: 'No. Una URL fallida mantiene tu última composición y pide una captura.',
+          },
+        ],
+      },
     },
     source: {
       label: 'Enlace o URL de imagen',
