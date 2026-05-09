@@ -24,7 +24,7 @@
     /* Text */
     --foreground:         210 25% 12%;
     --text-muted:         213 18% 38%;
-    --text-soft:          213 14% 52%;
+    --text-soft:          213 14% 42%;
 
     /* Surface & Shape */
     --surface:            0 0% 100%;
@@ -68,7 +68,7 @@
     /* Text */
     --foreground:         210 15% 95%;
     --text-muted:         213 20% 68%;
-    --text-soft:          213 16% 55%;
+    --text-soft:          213 16% 60%;
 
     /* Surface & Shape */
     --surface:            217 33% 12%;

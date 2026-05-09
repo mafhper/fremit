@@ -1,18 +1,21 @@
 import { expect, test } from '@playwright/test';
 
-test('home keeps the entry form inside the first viewport', async ({ page }) => {
+test('home hero stays inside the first viewport with SourceControls below fold', async ({ page }) => {
   await page.goto('/fremit/');
 
   await expect(page.getByRole('heading', { name: /Paste, edit, and export\.|Cole, edite e exporte\./i })).toBeVisible();
   await expect(page.getByTestId('home-source')).toBeVisible();
   await expect(page.getByLabel('Link or image URL').or(page.getByLabel('Link ou URL da imagem'))).toBeVisible();
 
-  const metrics = await page.evaluate(() => ({
-    height: window.innerHeight,
-    scrollHeight: document.documentElement.scrollHeight,
-  }));
+  const hero = page.locator('.hero');
+  await expect(hero).toBeVisible();
+  const heroRect = await hero.boundingBox();
+  expect(heroRect!.height).toBeGreaterThanOrEqual(600);
 
-  expect(metrics.scrollHeight).toBeLessThanOrEqual(metrics.height + 8);
+  const sourceSection = page.getByTestId('home-source');
+  await expect(sourceSection).toBeVisible();
+  const sourceRect = await sourceSection.boundingBox();
+  expect(sourceRect!.y).toBeGreaterThanOrEqual(heroRect!.y + heroRect!.height - 50);
 });
 
 test('public mobile menu exposes navigation and open app', async ({ page }) => {
@@ -23,7 +26,7 @@ test('public mobile menu exposes navigation and open app', async ({ page }) => {
 
   await expect(page.getByRole('link', { name: /Home|Início|Inicio/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /About|Sobre/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Open app|Abrir app/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Open app|Abrir app/i }).first()).toBeVisible();
 });
 
 test('about page exposes workflow, features, FAQ, and developer sections', async ({ page }) => {

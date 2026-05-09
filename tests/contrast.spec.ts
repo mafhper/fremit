@@ -52,10 +52,10 @@ const AA_NORMAL = 4.5;
 const AA_LARGE = 3;
 
 test('light theme text meets WCAG AA contrast', async ({ page }) => {
-  await page.goto('/fremit/');
   await page.addInitScript(() => {
-    localStorage.setItem('theme', 'light');
+    localStorage.setItem('fremit.theme', 'light');
   });
+  await page.goto('/fremit/');
 
   const vars = await page.evaluate(() => {
     const style = getComputedStyle(document.documentElement);
@@ -92,10 +92,10 @@ test('light theme text meets WCAG AA contrast', async ({ page }) => {
 });
 
 test('dark theme text meets WCAG AA contrast', async ({ page }) => {
-  await page.goto('/fremit/');
   await page.addInitScript(() => {
-    localStorage.setItem('theme', 'dark');
+    localStorage.setItem('fremit.theme', 'dark');
   });
+  await page.goto('/fremit/');
 
   const vars = await page.evaluate(() => {
     const style = getComputedStyle(document.documentElement);

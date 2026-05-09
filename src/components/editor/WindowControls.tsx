@@ -56,7 +56,7 @@ export function FrameControls() {
               value={frame.desktopChromePreset}
               onValueChange={(value) => setDesktopChromePreset(value as DesktopChromePreset)}
             >
-              <SelectTrigger className="rounded-2xl">
+              <SelectTrigger className="rounded-2xl" aria-label={copy.controls.chromePreset}>
                 <SelectValue placeholder={copy.controls.chromePreset} />
               </SelectTrigger>
               <SelectContent>
@@ -71,11 +71,11 @@ export function FrameControls() {
           <div className="grid gap-3 sm:grid-cols-2">
             <div className={surfaceClass}>
               <Label>{copy.controls.darkChrome}</Label>
-              <Switch checked={frame.darkMode} onCheckedChange={(checked) => updateFrame({ darkMode: checked })} />
+              <Switch aria-label={copy.controls.darkChrome} checked={frame.darkMode} onCheckedChange={(checked) => updateFrame({ darkMode: checked })} />
             </div>
             <div className={surfaceClass}>
               <Label>{copy.controls.showTitle}</Label>
-              <Switch checked={frame.showTitle} onCheckedChange={(checked) => updateFrame({ showTitle: checked })} />
+              <Switch aria-label={copy.controls.showTitle} checked={frame.showTitle} onCheckedChange={(checked) => updateFrame({ showTitle: checked })} />
             </div>
           </div>
         </>
@@ -84,7 +84,7 @@ export function FrameControls() {
           <div className="space-y-2">
             <Label>{copy.controls.devicePreset}</Label>
             <Select value={frame.devicePreset} onValueChange={(value) => setDevicePreset(value as DevicePreset)}>
-              <SelectTrigger className="rounded-2xl">
+              <SelectTrigger className="rounded-2xl" aria-label={copy.controls.devicePreset}>
                 <SelectValue placeholder={copy.controls.devicePreset} />
               </SelectTrigger>
               <SelectContent>
@@ -117,7 +117,7 @@ export function FrameControls() {
       <div className="space-y-2">
         <Label>{copy.controls.viewportPreset}</Label>
         <Select value={frame.viewportPreset} onValueChange={(value) => setViewportPreset(value as ViewportPreset)}>
-          <SelectTrigger className="rounded-2xl">
+          <SelectTrigger className="rounded-2xl" aria-label={copy.controls.viewportPreset}>
             <SelectValue placeholder={copy.controls.viewportPreset} />
           </SelectTrigger>
           <SelectContent>
@@ -156,7 +156,7 @@ export function FrameControls() {
       <div className="space-y-2">
         <Label>{copy.controls.imageFit}</Label>
         <Select value={frame.fitMode} onValueChange={(value) => updateFrame({ fitMode: value as 'contain' | 'cover' })}>
-          <SelectTrigger className="rounded-2xl">
+          <SelectTrigger className="rounded-2xl" aria-label={copy.controls.imageFit}>
             <SelectValue placeholder={copy.controls.imageFit} />
           </SelectTrigger>
           <SelectContent>
@@ -169,7 +169,7 @@ export function FrameControls() {
       <div className="space-y-2">
         <Label>{copy.controls.shadow}</Label>
         <Select value={frame.windowShadow} onValueChange={(value) => updateFrame({ windowShadow: value as ShadowSize })}>
-          <SelectTrigger className="rounded-2xl">
+          <SelectTrigger className="rounded-2xl" aria-label={copy.controls.shadow}>
             <SelectValue placeholder={copy.controls.shadow} />
           </SelectTrigger>
           <SelectContent>
@@ -189,6 +189,7 @@ export function FrameControls() {
           <span className="text-xs uppercase tracking-[0.18em] text-[hsl(var(--text-soft))]">{frame.windowRadius}px</span>
         </div>
         <Slider
+          aria-label={copy.controls.cornerRadius}
           value={[frame.windowRadius]}
           min={8}
           max={42}
@@ -199,8 +200,9 @@ export function FrameControls() {
 
       {frame.family === 'desktop-browser' && frame.showTitle && (
         <div className="space-y-2">
-          <Label>{copy.controls.windowTitle}</Label>
+          <Label htmlFor="window-title-input">{copy.controls.windowTitle}</Label>
           <input
+            id="window-title-input"
             type="text"
             className={fieldClass}
             value={frame.windowTitle}

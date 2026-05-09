@@ -62,6 +62,7 @@ export function BackgroundControls() {
               <button
                 key={color}
                 type="button"
+                aria-label={`${copy.controls.solid}: ${color}`}
                 className="h-11 rounded-2xl border border-black/5 transition hover:scale-[1.03]"
                 style={{ backgroundColor: color }}
                 onClick={() => updateBackground({ bgColor: color })}
@@ -76,10 +77,11 @@ export function BackgroundControls() {
           <div className="space-y-3">
             <Label>{copy.controls.gradientPresets}</Label>
             <div className="grid gap-3 sm:grid-cols-2">
-              {gradients.map((gradient) => (
+              {gradients.map((gradient, index) => (
                 <button
                   key={gradient}
                   type="button"
+                  aria-label={`${copy.controls.gradientPresets} ${index + 1}`}
                   className="h-16 rounded-[1.25rem] border border-black/5 transition hover:scale-[1.02]"
                   style={{ backgroundImage: gradient }}
                   onClick={() => updateBackground({ bgGradient: gradient })}
@@ -116,6 +118,7 @@ export function BackgroundControls() {
                     </span>
                   </div>
                   <Slider
+                    aria-label={copy.controls.angle}
                     value={[background.bgGradientDirection]}
                     min={0}
                     max={360}
@@ -188,6 +191,7 @@ export function BackgroundControls() {
           <span className="text-xs uppercase tracking-[0.18em] text-[hsl(var(--text-soft))]">{background.padding}px</span>
         </div>
         <Slider
+          aria-label={copy.controls.canvasPadding}
           value={[background.padding]}
           min={16}
           max={128}
