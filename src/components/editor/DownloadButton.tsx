@@ -56,7 +56,7 @@ export function DownloadButton() {
         <div className="space-y-2">
           <label className="text-xs uppercase tracking-[0.22em] text-[hsl(var(--text-soft))]">{copy.controls.format}</label>
           <Select value={exportConfig.format} onValueChange={(value: 'png' | 'jpeg') => updateExport({ format: value })}>
-            <SelectTrigger className="rounded-2xl">
+            <SelectTrigger className="rounded-2xl" aria-label={copy.controls.format}>
               <SelectValue placeholder={copy.controls.format} />
             </SelectTrigger>
             <SelectContent>
@@ -69,7 +69,7 @@ export function DownloadButton() {
         <div className="space-y-2">
           <label className="text-xs uppercase tracking-[0.22em] text-[hsl(var(--text-soft))]">{copy.controls.scale}</label>
           <Select value={String(exportConfig.scale)} onValueChange={(value) => updateExport({ scale: Number(value) as 1 | 2 | 3 })}>
-            <SelectTrigger className="rounded-2xl">
+            <SelectTrigger className="rounded-2xl" aria-label={copy.controls.scale}>
               <SelectValue placeholder={copy.controls.scale} />
             </SelectTrigger>
             <SelectContent>

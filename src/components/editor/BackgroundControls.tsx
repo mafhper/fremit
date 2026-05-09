@@ -1,4 +1,4 @@
-import { Label, Slider, Tabs, TabsList, TabsTrigger } from '@/components/ui';
+import { Label, Slider, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui';
 import { useI18n } from '@/i18n/useI18n';
 import { useStore } from '@/store/useStore';
 import type { BackgroundType } from '@/types/app';
@@ -37,9 +37,9 @@ export function BackgroundControls() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-2">
-        <Label>{copy.controls.backgroundType}</Label>
-        <Tabs value={background.bgType} onValueChange={(value) => updateBackground({ bgType: value as BackgroundType })}>
+      <Tabs value={background.bgType} onValueChange={(value) => updateBackground({ bgType: value as BackgroundType })}>
+        <div className="space-y-2">
+          <Label>{copy.controls.backgroundType}</Label>
           <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-muted">
             <TabsTrigger value="solid" className="rounded-xl">
               {copy.controls.solid}
@@ -51,139 +51,146 @@ export function BackgroundControls() {
               {copy.controls.image}
             </TabsTrigger>
           </TabsList>
-        </Tabs>
-      </div>
-
-      {background.bgType === 'solid' && (
-        <div className="space-y-3">
-          <Label>{copy.controls.palette}</Label>
-          <div className="grid grid-cols-4 gap-3">
-            {solids.map((color) => (
-              <button
-                key={color}
-                type="button"
-                aria-label={`${copy.controls.solid}: ${color}`}
-                className="h-11 rounded-2xl border border-black/5 transition hover:scale-[1.03]"
-                style={{ backgroundColor: color }}
-                onClick={() => updateBackground({ bgColor: color })}
-              />
-            ))}
-          </div>
         </div>
-      )}
 
-      {background.bgType === 'gradient' && (
-        <div className="space-y-4">
+        <TabsContent value="solid">
           <div className="space-y-3">
-            <Label>{copy.controls.gradientPresets}</Label>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {gradients.map((gradient, index) => (
+            <Label>{copy.controls.palette}</Label>
+            <div className="grid grid-cols-4 gap-3">
+              {solids.map((color) => (
                 <button
-                  key={gradient}
+                  key={color}
                   type="button"
-                  aria-label={`${copy.controls.gradientPresets} ${index + 1}`}
-                  className="h-16 rounded-[1.25rem] border border-black/5 transition hover:scale-[1.02]"
-                  style={{ backgroundImage: gradient }}
-                  onClick={() => updateBackground({ bgGradient: gradient })}
+                  aria-label={`${copy.controls.solid}: ${color}`}
+                  className="h-11 rounded-2xl border border-black/5 transition hover:scale-[1.03]"
+                  style={{ backgroundColor: color }}
+                  onClick={() => updateBackground({ bgColor: color })}
                 />
               ))}
             </div>
           </div>
+        </TabsContent>
 
-          <div className="surface-muted space-y-4 rounded-[1.5rem] border p-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-[0.22em] text-[hsl(var(--text-soft))]">{copy.controls.type}</Label>
-                <Tabs
-                  value={background.bgGradientType}
-                  onValueChange={(value) => updateGradient(value as 'linear' | 'radial', background.bgGradientDirection)}
-                >
-                  <TabsList className="grid w-full grid-cols-2 rounded-2xl bg-muted">
-                    <TabsTrigger value="linear" className="rounded-xl">
-                      Linear
-                    </TabsTrigger>
-                    <TabsTrigger value="radial" className="rounded-xl">
-                      Radial
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
-
-              {background.bgGradientType === 'linear' && (
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <Label className="text-xs uppercase tracking-[0.22em] text-[hsl(var(--text-soft))]">{copy.controls.angle}</Label>
-                    <span className="text-xs uppercase tracking-[0.18em] text-[hsl(var(--text-soft))]">
-                      {background.bgGradientDirection}°
-                    </span>
-                  </div>
-                  <Slider
-                    aria-label={copy.controls.angle}
-                    value={[background.bgGradientDirection]}
-                    min={0}
-                    max={360}
-                    step={15}
-                    onValueChange={([value]) => updateGradient('linear', value)}
+        <TabsContent value="gradient">
+          <div className="space-y-4">
+            <div className="space-y-3">
+              <Label>{copy.controls.gradientPresets}</Label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {gradients.map((gradient, index) => (
+                  <button
+                    key={gradient}
+                    type="button"
+                    aria-label={`${copy.controls.gradientPresets} ${index + 1}`}
+                    className="h-16 rounded-[1.25rem] border border-black/5 transition hover:scale-[1.02]"
+                    style={{ backgroundImage: gradient }}
+                    onClick={() => updateBackground({ bgGradient: gradient })}
                   />
-                </div>
-              )}
+                ))}
+              </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="space-y-2 text-sm">
-                <span className="text-xs uppercase tracking-[0.22em] text-[hsl(var(--text-soft))]">{copy.controls.start}</span>
-                <input
-                  type="color"
-                  className="h-11 w-full rounded-2xl border border-input bg-background p-1"
-                  onChange={(event) => {
-                    const start = event.target.value;
-                    const parts = background.bgGradient.match(/#[a-fA-F0-9]{6}/g) || ['#faf4ea', '#1e847f'];
-                    const end = parts[1] || '#1e847f';
-                    updateBackground({
-                      bgGradient:
-                        background.bgGradientType === 'linear'
-                          ? `linear-gradient(${background.bgGradientDirection}deg, ${start}, ${end})`
-                          : `radial-gradient(circle, ${start}, ${end})`,
-                    });
-                  }}
-                />
-              </label>
+            <div className="surface-muted space-y-4 rounded-[1.5rem] border p-4">
+              <Tabs
+                value={background.bgGradientType}
+                onValueChange={(value) => updateGradient(value as 'linear' | 'radial', background.bgGradientDirection)}
+              >
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase tracking-[0.22em] text-[hsl(var(--text-soft))]">{copy.controls.type}</Label>
+                    <TabsList className="grid w-full grid-cols-2 rounded-2xl bg-muted">
+                      <TabsTrigger value="linear" className="rounded-xl">
+                        Linear
+                      </TabsTrigger>
+                      <TabsTrigger value="radial" className="rounded-xl">
+                        Radial
+                      </TabsTrigger>
+                    </TabsList>
+                  </div>
 
-              <label className="space-y-2 text-sm">
-                <span className="text-xs uppercase tracking-[0.22em] text-[hsl(var(--text-soft))]">{copy.controls.end}</span>
-                <input
-                  type="color"
-                  className="h-11 w-full rounded-2xl border border-input bg-background p-1"
-                  onChange={(event) => {
-                    const end = event.target.value;
-                    const parts = background.bgGradient.match(/#[a-fA-F0-9]{6}/g) || ['#faf4ea', '#1e847f'];
-                    const start = parts[0] || '#faf4ea';
-                    updateBackground({
-                      bgGradient:
-                        background.bgGradientType === 'linear'
-                          ? `linear-gradient(${background.bgGradientDirection}deg, ${start}, ${end})`
-                          : `radial-gradient(circle, ${start}, ${end})`,
-                    });
-                  }}
-                />
-              </label>
+                  <TabsContent value="linear">
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <Label className="text-xs uppercase tracking-[0.22em] text-[hsl(var(--text-soft))]">{copy.controls.angle}</Label>
+                        <span className="text-xs uppercase tracking-[0.18em] text-[hsl(var(--text-soft))]">
+                          {background.bgGradientDirection}°
+                        </span>
+                      </div>
+                      <Slider
+                        aria-label={copy.controls.angle}
+                        value={[background.bgGradientDirection]}
+                        min={0}
+                        max={360}
+                        step={15}
+                        onValueChange={([value]) => updateGradient('linear', value)}
+                      />
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="radial">
+                    <div className="space-y-2">
+                      <Label className="text-xs uppercase tracking-[0.22em] text-[hsl(var(--text-soft))]">{copy.controls.angle}</Label>
+                      <p className="text-sm leading-6 text-[hsl(var(--text-muted))]">Radial gradient selected</p>
+                    </div>
+                  </TabsContent>
+                </div>
+              </Tabs>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="space-y-2 text-sm">
+                  <span className="text-xs uppercase tracking-[0.22em] text-[hsl(var(--text-soft))]">{copy.controls.start}</span>
+                  <input
+                    type="color"
+                    className="h-11 w-full rounded-2xl border border-input bg-background p-1"
+                    onChange={(event) => {
+                      const start = event.target.value;
+                      const parts = background.bgGradient.match(/#[a-fA-F0-9]{6}/g) || ['#faf4ea', '#1e847f'];
+                      const end = parts[1] || '#1e847f';
+                      updateBackground({
+                        bgGradient:
+                          background.bgGradientType === 'linear'
+                            ? `linear-gradient(${background.bgGradientDirection}deg, ${start}, ${end})`
+                            : `radial-gradient(circle, ${start}, ${end})`,
+                      });
+                    }}
+                  />
+                </label>
+
+                <label className="space-y-2 text-sm">
+                  <span className="text-xs uppercase tracking-[0.22em] text-[hsl(var(--text-soft))]">{copy.controls.end}</span>
+                  <input
+                    type="color"
+                    className="h-11 w-full rounded-2xl border border-input bg-background p-1"
+                    onChange={(event) => {
+                      const end = event.target.value;
+                      const parts = background.bgGradient.match(/#[a-fA-F0-9]{6}/g) || ['#faf4ea', '#1e847f'];
+                      const start = parts[0] || '#faf4ea';
+                      updateBackground({
+                        bgGradient:
+                          background.bgGradientType === 'linear'
+                            ? `linear-gradient(${background.bgGradientDirection}deg, ${start}, ${end})`
+                            : `radial-gradient(circle, ${start}, ${end})`,
+                      });
+                    }}
+                  />
+                </label>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        </TabsContent>
 
-      {background.bgType === 'image' && (
-        <div className="space-y-3">
-          <Label>{copy.controls.backgroundImageUrl}</Label>
-          <input
-            type="text"
-            placeholder={copy.controls.backgroundImagePlaceholder}
-            className="h-11 w-full rounded-2xl border border-input bg-background px-4 text-sm text-foreground outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
-            value={background.bgImage ?? ''}
-            onChange={(event) => updateBackground({ bgImage: event.target.value })}
-          />
-        </div>
-      )}
+        <TabsContent value="image">
+          <div className="space-y-3">
+            <Label>{copy.controls.backgroundImageUrl}</Label>
+            <input
+              type="text"
+              placeholder={copy.controls.backgroundImagePlaceholder}
+              className="h-11 w-full rounded-2xl border border-input bg-background px-4 text-sm text-foreground outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+              value={background.bgImage ?? ''}
+              onChange={(event) => updateBackground({ bgImage: event.target.value })}
+            />
+          </div>
+        </TabsContent>
+      </Tabs>
 
       <div className="space-y-2">
         <div className="flex justify-between">

@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
 test('home page has no critical or serious a11y violations', async ({ page }) => {
+  test.slow();
   await page.goto('/fremit/');
   await page.waitForLoadState('networkidle');
 

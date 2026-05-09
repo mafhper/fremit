@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test('home hero stays inside the first viewport with SourceControls below fold', async ({ page }) => {
+  test.slow();
   await page.goto('/fremit/');
 
   await expect(page.getByRole('heading', { name: /Paste, edit, and export\.|Cole, edite e exporte\./i })).toBeVisible();

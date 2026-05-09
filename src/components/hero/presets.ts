@@ -16,13 +16,13 @@ export interface LiquidMeshPreset {
 }
 
 export const lightPreset: LiquidMeshPreset = {
-  speed: 0.2,
-  warp: 0.58,
-  ripple: 0.30,
-  chrome: 0.52,
-  contrast: 0.48,
-  grain: 0.03,
-  clouds: 0.5,
+  speed: 0.55,
+  warp: 0.75,
+  ripple: 0.55,
+  chrome: 0.70,
+  contrast: 0.75,
+  grain: 0.04,
+  clouds: 0.6,
   centerX: 0.58,
   centerY: 0.34,
   centerSize: 1.32,
@@ -33,13 +33,13 @@ export const lightPreset: LiquidMeshPreset = {
 };
 
 export const darkPreset: LiquidMeshPreset = {
-  speed: 0.28,
-  warp: 0.72,
-  ripple: 0.42,
-  chrome: 0.78,
-  contrast: 0.66,
+  speed: 0.55,
+  warp: 0.85,
+  ripple: 0.60,
+  chrome: 0.85,
+  contrast: 0.80,
   grain: 0.06,
-  clouds: 0.6,
+  clouds: 0.65,
   centerX: 0.58,
   centerY: 0.34,
   centerSize: 1.32,

@@ -130,3 +130,64 @@ test('dark theme text meets WCAG AA contrast', async ({ page }) => {
     expect.soft(ratio, `${pair.label}: ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(AA_NORMAL);
   }
 });
+
+function alphaBlend(fg: [number, number, number, number], bg: [number, number, number]): [number, number, number] {
+  const alpha = fg[3] / 255;
+  return [
+    Math.round(fg[0] * alpha + bg[0] * (1 - alpha)),
+    Math.round(fg[1] * alpha + bg[1] * (1 - alpha)),
+    Math.round(fg[2] * alpha + bg[2] * (1 - alpha)),
+  ];
+}
+
+test('hero subtitle has sufficient contrast in light theme', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('fremit.theme', 'light');
+  });
+  await page.goto('/fremit/');
+
+  const result = await page.evaluate(() => {
+    const bgVar = getComputedStyle(document.documentElement).getPropertyValue('--background').trim();
+    const bg = parseColor(bgVar);
+
+    const subtitle = document.querySelector('.hero__content p');
+    if (!subtitle) return null;
+    const rgba = getComputedStyle(subtitle).color; // "rgba(r, g, b, a)" or "rgb(r, g, b)"
+    const parts = rgba.match(/\d+/g)!.map(Number);
+    const fgRgba: [number, number, number, number] = parts.length === 4
+      ? [parts[0], parts[1], parts[2], parts[3]]
+      : [parts[0], parts[1], parts[2], 255];
+
+    const effectiveFg = alphaBlend(fgRgba, bg);
+    const ratio = contrastRatio(effectiveFg, bg);
+    return ratio;
+  });
+  expect(result).not.toBeNull();
+  expect.soft(result!, `hero subtitle contrast (light): ${result!.toFixed(2)}:1`).toBeGreaterThanOrEqual(AA_LARGE);
+});
+
+test('hero subtitle has sufficient contrast in dark theme', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('fremit.theme', 'dark');
+  });
+  await page.goto('/fremit/');
+
+  const result = await page.evaluate(() => {
+    const bgVar = getComputedStyle(document.documentElement).getPropertyValue('--background').trim();
+    const bg = parseColor(bgVar);
+
+    const subtitle = document.querySelector('.hero__content p');
+    if (!subtitle) return null;
+    const rgba = getComputedStyle(subtitle).color;
+    const parts = rgba.match(/\d+/g)!.map(Number);
+    const fgRgba: [number, number, number, number] = parts.length === 4
+      ? [parts[0], parts[1], parts[2], parts[3]]
+      : [parts[0], parts[1], parts[2], 255];
+
+    const effectiveFg = alphaBlend(fgRgba, bg);
+    const ratio = contrastRatio(effectiveFg, bg);
+    return ratio;
+  });
+  expect(result).not.toBeNull();
+  expect.soft(result!, `hero subtitle contrast (dark): ${result!.toFixed(2)}:1`).toBeGreaterThanOrEqual(AA_LARGE);
+});

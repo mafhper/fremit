@@ -19,6 +19,7 @@ export function LiquidMeshBackdrop() {
 
     if (reduced) {
       canvas.style.display = 'none';
+      console.log('[LiquidMeshBackdrop] skipped: prefers-reduced-motion');
       return;
     }
 
@@ -32,6 +33,7 @@ export function LiquidMeshBackdrop() {
 
     if (!ctx) {
       canvas.style.display = 'none';
+      console.error('[LiquidMeshBackdrop] WebGL context not available');
       return;
     }
 
@@ -51,8 +53,9 @@ export function LiquidMeshBackdrop() {
       program = result.program;
       uniforms = result.uniforms;
       buffer = createFullScreenTriangle(gl);
-    } catch {
+    } catch (e) {
       canvas.style.display = 'none';
+      console.error('[LiquidMeshBackdrop] WebGL init error:', e);
       return;
     }
 

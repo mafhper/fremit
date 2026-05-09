@@ -1,4 +1,4 @@
-@import '@fontsource/inter';
+@import "@fontsource/inter";
 
 @tailwind base;
 @tailwind components;
@@ -7,30 +7,30 @@
 @layer base {
   :root {
     /* 60-30-10 palette — Cool Blues */
-    --color-base:        210 20% 98%;
+    --color-base: 210 20% 98%;
     --color-base-elevated: 0 0% 100%;
 
-    --color-secondary:    213 25% 88%;
+    --color-secondary: 213 25% 88%;
 
-    --color-primary:      224 76% 48%;
+    --color-primary: 224 76% 48%;
     --color-primary-fore: 0 0% 100%;
 
-    --color-accent:       212 80% 52%;
-    --color-accent-fore:  0 0% 100%;
+    --color-accent: 212 80% 52%;
+    --color-accent-fore: 0 0% 100%;
 
-    --color-destructive:    0 72% 56%;
+    --color-destructive: 0 72% 56%;
     --color-destructive-fore: 0 0% 100%;
 
     /* Text */
-    --foreground:         210 25% 12%;
-    --text-muted:         213 18% 38%;
-    --text-soft:          213 14% 42%;
+    --foreground: 210 25% 12%;
+    --text-muted: 213 18% 38%;
+    --text-soft: 213 14% 42%;
 
     /* Surface & Shape */
-    --surface:            0 0% 100%;
-    --surface-muted:      210 40% 96%;
-    --border:             214 32% 91%;
-    --ring:               212 80% 52%;
+    --surface: 0 0% 100%;
+    --surface-muted: 210 40% 96%;
+    --border: 214 32% 91%;
+    --ring: 212 80% 52%;
     --radius: 1rem;
 
     /* Backward-compat aliases */
@@ -51,30 +51,30 @@
   }
 
   .dark {
-    --color-base:        215 28% 7%;
+    --color-base: 215 28% 7%;
     --color-base-elevated: 217 33% 12%;
 
-    --color-secondary:    215 22% 14%;
+    --color-secondary: 215 22% 14%;
 
-    --color-primary:      198 93% 60%;
+    --color-primary: 198 93% 60%;
     --color-primary-fore: 215 63% 7%;
 
-    --color-accent:       210 90% 62%;
-    --color-accent-fore:  0 0% 100%;
+    --color-accent: 210 90% 62%;
+    --color-accent-fore: 0 0% 100%;
 
-    --color-destructive:    0 72% 56%;
+    --color-destructive: 0 72% 56%;
     --color-destructive-fore: 0 0% 100%;
 
     /* Text */
-    --foreground:         210 15% 95%;
-    --text-muted:         213 20% 68%;
-    --text-soft:          213 16% 60%;
+    --foreground: 210 15% 95%;
+    --text-muted: 213 20% 68%;
+    --text-soft: 213 16% 60%;
 
     /* Surface & Shape */
-    --surface:            217 33% 12%;
-    --surface-muted:      215 22% 14%;
-    --border:             209 41% 20%;
-    --ring:               210 90% 62%;
+    --surface: 217 33% 12%;
+    --surface-muted: 215 22% 14%;
+    --border: 209 41% 20%;
+    --ring: 210 90% 62%;
     --radius: 1rem;
 
     /* Backward-compat aliases */
@@ -104,7 +104,9 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Inter', 'Segoe UI Variable Text', 'Aptos', ui-sans-serif, system-ui, sans-serif;
+    font-family:
+      "Inter", "Segoe UI Variable Text", "Aptos", ui-sans-serif, system-ui,
+      sans-serif;
     min-height: 100vh;
   }
 
@@ -127,7 +129,11 @@
 
   .app-shell {
     background-image:
-      radial-gradient(circle at top, hsl(var(--color-accent) / 0.06), transparent 52%),
+      radial-gradient(
+        circle at top,
+        hsl(var(--color-accent) / 0.06),
+        transparent 52%
+      ),
       linear-gradient(180deg, hsl(var(--background)), hsl(var(--surface-muted)));
   }
 
@@ -155,6 +161,7 @@
     overflow: hidden;
     pointer-events: none;
     isolation: isolate;
+    z-index: 0;
   }
 
   .liquid-mesh-canvas {
@@ -163,35 +170,21 @@
     height: 100%;
   }
 
+
   .hero {
     position: relative;
     isolation: isolate;
-  }
-
-  .hero::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: 1;
+    /* Fallback estático para quando WebGL falha */
     background:
-      linear-gradient(180deg,
-        hsl(var(--color-base) / 0.05) 0%,
-        hsl(var(--color-base) / 0.6) 80%,
-        hsl(var(--color-base) / 0.9) 100%
+      radial-gradient(ellipse 80% 50% at 30% 35%, hsl(var(--color-accent) / 0.18) 0%, transparent 60%),
+      radial-gradient(ellipse 70% 50% at 70% 55%, hsl(var(--color-accent) / 0.10) 0%, transparent 50%),
+      linear-gradient(175deg,
+        hsl(var(--color-base)) 0%,
+        hsl(var(--color-base-elevated)) 100%
       );
   }
 
-  @media (max-width: 768px) {
-    .hero::after {
-      background:
-        linear-gradient(180deg,
-          hsl(var(--color-base) / 0.1) 0%,
-          hsl(var(--color-base) / 0.72) 70%,
-          hsl(var(--color-base) / 0.95) 100%
-        );
-    }
-  }
+
 
   .hero__content {
     position: relative;
@@ -203,5 +196,21 @@
     text-align: center;
     min-height: min(800px, 100svh);
     padding: 2rem;
+  }
+
+
+  .hero-fade {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 96px;
+    pointer-events: none;
+    z-index: 1;
+    background: linear-gradient(
+      to top,
+      hsl(var(--color-base)) 0%,
+      transparent 100%
+    );
   }
 }

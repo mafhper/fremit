@@ -143,7 +143,7 @@ export function SourceControls({ variant = 'home' }: SourceControlsProps) {
         className={cn(
           isEditor
             ? 'rounded-[1.2rem] border border-border/70 bg-[hsl(var(--surface-muted))/0.55] p-3 transition'
-            : 'surface-card rounded-[1.75rem] border p-4 transition md:p-5',
+            : 'surface-card rounded-[1.5rem] border px-4 py-3 transition',
           dragActive ? 'border-accent shadow-[0_0_0_3px_hsl(var(--accent)/0.16)]' : '',
         )}
         onDragEnter={(event) => {
@@ -176,7 +176,7 @@ export function SourceControls({ variant = 'home' }: SourceControlsProps) {
           }}
         />
 
-        <div className={cn('space-y-4', isEditor && 'space-y-3')}>
+        <div className={cn('space-y-3', isEditor && 'space-y-3')}>
           <form onSubmit={handleUrlSubmit} className={cn('space-y-3', isEditor && 'space-y-2')}>
             <label className={cn('text-sm font-medium text-[hsl(var(--text-muted))]', isEditor && 'text-xs uppercase tracking-[0.18em]')} htmlFor="source-url">
               {copy.source.label}
@@ -190,7 +190,7 @@ export function SourceControls({ variant = 'home' }: SourceControlsProps) {
                   placeholder={copy.source.placeholder}
                   className={cn(
                     'w-full border border-input bg-background text-sm text-foreground outline-none transition placeholder:text-[hsl(var(--text-soft))] focus:border-accent focus:ring-2 focus:ring-accent/20',
-                    isEditor ? 'h-11 rounded-[1rem] px-11' : 'h-12 rounded-2xl px-11',
+                    isEditor ? 'h-11 rounded-[1rem] px-11' : 'h-11 rounded-xl px-10',
                   )}
                   value={source.draftUrl}
                   onChange={(event) => setDraftUrl(event.target.value)}
@@ -199,19 +199,19 @@ export function SourceControls({ variant = 'home' }: SourceControlsProps) {
                   <span className="absolute right-4 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-accent animate-pulse" />
                 )}
               </div>
-              <Button type="submit" className={cn(isEditor ? 'h-11 rounded-[1rem] px-5' : 'h-12 rounded-2xl px-6')}>
+              <Button type="submit" className={cn(isEditor ? 'h-11 rounded-[1rem] px-5' : 'h-11 rounded-xl px-5')}>
                 {source.status === 'loading' ? copy.source.loading : copy.source.submit}
               </Button>
             </div>
           </form>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={cn("grid gap-3", isEditor ? "sm:grid-cols-2" : "grid-cols-1")}>
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
               className={cn(
                 'surface-muted flex items-center gap-3 border text-left transition hover:border-accent/40 hover:bg-[hsl(var(--surface))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                isEditor ? 'justify-center rounded-[1rem] px-3 py-2.5' : 'rounded-2xl px-4 py-3',
+                isEditor ? 'justify-center rounded-[1rem] px-3 py-2.5' : 'rounded-xl px-4 py-2.5',
               )}
             >
               <UploadPanelIcon className="h-5 w-5 text-accent" />
@@ -221,20 +221,22 @@ export function SourceControls({ variant = 'home' }: SourceControlsProps) {
               </div>
             </button>
 
-            <button
-              type="button"
-              onClick={handleClipboardRead}
-              className={cn(
-                'surface-muted flex items-center gap-3 border text-left transition hover:border-accent/40 hover:bg-[hsl(var(--surface))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                isEditor ? 'justify-center rounded-[1rem] px-3 py-2.5' : 'rounded-2xl px-4 py-3',
-              )}
-            >
-              <ClipboardPanelIcon className="h-5 w-5 text-primary" />
-              <div className={cn(isEditor && 'flex items-center gap-2')}>
-                <p className="text-sm font-semibold text-foreground">{copy.source.paste}</p>
-                {!isEditor && <p className="text-xs text-[hsl(var(--text-soft))]">{copy.source.pasteHint}</p>}
-              </div>
-            </button>
+            {isEditor && (
+              <button
+                type="button"
+                onClick={handleClipboardRead}
+                className={cn(
+                  'surface-muted flex items-center gap-3 border text-left transition hover:border-accent/40 hover:bg-[hsl(var(--surface))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  isEditor ? 'justify-center rounded-[1rem] px-3 py-2.5' : 'rounded-xl px-4 py-2.5',
+                )}
+              >
+                <ClipboardPanelIcon className="h-5 w-5 text-primary" />
+                <div className={cn(isEditor && 'flex items-center gap-2')}>
+                  <p className="text-sm font-semibold text-foreground">{copy.source.paste}</p>
+                  {!isEditor && <p className="text-xs text-[hsl(var(--text-soft))]">{copy.source.pasteHint}</p>}
+                </div>
+              </button>
+            )}
           </div>
 
           {source.status === 'loading' && (

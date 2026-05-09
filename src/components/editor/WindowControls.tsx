@@ -8,6 +8,7 @@ import {
   Slider,
   Switch,
   Tabs,
+  TabsContent,
   TabsList,
   TabsTrigger,
 } from '@/components/ui';
@@ -45,28 +46,25 @@ export function FrameControls() {
               {copy.controls.mobileTablet}
             </TabsTrigger>
           </TabsList>
-        </Tabs>
-      </div>
 
-      {frame.family === 'desktop-browser' ? (
-        <>
-          <div className="space-y-2">
-            <Label>{copy.controls.chromePreset}</Label>
-            <Select
-              value={frame.desktopChromePreset}
-              onValueChange={(value) => setDesktopChromePreset(value as DesktopChromePreset)}
-            >
-              <SelectTrigger className="rounded-2xl" aria-label={copy.controls.chromePreset}>
-                <SelectValue placeholder={copy.controls.chromePreset} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="mac">macOS</SelectItem>
-                <SelectItem value="win">Windows</SelectItem>
-                <SelectItem value="minimal">Minimal</SelectItem>
-                <SelectItem value="none">None</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <TabsContent value="desktop-browser">
+            <div className="space-y-2">
+              <Label>{copy.controls.chromePreset}</Label>
+              <Select
+                value={frame.desktopChromePreset}
+                onValueChange={(value) => setDesktopChromePreset(value as DesktopChromePreset)}
+              >
+                <SelectTrigger className="rounded-2xl" aria-label={copy.controls.chromePreset}>
+                  <SelectValue placeholder={copy.controls.chromePreset} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mac">macOS</SelectItem>
+                  <SelectItem value="win">Windows</SelectItem>
+                  <SelectItem value="minimal">Minimal</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className={surfaceClass}>
@@ -78,9 +76,8 @@ export function FrameControls() {
               <Switch aria-label={copy.controls.showTitle} checked={frame.showTitle} onCheckedChange={(checked) => updateFrame({ showTitle: checked })} />
             </div>
           </div>
-        </>
-      ) : (
-        <>
+        </TabsContent>
+          <TabsContent value="device-frame">
           <div className="space-y-2">
             <Label>{copy.controls.devicePreset}</Label>
             <Select value={frame.devicePreset} onValueChange={(value) => setDevicePreset(value as DevicePreset)}>
@@ -110,9 +107,9 @@ export function FrameControls() {
               </TabsList>
             </Tabs>
           </div>
-
-        </>
-      )}
+        </TabsContent>
+        </Tabs>
+      </div>
 
       <div className="space-y-2">
         <Label>{copy.controls.viewportPreset}</Label>
