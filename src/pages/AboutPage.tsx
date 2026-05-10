@@ -78,8 +78,8 @@ export function AboutPage() {
 
   return (
     <main className="flex flex-1 flex-col">
-      <section className="hero relative min-h-[55vh] overflow-hidden">
-        <LiquidMeshBackdrop />
+      <section className="hero relative flex min-h-[80vh] flex-col overflow-hidden">
+        <LiquidMeshBackdrop interactive={false} />
         <div className="hero-fade" aria-hidden="true" />
         <div className="hero__content">
           <div className="max-w-2xl space-y-4 py-8 md:py-12">
@@ -96,7 +96,7 @@ export function AboutPage() {
         </div>
       </section>
 
-      <section className="mx-auto w-full max-w-6xl px-4 pb-10 md:px-6 md:pb-14">
+      <section className="relative z-10 mx-auto w-full max-w-6xl px-4 pb-10 md:px-6 md:pb-14 -mt-24">
         <section
           id="workflow"
           className="surface-card rounded-[1.9rem] border p-5 md:p-7"

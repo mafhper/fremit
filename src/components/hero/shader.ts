@@ -1,4 +1,6 @@
 export const VERTEX_SHADER = `
+  precision highp float;
+
   attribute vec2 aPosition;
   varying vec2 vUv;
 
@@ -8,8 +10,32 @@ export const VERTEX_SHADER = `
   }
 `;
 
-export const FRAGMENT_SHADER = `
+export const DEBUG_FRAGMENT_SHADER = `
+  #ifdef GL_FRAGMENT_PRECISION_HIGH
   precision highp float;
+  #else
+  precision mediump float;
+  #endif
+
+  varying vec2 vUv;
+  uniform float uTime;
+
+  void main() {
+    vec3 color = vec3(
+      vUv.x,
+      vUv.y,
+      0.5 + 0.5 * sin(uTime * 4.0)
+    );
+    gl_FragColor = vec4(color, 1.0);
+  }
+`;
+
+export const FRAGMENT_SHADER = `
+  #ifdef GL_FRAGMENT_PRECISION_HIGH
+  precision highp float;
+  #else
+  precision mediump float;
+  #endif
 
   varying vec2 vUv;
   uniform float uTime;
@@ -77,7 +103,11 @@ export const FRAGMENT_SHADER = `
   void main() {
     vec2 uv = gl_FragCoord.xy / uResolution.xy;
     vec2 p = (gl_FragCoord.xy - 0.5 * uResolution.xy) / uResolution.y;
+
+    // uMouse vem em coordenadas de tela (origem no topo).
+    // gl_FragCoord/uv usa origem embaixo — inversão feita aqui.
     vec2 pointer = vec2(uMouse.x, 1.0 - uMouse.y);
+
     float aspect = uResolution.x / uResolution.y;
     vec2 center = vec2((uCenter.x - 0.5) * aspect, 0.5 - uCenter.y);
     float centerSize = max(uCenterSize, 0.1);
@@ -121,6 +151,7 @@ export const FRAGMENT_SHADER = `
     vec2 cloudP = focusP * vec2(1.28, 0.82) + vec2(uTime * 0.055, -uTime * 0.018);
     float cloudNoise = fbm(cloudP * (2.0 + uRipple * 0.8));
     cloudNoise += fbm(cloudP * 0.72 + vec2(4.0, 1.7)) * 0.52;
+
     float cloudMask = smoothstep(0.52, 0.96, cloudNoise + h * 0.16);
     float cloudBody = smoothstep(0.36, 0.74, cloudNoise);
     vec3 skyTop = mix(uColorA, vec3(0.05, 0.26, 0.58), 0.16);
