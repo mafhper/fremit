@@ -5,16 +5,9 @@
  * Shader rico com FBM noise, 2-light specular, cloud layer, pointer
  * interaction e center glow — mesh multicolorida inspirada no imaginizim.
  *
- * Correções aplicadas:
- *  - ResizeObserver em vez de leitura única no mount (canvas.width/height nunca fica 0)
- *  - Flag `destroyed` protege o loop de animação contra React Strict Mode e HMR
- *  - destroyContext() libera o contexto WebGL no cleanup (evita acúmulo de contextos)
- *  - useThemePreset() substitui isDarkTheme() — reage a mudanças de tema em tempo real
- *  - IntersectionObserver só pausa após os primeiros frames (evita tela branca em layout shift)
- *  - getWebGLContext() usa alpha: false e tenta webgl2 como fallback
- *  - Fallback CSS visível quando WebGL não está disponível
- *  - uResolution atualizado via ResizeObserver + render loop
- *  - pointermove em vez de mousemove (touch support)
+ * Todos os uniforms são redefinidos a cada frame (padrão imaginizim)
+ * para garantir que o shader sempre receba valores corretos, mesmo com
+ * context loss, resize, ou troca de tema entre frames.
  */
 
 import { useEffect, useRef } from 'react';
@@ -36,60 +29,35 @@ export function LiquidMeshBackdrop() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // ─── estado do loop ───────────────────────────────────────────────────
     let destroyed = false;
-    let rafId     = 0;
-    let frameCount = 0;
-    let isVisible  = true;
+    let rafId = 0;
+    let isVisible = true;
     let gl: WebGLRenderingContext | null = null;
 
-    // ─── obter contexto ───────────────────────────────────────────────────
+    // ─── WebGL context ──────────────────────────────────────────────────
     gl = getWebGLContext(canvas);
     if (!gl) {
       canvas.style.display = 'none';
       return;
     }
 
-    // ─── compilar programa ────────────────────────────────────────────────
+    // ─── Compilar shaders ───────────────────────────────────────────────
     let program: WebGLProgram;
     let uniforms: Record<string, WebGLUniformLocation | null>;
     try {
       ({ program, uniforms } = createProgram(gl, VERTEX_SHADER, FRAGMENT_SHADER));
     } catch (err) {
-      console.error('[LiquidMesh] Shader compile/link error:', err);
+      console.error('[LiquidMesh] Shader error:', err);
       canvas.style.display = 'none';
       destroyContext(gl);
       return;
     }
 
-    // ─── buffer full-screen ───────────────────────────────────────────────
+    // ─── Full-screen triangle ───────────────────────────────────────────
     const buffer = createFullScreenTriangle(gl);
     const posLoc = gl.getAttribLocation(program, 'aPosition');
 
-    gl.useProgram(program);
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.enableVertexAttribArray(posLoc);
-    gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
-
-    // ─── uniforms de cor (preset) ─────────────────────────────────────────
-    const [rA, gA, bA] = hexToRgb(preset.colorA);
-    const [rB, gB, bB] = hexToRgb(preset.colorB);
-    const [rC, gC, bC] = hexToRgb(preset.colorC);
-
-    gl.uniform3f(uniforms['uColorA'], rA, gA, bA);
-    gl.uniform3f(uniforms['uColorB'], rB, gB, bB);
-    gl.uniform3f(uniforms['uColorC'], rC, gC, bC);
-    gl.uniform1f(uniforms['uWarp'],     preset.warp);
-    gl.uniform1f(uniforms['uRipple'],   preset.ripple);
-    gl.uniform1f(uniforms['uChrome'],   preset.chrome);
-    gl.uniform1f(uniforms['uContrast'], preset.contrast);
-    gl.uniform1f(uniforms['uGrain'],    preset.grain);
-    gl.uniform1f(uniforms['uPointer'],  preset.pointer);
-    gl.uniform1f(uniforms['uClouds'],   preset.clouds);
-    gl.uniform2f(uniforms['uCenter'],   preset.centerX, preset.centerY);
-    gl.uniform1f(uniforms['uCenterSize'], preset.centerSize);
-
-    // ─── mouse / pointer interaction ──────────────────────────────────────
+    // ─── Estado de interação ────────────────────────────────────────────
     let mouseX = 0.5;
     let mouseY = 0.5;
 
@@ -100,8 +68,10 @@ export function LiquidMeshBackdrop() {
     };
     window.addEventListener('pointermove', onPointerMove, { passive: true });
 
-    // ─── ResizeObserver — mantém canvas.width/height sempre corretos ──────
+    // ─── ResizeObserver ─────────────────────────────────────────────────
     const dpr = Math.min(window.devicePixelRatio, 1.5);
+    let canvasW = 0;
+    let canvasH = 0;
 
     function syncSize() {
       if (!gl || !canvas) return;
@@ -109,63 +79,73 @@ export function LiquidMeshBackdrop() {
       const w = Math.floor(width * dpr);
       const h = Math.floor(height * dpr);
       if (canvas.width !== w || canvas.height !== h) {
-        canvas.width  = w;
+        canvas.width = w;
         canvas.height = h;
         gl.viewport(0, 0, w, h);
       }
-      // uResolution precisa estar sempre atualizado para o shader
-      gl.uniform2f(uniforms['uResolution'], canvas.width, canvas.height);
+      canvasW = canvas.width;
+      canvasH = canvas.height;
     }
 
     const ro = new ResizeObserver(syncSize);
     ro.observe(canvas);
-    syncSize(); // leitura inicial
+    syncSize();
 
-    // ─── IntersectionObserver ─────────────────────────────────────────────
-    const PAUSE_AFTER_FRAMES = 10;
-
+    // ─── IntersectionObserver ───────────────────────────────────────────
     const io = new IntersectionObserver(
-      ([entry]) => {
-        if (frameCount >= PAUSE_AFTER_FRAMES) {
-          isVisible = entry.isIntersecting;
-        }
-      },
+      ([entry]) => { isVisible = entry.isIntersecting; },
       { threshold: 0.01 },
     );
     io.observe(canvas);
 
-    // ─── visibilitychange ─────────────────────────────────────────────────
+    // ─── visibilitychange ──────────────────────────────────────────────
     const onVisibilityChange = () => {
-      if (frameCount >= PAUSE_AFTER_FRAMES) {
-        isVisible = document.visibilityState === 'visible';
-      }
+      isVisible = document.visibilityState === 'visible';
     };
     document.addEventListener('visibilitychange', onVisibilityChange);
 
-    // ─── loop de animação ─────────────────────────────────────────────────
+    // ─── Loop ──────────────────────────────────────────────────────────
     const t0 = performance.now();
 
     function render() {
       if (destroyed) return;
-
       rafId = requestAnimationFrame(render);
-
-      if (!isVisible && frameCount >= PAUSE_AFTER_FRAMES) return;
-      if (!canvas || canvas.width === 0 || canvas.height === 0) return;
+      if (!isVisible) return;
+      if (!gl || !canvas || canvasW === 0 || canvasH === 0) return;
 
       const elapsed = (performance.now() - t0) / 1000;
 
-      if (!gl) return;
-      gl.uniform1f(uniforms['uTime'],  elapsed * preset.speed);
-      gl.uniform2f(uniforms['uMouse'], mouseX, mouseY);
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      gl.useProgram(program);
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+      gl.enableVertexAttribArray(posLoc);
+      gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
 
-      frameCount++;
+      const [rA, gA, bA] = hexToRgb(preset.colorA);
+      const [rB, gB, bB] = hexToRgb(preset.colorB);
+      const [rC, gC, bC] = hexToRgb(preset.colorC);
+
+      gl.uniform1f(uniforms['uTime'],       elapsed * preset.speed);
+      gl.uniform2f(uniforms['uResolution'], canvasW, canvasH);
+      gl.uniform2f(uniforms['uMouse'],      mouseX, mouseY);
+      gl.uniform1f(uniforms['uWarp'],       preset.warp);
+      gl.uniform1f(uniforms['uRipple'],     preset.ripple);
+      gl.uniform1f(uniforms['uChrome'],     preset.chrome);
+      gl.uniform1f(uniforms['uContrast'],   preset.contrast);
+      gl.uniform1f(uniforms['uGrain'],      preset.grain);
+      gl.uniform1f(uniforms['uPointer'],    preset.pointer);
+      gl.uniform1f(uniforms['uClouds'],     preset.clouds);
+      gl.uniform2f(uniforms['uCenter'],     preset.centerX, preset.centerY);
+      gl.uniform1f(uniforms['uCenterSize'], preset.centerSize);
+      gl.uniform3f(uniforms['uColorA'],     rA, gA, bA);
+      gl.uniform3f(uniforms['uColorB'],     rB, gB, bB);
+      gl.uniform3f(uniforms['uColorC'],     rC, gC, bC);
+
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
     }
 
     rafId = requestAnimationFrame(render);
 
-    // ─── cleanup ──────────────────────────────────────────────────────────
+    // ─── Cleanup ───────────────────────────────────────────────────────
     return () => {
       destroyed = true;
       cancelAnimationFrame(rafId);

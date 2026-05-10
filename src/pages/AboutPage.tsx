@@ -78,11 +78,11 @@ export function AboutPage() {
 
   return (
     <main className="flex flex-1 flex-col">
-      <section className="hero relative flex flex-1 flex-col overflow-hidden">
+      <section className="hero relative overflow-hidden">
         <LiquidMeshBackdrop />
         <div className="hero-fade" aria-hidden="true" />
         <div className="hero__content">
-          <div className="max-w-2xl space-y-4 py-12">
+          <div className="max-w-2xl space-y-4 py-8 md:py-12">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[hsl(var(--text-soft))]">
               {copy.about.eyebrow}
             </p>
