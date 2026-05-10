@@ -4,15 +4,19 @@ export function createShader(
   gl: WebGLRenderingContext,
   type: number,
   source: string,
+  label: string,
 ): WebGLShader {
   const shader = gl.createShader(type);
-  if (!shader) throw new Error('Failed to create shader');
+  if (!shader) throw new Error(`Failed to create ${label} shader`);
   gl.shaderSource(shader, source);
   gl.compileShader(shader);
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    const log = gl.getShaderInfoLog(shader) || 'Shader compilation failed';
+    const log = gl.getShaderInfoLog(shader) || 'unknown error';
+    const snippet = source.substring(0, 200);
+    console.error(`[WebGL] ${label} shader compilation failed:`, log);
+    console.error(`[WebGL] ${label} source start:`, snippet);
     gl.deleteShader(shader);
-    throw new Error(log);
+    throw new Error(`${label} shader: ${log}`);
   }
   return shader;
 }
@@ -22,8 +26,8 @@ export function createProgram(
   vertexSource: string,
   fragmentSource: string,
 ): { program: WebGLProgram; uniforms: ShaderUniforms } {
-  const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexSource);
-  const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentSource);
+  const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexSource, 'vertex');
+  const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentSource, 'fragment');
 
   const program = gl.createProgram();
   if (!program) throw new Error('Failed to create program');
@@ -70,11 +74,6 @@ export function hexToRgb(hex: string): [number, number, number] {
   ];
 }
 
-/**
- * Tenta obter um WebGLRenderingContext com as opções ideais para um hero decorativo.
- * Tenta `webgl` primeiro; cai para `webgl2` (retornado como WebGLRenderingContext).
- * Retorna null se nenhum dos dois estiver disponível.
- */
 export function getWebGLContext(canvas: HTMLCanvasElement): WebGLRenderingContext | null {
   const opts: WebGLContextAttributes = {
     alpha: false,
@@ -85,17 +84,18 @@ export function getWebGLContext(canvas: HTMLCanvasElement): WebGLRenderingContex
     preserveDrawingBuffer: false,
   };
 
-  return (
-    (canvas.getContext('webgl', opts) as WebGLRenderingContext | null) ??
-    (canvas.getContext('webgl2', opts) as WebGLRenderingContext | null)
-  );
+  const ctx = canvas.getContext('webgl', opts);
+  if (ctx) return ctx as WebGLRenderingContext;
+
+  const ctx2 = canvas.getContext('webgl2', opts);
+  if (ctx2) {
+    console.log('[WebGL] Using webgl2 context');
+    return ctx2 as WebGLRenderingContext;
+  }
+
+  return null;
 }
 
-/**
- * Libera o contexto WebGL de forma segura.
- * Usar sempre no cleanup do useEffect para evitar acúmulo de contextos
- * (limite de ~16 por página no Chrome) durante HMR ou remontagens frequentes.
- */
 export function destroyContext(gl: WebGLRenderingContext): void {
   try {
     const ext = gl.getExtension('WEBGL_lose_context');

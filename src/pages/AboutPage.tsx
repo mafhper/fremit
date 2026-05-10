@@ -78,7 +78,7 @@ export function AboutPage() {
 
   return (
     <main className="flex flex-1 flex-col">
-      <section className="hero relative overflow-hidden">
+      <section className="hero relative min-h-[55vh] overflow-hidden">
         <LiquidMeshBackdrop />
         <div className="hero-fade" aria-hidden="true" />
         <div className="hero__content">
