@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+
 import {
   BrowserPanelIcon,
   ExportPanelIcon,
@@ -78,11 +78,11 @@ export function AboutPage() {
 
   return (
     <main className="flex flex-1 flex-col">
-      <section className="hero relative flex flex-1 flex-col overflow-hidden min-h-svh">
+      <section className="hero relative flex flex-1 flex-col overflow-hidden">
         <LiquidMeshBackdrop />
         <div className="hero-fade" aria-hidden="true" />
         <div className="hero__content">
-          <div className="max-w-2xl space-y-4">
+          <div className="max-w-2xl space-y-4 py-12">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[hsl(var(--text-soft))]">
               {copy.about.eyebrow}
             </p>
@@ -92,9 +92,6 @@ export function AboutPage() {
             <p className="text-base leading-7 text-[hsl(var(--foreground)/0.82)] md:text-lg/8">
               {copy.about.intro}
             </p>
-            <Button asChild className="rounded-full px-5">
-              <Link to="/editor">{copy.nav.openApp}</Link>
-            </Button>
           </div>
         </div>
       </section>
@@ -102,7 +99,7 @@ export function AboutPage() {
       <section className="mx-auto w-full max-w-6xl px-4 pb-10 md:px-6 md:pb-14">
         <section
           id="workflow"
-          className="mt-10 surface-card rounded-[1.9rem] border p-5 md:p-7"
+          className="surface-card rounded-[1.9rem] border p-5 md:p-7"
         >
           <div className="max-w-2xl">
             <h2 className="text-3xl font-semibold tracking-tight">

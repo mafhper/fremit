@@ -2,6 +2,9 @@
  * LiquidMeshBackdrop.tsx
  * Canvas WebGL decorativo para o hero.
  *
+ * Shader rico com FBM noise, 2-light specular, cloud layer, pointer
+ * interaction e center glow — mesh multicolorida inspirada no imaginizim.
+ *
  * Correções aplicadas:
  *  - ResizeObserver em vez de leitura única no mount (canvas.width/height nunca fica 0)
  *  - Flag `destroyed` protege o loop de animação contra React Strict Mode e HMR
@@ -10,6 +13,8 @@
  *  - IntersectionObserver só pausa após os primeiros frames (evita tela branca em layout shift)
  *  - getWebGLContext() usa alpha: false e tenta webgl2 como fallback
  *  - Fallback CSS visível quando WebGL não está disponível
+ *  - uResolution atualizado via ResizeObserver + render loop
+ *  - pointermove em vez de mousemove (touch support)
  */
 
 import { useEffect, useRef } from 'react';
@@ -32,16 +37,15 @@ export function LiquidMeshBackdrop() {
     if (!canvas) return;
 
     // ─── estado do loop ───────────────────────────────────────────────────
-    let destroyed = false;   // impede renders após unmount (Strict Mode / HMR)
+    let destroyed = false;
     let rafId     = 0;
     let frameCount = 0;
-    let isVisible  = true;   // começa como true — nunca pausar o 1º frame
+    let isVisible  = true;
     let gl: WebGLRenderingContext | null = null;
 
     // ─── obter contexto ───────────────────────────────────────────────────
     gl = getWebGLContext(canvas);
     if (!gl) {
-      // WebGL não disponível — fallback CSS já está no DOM
       canvas.style.display = 'none';
       return;
     }
@@ -60,7 +64,7 @@ export function LiquidMeshBackdrop() {
 
     // ─── buffer full-screen ───────────────────────────────────────────────
     const buffer = createFullScreenTriangle(gl);
-    const posLoc = gl.getAttribLocation(program, 'position');
+    const posLoc = gl.getAttribLocation(program, 'aPosition');
 
     gl.useProgram(program);
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
@@ -80,19 +84,21 @@ export function LiquidMeshBackdrop() {
     gl.uniform1f(uniforms['uChrome'],   preset.chrome);
     gl.uniform1f(uniforms['uContrast'], preset.contrast);
     gl.uniform1f(uniforms['uGrain'],    preset.grain);
-    gl.uniform1f(uniforms['uSpeed'],    preset.speed);
-    gl.uniform2f(uniforms['uMouse'],    0.5, 0.5); // centro — atualizado por mousemove
+    gl.uniform1f(uniforms['uPointer'],  preset.pointer);
+    gl.uniform1f(uniforms['uClouds'],   preset.clouds);
+    gl.uniform2f(uniforms['uCenter'],   preset.centerX, preset.centerY);
+    gl.uniform1f(uniforms['uCenterSize'], preset.centerSize);
 
-    // ─── mouse interaction ────────────────────────────────────────────────
+    // ─── mouse / pointer interaction ──────────────────────────────────────
     let mouseX = 0.5;
     let mouseY = 0.5;
 
-    const onMouseMove = (e: MouseEvent) => {
+    const onPointerMove = (e: PointerEvent) => {
       const rect = canvas.getBoundingClientRect();
       mouseX = (e.clientX - rect.left) / rect.width;
       mouseY = 1.0 - (e.clientY - rect.top) / rect.height;
     };
-    window.addEventListener('mousemove', onMouseMove, { passive: true });
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
 
     // ─── ResizeObserver — mantém canvas.width/height sempre corretos ──────
     const dpr = Math.min(window.devicePixelRatio, 1.5);
@@ -107,11 +113,13 @@ export function LiquidMeshBackdrop() {
         canvas.height = h;
         gl.viewport(0, 0, w, h);
       }
+      // uResolution precisa estar sempre atualizado para o shader
+      gl.uniform2f(uniforms['uResolution'], canvas.width, canvas.height);
     }
 
     const ro = new ResizeObserver(syncSize);
     ro.observe(canvas);
-    syncSize(); // leitura inicial — garante que o 1º frame tenha dimensão correta
+    syncSize(); // leitura inicial
 
     // ─── IntersectionObserver ─────────────────────────────────────────────
     const PAUSE_AFTER_FRAMES = 10;
@@ -138,11 +146,10 @@ export function LiquidMeshBackdrop() {
     const t0 = performance.now();
 
     function render() {
-      if (destroyed) return; // proteção contra Strict Mode / HMR
+      if (destroyed) return;
 
       rafId = requestAnimationFrame(render);
 
-      // Pular draw (mas manter loop vivo) quando invisível
       if (!isVisible && frameCount >= PAUSE_AFTER_FRAMES) return;
       if (!canvas || canvas.width === 0 || canvas.height === 0) return;
 
@@ -164,17 +171,15 @@ export function LiquidMeshBackdrop() {
       cancelAnimationFrame(rafId);
       ro.disconnect();
       io.disconnect();
-      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('pointermove', onPointerMove);
       document.removeEventListener('visibilitychange', onVisibilityChange);
       if (gl) destroyContext(gl);
     };
-  }, [preset]); // re-executa quando o tema muda
+  }, [preset]);
 
   return (
     <>
-      {/* Fallback CSS — visível quando WebGL falha ou durante carregamento */}
       <div className="hero__fallback" aria-hidden="true" />
-      {/* Canvas WebGL — puramente decorativo */}
       <canvas
         ref={canvasRef}
         className="hero__canvas"

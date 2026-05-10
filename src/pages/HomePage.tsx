@@ -11,14 +11,16 @@ export function HomePage() {
         <LiquidMeshBackdrop />
         <div className="hero-fade" aria-hidden="true" />
         <div className="hero__content">
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center py-8">
-            <h1 className="text-5xl font-bold tracking-tight md:text-7xl">{copy.home.title}</h1>
-            <p className="mt-4 max-w-xl text-lg/7 text-[hsl(var(--foreground)/0.82)] md:text-xl/8">
-              {copy.home.subtitle}
-            </p>
-          </div>
-          <div className="w-full max-w-lg px-2 pb-6">
-            <SourceControls variant="home" />
+          <div className="flex flex-col items-center justify-center gap-10 py-8">
+            <div className="flex flex-col items-center gap-4">
+              <h1 className="text-5xl font-bold tracking-tight md:text-7xl">{copy.home.title}</h1>
+              <p className="max-w-xl text-lg/7 text-[hsl(var(--foreground)/0.82)] md:text-xl/8">
+                {copy.home.subtitle}
+              </p>
+            </div>
+            <div className="w-full max-w-lg px-2">
+              <SourceControls variant="home" />
+            </div>
           </div>
         </div>
       </section>
