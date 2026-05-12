@@ -47,7 +47,7 @@ export function FrameControls() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="desktop-browser">
+          <TabsContent value="desktop-browser" className="space-y-4 pt-4">
             <div className="space-y-2">
               <Label>{copy.controls.chromePreset}</Label>
               <Select
@@ -66,18 +66,18 @@ export function FrameControls() {
               </Select>
             </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className={surfaceClass}>
-              <Label>{copy.controls.darkChrome}</Label>
-              <Switch aria-label={copy.controls.darkChrome} checked={frame.darkMode} onCheckedChange={(checked) => updateFrame({ darkMode: checked })} />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className={surfaceClass}>
+                <Label>{copy.controls.darkChrome}</Label>
+                <Switch aria-label={copy.controls.darkChrome} checked={frame.darkMode} onCheckedChange={(checked) => updateFrame({ darkMode: checked })} />
+              </div>
+              <div className={surfaceClass}>
+                <Label>{copy.controls.showTitle}</Label>
+                <Switch aria-label={copy.controls.showTitle} checked={frame.showTitle} onCheckedChange={(checked) => updateFrame({ showTitle: checked })} />
+              </div>
             </div>
-            <div className={surfaceClass}>
-              <Label>{copy.controls.showTitle}</Label>
-              <Switch aria-label={copy.controls.showTitle} checked={frame.showTitle} onCheckedChange={(checked) => updateFrame({ showTitle: checked })} />
-            </div>
-          </div>
-        </TabsContent>
-          <TabsContent value="device-frame">
+          </TabsContent>
+          <TabsContent value="device-frame" className="space-y-4 pt-4">
           <div className="space-y-2">
             <Label>{copy.controls.devicePreset}</Label>
             <Select value={frame.devicePreset} onValueChange={(value) => setDevicePreset(value as DevicePreset)}>

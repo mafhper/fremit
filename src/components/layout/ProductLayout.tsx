@@ -8,6 +8,7 @@ import { Button } from '@/components/ui';
 import { useApplyTheme } from '@/hooks/useApplyTheme';
 import { useI18n } from '@/i18n/useI18n';
 import { useEffect, useState } from 'react';
+import { cn } from '@/lib/utils';
 
 const navItems = [
   { to: '/', key: 'home' as const },
@@ -19,19 +20,20 @@ export function ProductLayout() {
   const { copy } = useI18n();
   const location = useLocation();
   const isHome = location.pathname === '/';
-  const [scrolled, setScrolled] = useState(false);
+  const [scrollActive, setScrollActive] = useState(false);
 
   useEffect(() => {
     if (!isHome) {
-      setScrolled(true);
       return;
     }
-    setScrolled(false);
-    const onScroll = () => setScrolled(window.scrollY > 60);
+    
+    const onScroll = () => setScrollActive(window.scrollY > 60);
     window.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
     return () => window.removeEventListener('scroll', onScroll);
   }, [isHome]);
+
+  const scrolled = !isHome || scrollActive;
 
   const commitLabel = __APP_LAST_COMMIT__.subject || __APP_LAST_COMMIT__.hash;
   const commitPreview = commitLabel.length > 44 ? `${commitLabel.slice(0, 44).trimEnd()}...` : commitLabel;
@@ -47,10 +49,10 @@ export function ProductLayout() {
   const brandClass = scrolled ? 'text-foreground' : 'text-foreground/90';
 
   return (
-    <div className="app-shell flex min-h-svh flex-col text-foreground">
-      <header className={`fixed top-0 right-0 left-0 z-50 transition-all duration-500 ${headerClass}`}>
+    <div className={cn("flex flex-col text-foreground", isHome ? "h-svh overflow-hidden" : "min-h-svh")}>
+      <header className={cn("fixed top-0 right-0 left-0 z-50 transition-all duration-500", headerClass)}>
         <div className="mx-auto grid h-16 w-full max-w-6xl grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 md:px-6">
-          <Link to="/" className={`flex items-center gap-3 justify-self-start transition-colors ${brandClass}`}>
+          <Link to="/" className={cn("flex items-center gap-3 justify-self-start transition-colors", brandClass)}>
             <img src={iconUrl} alt={copy.brandName} className="h-9 w-9" />
             <span className="text-base font-semibold tracking-tight">{copy.brandName}</span>
           </Link>
@@ -124,11 +126,11 @@ export function ProductLayout() {
         </div>
       </header>
 
-      <div className="pt-16 flex-1 flex flex-col">
+      <div className="pt-16 flex-1 flex flex-col min-h-0">
         <Outlet />
       </div>
 
-      <footer className="border-t border-border/80 bg-background/70 backdrop-blur">
+      <footer className="relative z-10 border-t border-border/5 bg-transparent shrink-0">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 py-3 text-xs text-[hsl(var(--text-soft))] md:flex-row md:items-center md:justify-between md:px-6">
           <div className="flex flex-wrap items-center gap-3">
             <span>{copy.footer.lastCommit}</span>

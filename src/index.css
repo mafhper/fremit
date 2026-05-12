@@ -128,13 +128,7 @@
   }
 
   .app-shell {
-    background-image:
-      radial-gradient(
-        circle at top,
-        hsl(var(--color-accent) / 0.06),
-        transparent 52%
-      ),
-      linear-gradient(180deg, hsl(var(--background)), hsl(var(--surface-muted)));
+    @apply flex min-h-svh flex-col;
   }
 
   .surface-card {
@@ -216,6 +210,13 @@
     }
   }
 
+  .light .hero__fallback {
+    background:
+      radial-gradient(circle at 35% 45%, hsl(213 80% 60% / 0.22), transparent 45%),
+      radial-gradient(circle at 70% 60%, hsl(213 40% 88% / 0.55), transparent 40%),
+      linear-gradient(160deg, hsl(213 60% 96%), hsl(0 0% 100%) 55%, hsl(213 40% 94%));
+  }
+
   /* Fallback tema escuro (media query) */
   @media (prefers-color-scheme: dark) {
     .hero__fallback {
@@ -232,6 +233,89 @@
       radial-gradient(circle at 35% 45%, hsl(200 85% 50% / 0.14), transparent 45%),
       radial-gradient(circle at 70% 60%, hsl(215 55% 18% / 0.48), transparent 40%),
       linear-gradient(160deg, hsl(215 35% 5%), hsl(215 28% 7%) 55%, hsl(215 28% 4%));
+  }
+
+  /* ─── About Page Redesign ───────────────────────────────────────────── */
+
+  .about-page {
+    background: hsl(var(--color-base));
+  }
+
+  .about-page__backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .about-page__backdrop .hero__canvas,
+  .about-page__backdrop .hero__fallback {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .about-page__scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    background:
+      radial-gradient(circle at 50% 12%, hsl(var(--color-base) / 0.10), transparent 42%),
+      linear-gradient(to bottom, hsl(var(--color-base) / 0.12), hsl(var(--color-base) / 0.78));
+  }
+
+  .about-page__scroll-blur {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    backdrop-filter: blur(var(--about-bg-blur, 0px)) saturate(0.96);
+    background: hsl(var(--color-base) / var(--about-bg-veil, 0.05));
+    will-change: backdrop-filter;
+  }
+
+  .about-card {
+    position: relative;
+    border-radius: 1.75rem;
+    border: 1px solid hsl(var(--border) / 0.62);
+    background: hsl(var(--color-base-elevated) / 0.72);
+    box-shadow:
+      inset 0 1px 0 hsl(0 0% 100% / 0.10),
+      inset 0 -1px 0 hsl(var(--foreground) / 0.035),
+      0 20px 60px hsl(215 28% 4% / 0.10);
+    backdrop-filter: blur(18px) saturate(1.08);
+  }
+
+  .dark .about-card {
+    background: hsl(var(--surface) / 0.58);
+    border-color: hsl(var(--border) / 0.72);
+    box-shadow:
+      inset 0 1px 0 hsl(0 0% 100% / 0.08),
+      inset 0 -1px 0 hsl(0 0% 0% / 0.24),
+      0 24px 70px hsl(215 80% 2% / 0.38);
+  }
+
+  .about-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background:
+      linear-gradient(135deg, hsl(var(--color-accent) / 0.12), transparent 32%),
+      linear-gradient(to bottom, hsl(0 0% 100% / 0.08), transparent 40%);
+    opacity: 0.72;
+  }
+
+  .about-card-muted {
+    background: hsl(var(--surface-muted) / 0.62);
+    border-color: hsl(var(--border) / 0.65);
+  }
+
+  .dark .about-card-muted {
+    background: hsl(var(--surface-muted) / 0.42);
+    border-color: hsl(var(--border) / 0.58);
   }
 
   /* ─── Canvas WebGL ──────────────────────────────────────────────────── */

@@ -64,7 +64,7 @@ function DesktopChrome() {
             toolbarClass,
           )}
         >
-          <div className={cn('flex min-w-16 items-center gap-2', isWindows && 'min-w-8')}>
+          <div className={cn('flex items-center gap-2', isWindows ? 'min-w-8' : 'min-w-16')}>
             {frame.desktopChromePreset === 'mac' && (
               <>
                 <span className="h-3 w-3 rounded-full bg-[#ff5f57]" />
@@ -73,7 +73,9 @@ function DesktopChrome() {
               </>
             )}
             {frame.desktopChromePreset === 'win' && (
-              <span className="block h-2 w-3 rounded-sm bg-current/18" />
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-current/40" aria-hidden="true">
+                <path d="M1 1h4v4H1V1zm6 0h4v4H7V1zM1 7h4v4H1V7zm6 0h4v4H7V7z" fill="currentColor" />
+              </svg>
             )}
             {frame.desktopChromePreset === 'minimal' && (
               <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Mockup</span>
@@ -93,10 +95,22 @@ function DesktopChrome() {
           )}
 
           {isWindows && (
-            <div className="ml-auto flex min-w-16 items-center justify-end gap-1 text-slate-400">
-              <span className="block h-2 w-3 rounded-sm bg-current/36" />
-              <span className="block h-2 w-3 rounded-sm bg-current/56" />
-              <span className="block h-2 w-3 rounded-sm bg-current/82" />
+            <div className="ml-auto flex items-center gap-0 text-current/60">
+              <div className="flex h-11 w-11 items-center justify-center transition-colors hover:bg-current/5">
+                <svg width="10" height="1" viewBox="0 0 10 1" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="10" height="1" fill="currentColor" />
+                </svg>
+              </div>
+              <div className="flex h-11 w-11 items-center justify-center transition-colors hover:bg-current/5">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="0.5" y="0.5" width="9" height="9" stroke="currentColor" />
+                </svg>
+              </div>
+              <div className="flex h-11 w-11 items-center justify-center transition-colors hover:bg-red-500 hover:text-white">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M1 1L9 9M9 1L1 9" stroke="currentColor" strokeWidth="1" />
+                </svg>
+              </div>
             </div>
           )}
         </div>

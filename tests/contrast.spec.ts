@@ -70,10 +70,6 @@ test('light theme text meets WCAG AA contrast', async ({ page }) => {
     };
   });
 
-  const bg = parseColor(vars.background);
-  const surface = parseColor(vars.surface);
-  const surfaceMuted = parseColor(vars['surface-muted']);
-
   const pairs: ColorPair[] = [
     { fg: vars.fg, bg: vars.background, label: 'foreground on background' },
     { fg: vars['text-muted'], bg: vars.background, label: 'text-muted on background' },
@@ -109,10 +105,6 @@ test('dark theme text meets WCAG AA contrast', async ({ page }) => {
       border: style.getPropertyValue('--border').trim(),
     };
   });
-
-  const bg = parseColor(vars.background);
-  const surface = parseColor(vars.surface);
-  const surfaceMuted = parseColor(vars['surface-muted']);
 
   const pairs: ColorPair[] = [
     { fg: vars.fg, bg: vars.background, label: 'foreground on background' },

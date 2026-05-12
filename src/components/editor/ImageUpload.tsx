@@ -69,8 +69,8 @@ export function SourceControls({ variant = 'home' }: SourceControlsProps) {
     await handleResolved(resolveFileSource(file, mode));
   };
 
-  const handleUrlSubmit = async (event: FormEvent) => {
-    event.preventDefault();
+  const handleUrlSubmit = async (event?: FormEvent) => {
+    event?.preventDefault();
     if (!source.draftUrl.trim()) return;
 
     try {
@@ -137,28 +137,160 @@ export function SourceControls({ variant = 'home' }: SourceControlsProps) {
     await handleFile(file, 'clipboard-image');
   };
 
+  const hasUrlValue = source.draftUrl.trim().length > 0;
+
+  if (!isEditor) {
+    return (
+      <div 
+        className="relative w-full max-w-2xl mx-auto" 
+        onPaste={handlePaste}
+        data-testid="home-source"
+      >
+        <div
+          className={cn(
+            'about-card relative flex flex-col transition-all duration-500 rounded-[2.5rem] border border-border/40 overflow-hidden',
+            dragActive ? 'scale-[1.02] border-accent/60 bg-accent/5 ring-8 ring-accent/5' : 'shadow-2xl shadow-black/10',
+            source.status === 'loading' && 'opacity-80 pointer-events-none'
+          )}
+          onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
+          onDragLeave={(e) => { e.preventDefault(); setDragActive(false); }}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={async (e) => {
+            e.preventDefault();
+            setDragActive(false);
+            const file = e.dataTransfer.files?.[0];
+            if (file) await handleFile(file);
+          }}
+        >
+          {/* Top Zone: URL */}
+          <div className="p-6 md:p-10 space-y-6">
+            <div className="space-y-1 text-center">
+              <h2 className="text-sm font-bold uppercase tracking-[0.25em] text-accent">
+                {copy.source.label}
+              </h2>
+            </div>
+
+            <form onSubmit={handleUrlSubmit} className="relative group">
+              <div className="relative flex items-center">
+                <LinkPanelIcon className="absolute left-5 h-5 w-5 text-[hsl(var(--text-soft))] group-focus-within:text-accent transition-colors" />
+                <input
+                  id="source-url"
+                  type="text"
+                  autoFocus
+                  placeholder={copy.source.placeholder}
+                  className={cn(
+                    'w-full h-16 rounded-3xl border border-border/50 bg-background/50 px-14 text-lg text-foreground outline-none transition-all placeholder:text-[hsl(var(--text-soft))/60] focus:border-accent/40 focus:bg-background focus:ring-8 focus:ring-accent/5',
+                    hasUrlValue && 'pr-44'
+                  )}
+                  value={source.draftUrl}
+                  onChange={(e) => setDraftUrl(e.target.value)}
+                />
+                <div className={cn(
+                  'absolute right-2 flex items-center transition-all duration-300',
+                  hasUrlValue ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4 pointer-events-none'
+                )}>
+                  <Button 
+                    type="submit" 
+                    size="lg"
+                    className="h-12 rounded-2xl px-6 shadow-xl shadow-primary/20"
+                  >
+                    {source.status === 'loading' ? copy.source.loading : copy.source.submit}
+                  </Button>
+                </div>
+              </div>
+              <p className="mt-4 text-center text-xs font-medium text-[hsl(var(--text-soft))] uppercase tracking-widest opacity-60">
+                {copy.source.helper}
+              </p>
+            </form>
+          </div>
+
+          {/* Bottom Zone: Upload / Drop */}
+          <div className="bg-foreground/[0.03] border-t border-border/30">
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              className={cn(
+                'group relative w-full flex flex-col items-center justify-center gap-4 py-12 transition-all duration-300',
+                'hover:bg-accent/5 active:scale-[0.99]'
+              )}
+            >
+              <div className={cn(
+                "flex h-16 w-16 items-center justify-center rounded-2xl transition-all duration-300",
+                dragActive ? "bg-accent text-white scale-110 shadow-lg shadow-accent/20" : "bg-foreground/5 text-foreground/40 group-hover:text-accent group-hover:bg-accent/10"
+              )}>
+                <UploadPanelIcon className="h-8 w-8" />
+              </div>
+              <div className="text-center">
+                <p className={cn(
+                  "text-lg font-bold transition-colors",
+                  dragActive ? "text-accent" : "text-foreground/70 group-hover:text-foreground"
+                )}>
+                  {dragActive ? "Drop image now" : copy.source.upload}
+                </p>
+                <p className="mt-1 text-xs text-[hsl(var(--text-soft))] font-bold uppercase tracking-[0.2em]">
+                  {copy.source.uploadHint} (SVG, PNG, JPG)
+                </p>
+              </div>
+              
+              <input
+                ref={inputRef}
+                type="file"
+                className="hidden"
+                accept="image/*"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (file) { await handleFile(file); e.target.value = ''; }
+                }}
+              />
+            </button>
+          </div>
+
+          {source.status === 'loading' && (
+            <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-sm z-50">
+              <div className="flex flex-col items-center gap-4">
+                <div className="h-12 w-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
+                <p className="text-sm font-bold uppercase tracking-widest text-accent animate-pulse">
+                  {copy.source.loading}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {source.errorMessage && (
+          <div className="mt-6 about-card rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-sm animate-in fade-in slide-in-from-top-4">
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <p className="font-bold text-destructive">{copy.source.fallbackTitle}</p>
+                <p className="mt-1 text-[hsl(var(--text-muted))]">{source.errorMessage}</p>
+              </div>
+              <button 
+                onClick={clearSourceError}
+                className="text-xs font-bold uppercase tracking-widest text-[hsl(var(--text-soft))] hover:text-foreground"
+              >
+                {copy.nav.close}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-3" onPaste={handlePaste} data-testid={variant === 'home' ? 'home-source' : 'editor-source'}>
+    <div className="space-y-4" onPaste={handlePaste} data-testid="editor-source">
       <div
         className={cn(
-          isEditor
-            ? 'rounded-[1.2rem] border border-border/70 bg-[hsl(var(--surface-muted))/0.55] p-3 transition'
-            : 'surface-card rounded-[1.5rem] border px-4 py-3 transition',
+          'rounded-[1.2rem] border border-border/70 bg-[hsl(var(--surface-muted))/0.55] p-3 transition',
           dragActive ? 'border-accent shadow-[0_0_0_3px_hsl(var(--accent)/0.16)]' : '',
         )}
-        onDragEnter={(event) => {
-          event.preventDefault();
-          setDragActive(true);
-        }}
-        onDragLeave={(event) => {
-          event.preventDefault();
+        onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
+        onDragLeave={(e) => { e.preventDefault(); setDragActive(false); }}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={async (e) => {
+          e.preventDefault();
           setDragActive(false);
-        }}
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={async (event) => {
-          event.preventDefault();
-          setDragActive(false);
-          const file = event.dataTransfer.files?.[0];
+          const file = e.dataTransfer.files?.[0];
           if (file) await handleFile(file);
         }}
       >
@@ -167,81 +299,57 @@ export function SourceControls({ variant = 'home' }: SourceControlsProps) {
           type="file"
           className="hidden"
           accept="image/*"
-          onChange={async (event) => {
-            const file = event.target.files?.[0];
-            if (file) {
-              await handleFile(file);
-              event.target.value = '';
-            }
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            if (file) { await handleFile(file); e.target.value = ''; }
           }}
         />
 
-        <div className={cn('space-y-3', isEditor && 'space-y-3')}>
-          <form onSubmit={handleUrlSubmit} className={cn('space-y-3', isEditor && 'space-y-2')}>
-            <label className={cn('text-sm font-medium text-[hsl(var(--text-muted))]', isEditor && 'text-xs uppercase tracking-[0.18em]')} htmlFor="source-url">
+        <div className="space-y-3">
+          <form onSubmit={handleUrlSubmit} className="space-y-2">
+            <label className="text-xs font-medium uppercase tracking-[0.18em] text-[hsl(var(--text-muted))]" htmlFor="source-url">
               {copy.source.label}
             </label>
-            <div className={cn('flex flex-col gap-3 sm:flex-row', isEditor && 'sm:items-stretch')}>
+            <div className="flex flex-col gap-3 sm:flex-row">
               <div className="relative flex-1">
                 <LinkPanelIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[hsl(var(--text-soft))]" />
                 <input
                   id="source-url"
                   type="text"
                   placeholder={copy.source.placeholder}
-                  className={cn(
-                    'w-full border border-input bg-background text-sm text-foreground outline-none transition placeholder:text-[hsl(var(--text-soft))] focus:border-accent focus:ring-2 focus:ring-accent/20',
-                    isEditor ? 'h-11 rounded-[1rem] px-11' : 'h-11 rounded-xl px-10',
-                  )}
+                  className="w-full h-11 border border-border/60 bg-background px-11 rounded-[1rem] text-sm text-foreground outline-none transition placeholder:text-[hsl(var(--text-soft))] focus:border-accent/60 focus:ring-4 focus:ring-accent/10"
                   value={source.draftUrl}
-                  onChange={(event) => setDraftUrl(event.target.value)}
+                  onChange={(e) => setDraftUrl(e.target.value)}
                 />
                 {source.status === 'loading' && (
                   <span className="absolute right-4 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-accent animate-pulse" />
                 )}
               </div>
-              <Button type="submit" className={cn(isEditor ? 'h-11 rounded-[1rem] px-5' : 'h-11 rounded-xl px-5')}>
+              <Button type="submit" className="h-11 rounded-[1rem] px-5">
                 {source.status === 'loading' ? copy.source.loading : copy.source.submit}
               </Button>
             </div>
           </form>
 
-          <div className={cn("grid gap-3", isEditor ? "sm:grid-cols-2" : "grid-cols-1")}>
+          <div className="grid gap-3 sm:grid-cols-2">
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
-              className={cn(
-                'surface-muted flex items-center gap-3 border text-left transition hover:border-accent/40 hover:bg-[hsl(var(--surface))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                isEditor ? 'justify-center rounded-[1rem] px-3 py-2.5' : 'rounded-xl px-4 py-2.5',
-              )}
+              className="surface-muted flex h-11 items-center justify-center gap-3 border rounded-[1rem] px-3 transition hover:border-accent/40 hover:bg-[hsl(var(--surface))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <UploadPanelIcon className="h-5 w-5 text-accent" />
-              <div className={cn(isEditor && 'flex items-center gap-2')}>
-                <p className="text-sm font-semibold text-foreground">{copy.source.upload}</p>
-                {!isEditor && <p className="text-xs text-[hsl(var(--text-soft))]">{copy.source.uploadHint}</p>}
-              </div>
+              <p className="text-sm font-semibold text-foreground">{copy.source.upload}</p>
             </button>
 
-            {isEditor && (
-              <button
-                type="button"
-                onClick={handleClipboardRead}
-                className={cn(
-                  'surface-muted flex items-center gap-3 border text-left transition hover:border-accent/40 hover:bg-[hsl(var(--surface))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  isEditor ? 'justify-center rounded-[1rem] px-3 py-2.5' : 'rounded-xl px-4 py-2.5',
-                )}
-              >
-                <ClipboardPanelIcon className="h-5 w-5 text-primary" />
-                <div className={cn(isEditor && 'flex items-center gap-2')}>
-                  <p className="text-sm font-semibold text-foreground">{copy.source.paste}</p>
-                  {!isEditor && <p className="text-xs text-[hsl(var(--text-soft))]">{copy.source.pasteHint}</p>}
-                </div>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleClipboardRead}
+              className="surface-muted flex h-11 items-center justify-center gap-3 border rounded-[1rem] px-3 transition hover:border-accent/40 hover:bg-[hsl(var(--surface))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <ClipboardPanelIcon className="h-5 w-5 text-primary" />
+              <p className="text-sm font-semibold text-foreground">{copy.source.paste}</p>
+            </button>
           </div>
-
-          {source.status === 'loading' && (
-            <p className={cn('text-sm text-[hsl(var(--text-muted))]', isEditor && 'text-xs')}>{copy.source.loading}</p>
-          )}
         </div>
       </div>
 

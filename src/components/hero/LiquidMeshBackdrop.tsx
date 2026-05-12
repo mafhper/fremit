@@ -1,23 +1,3 @@
-/**
- * LiquidMeshBackdrop.tsx
- * Canvas WebGL decorativo para o hero.
- *
- * O effect principal depende de `preset` + `interactive`.
- * Quando o tema muda, o effect faz cleanup e setup novamente —
- * seguro porque o cleanup NÃO usa WEBGL_lose_context.
- *
- * Props:
- * - interactive (default true): quando false, desativa pointer tracking
- *   e envia uPointer = 0 ao shader.
- *
- * Features:
- * - startLoop/stopLoop para pausar RAF fora da viewport
- * - data-webgl-status para diagnóstico
- * - ?webglDebug=1 e ?webglTestShader=1
- * - prefers-reduced-motion
- * - webglcontextlost / webglcontextrestored
- */
-
 import { useEffect, useRef, useState } from 'react';
 import { DEBUG_FRAGMENT_SHADER, FRAGMENT_SHADER, VERTEX_SHADER } from './shader';
 import {
@@ -26,7 +6,8 @@ import {
   getWebGLContext,
   hexToRgb,
 } from './webgl';
-import { useThemePreset } from './useThemePreset';
+import { useThemePreset, type LiquidVariant } from './useThemePreset';
+import { cn } from '@/lib/utils';
 
 type WebglStatus =
   | 'idle'
@@ -56,28 +37,36 @@ function readDebugParams(): { debug: boolean; testShader: boolean } {
 
 interface LiquidMeshBackdropProps {
   interactive?: boolean;
+  variant?: LiquidVariant;
+  className?: string;
 }
 
-export function LiquidMeshBackdrop({ interactive = true }: LiquidMeshBackdropProps) {
+export function LiquidMeshBackdrop({
+  interactive = true,
+  variant = 'home',
+  className,
+}: LiquidMeshBackdropProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const preset = useThemePreset();
+  const preset = useThemePreset(variant);
   const [status, setStatus] = useState<WebglStatus>('idle');
   const statusRef = useRef<WebglStatus>('idle');
-  const debugParamsRef = useRef(readDebugParams());
+  const [debugParams] = useState(() => readDebugParams());
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const el: HTMLCanvasElement = canvas;
 
-    const { debug, testShader } = debugParamsRef.current;
+    const { debug, testShader } = debugParams;
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     let disposed = false;
     let rafId = 0;
     let shouldRender = true;
-    let mouseX = 0.5;
-    let mouseY = 0.5;
+    let targetMouseX = 0.5;
+    let targetMouseY = 0.5;
+    let currentMouseX = 0.5;
+    let currentMouseY = 0.5;
 
     let gl: WebGLRenderingContext | null = null;
     let program: WebGLProgram | null = null;
@@ -92,7 +81,7 @@ export function LiquidMeshBackdrop({ interactive = true }: LiquidMeshBackdropPro
     }
 
     function setCanvasVisible(visible: boolean) {
-      el.style.display = visible ? '' : 'none';
+      el.style.opacity = visible ? '1' : '0';
     }
 
     function stopLoop() {
@@ -215,8 +204,8 @@ export function LiquidMeshBackdrop({ interactive = true }: LiquidMeshBackdropPro
     const onPointerMove = (e: PointerEvent) => {
       const rect = el.getBoundingClientRect();
       if (rect.width <= 0 || rect.height <= 0) return;
-      mouseX = clamp01((e.clientX - rect.left) / rect.width);
-      mouseY = clamp01((e.clientY - rect.top) / rect.height);
+      targetMouseX = clamp01((e.clientX - rect.left) / rect.width);
+      targetMouseY = clamp01((e.clientY - rect.top) / rect.height);
     };
 
     if (interactive) {
@@ -248,8 +237,6 @@ export function LiquidMeshBackdrop({ interactive = true }: LiquidMeshBackdropPro
     const startedAt = performance.now();
 
     // ─── Render loop ──────────────────────────────────────────────────
-    // Usa `preset` diretamente (capturado por closure do effect).
-    // O effect reexecuta quando preset muda, garantindo cores corretas.
     function render() {
       rafId = 0;
 
@@ -270,9 +257,13 @@ export function LiquidMeshBackdrop({ interactive = true }: LiquidMeshBackdropPro
         const [rB, gB, bB] = hexToRgb(p.colorB);
         const [rC, gC, bC] = hexToRgb(p.colorC);
 
+        // Mouse Inertia (Lerp)
+        currentMouseX += (targetMouseX - currentMouseX) * 0.05;
+        currentMouseY += (targetMouseY - currentMouseY) * 0.05;
+
         gl.uniform1f(uniforms.uTime,       elapsed * p.speed);
         gl.uniform2f(uniforms.uResolution, el.width, el.height);
-        gl.uniform2f(uniforms.uMouse,      mouseX, mouseY);
+        gl.uniform2f(uniforms.uMouse,      currentMouseX, currentMouseY);
         gl.uniform1f(uniforms.uWarp,       p.warp);
         gl.uniform1f(uniforms.uRipple,     p.ripple);
         gl.uniform1f(uniforms.uChrome,     p.chrome);
@@ -280,6 +271,8 @@ export function LiquidMeshBackdrop({ interactive = true }: LiquidMeshBackdropPro
         gl.uniform1f(uniforms.uGrain,      p.grain);
         gl.uniform1f(uniforms.uPointer,    interactive ? p.pointer : 0);
         gl.uniform1f(uniforms.uClouds,     p.clouds);
+        gl.uniform1f(uniforms.uStars,      p.stars);
+        gl.uniform1f(uniforms.uBloom,      p.bloom);
         gl.uniform2f(uniforms.uCenter,     p.centerX, p.centerY);
         gl.uniform1f(uniforms.uCenterSize, p.centerSize);
         gl.uniform3f(uniforms.uColorA,     rA, gA, bA);
@@ -320,19 +313,18 @@ export function LiquidMeshBackdrop({ interactive = true }: LiquidMeshBackdropPro
       el.removeEventListener('webglcontextrestored', onContextRestored, false);
       cleanupGlResources();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [interactive, preset]);
+  }, [interactive, preset, debugParams]);
 
   return (
     <>
       <div className="hero__fallback" aria-hidden="true" />
       <canvas
         ref={canvasRef}
-        className="hero__canvas"
+        className={cn('hero__canvas', className)}
         data-webgl-status={status}
         aria-hidden="true"
       />
-      {debugParamsRef.current.debug ? (
+      {debugParams.debug ? (
         <output className="hero__webgl-debug" aria-live="off">
           WebGL: {status}
         </output>

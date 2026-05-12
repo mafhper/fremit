@@ -1,12 +1,6 @@
 /**
  * useThemePreset.ts
- * Hook que devolve o preset WebGL correto para o tema atual e reage a:
- * - classe `dark` no <html>, usada por toggles manuais;
- * - preferência do sistema via prefers-color-scheme.
- *
- * Nota: o estado inicial já resolve o preset via useState lazy initializer.
- * O useEffect apenas observa mudanças futuras — sem setPreset adicional
- * que causaria re-render desnecessário na montagem.
+ * Hook que devolve o preset WebGL correto para o tema atual e a página.
  */
 
 import { useEffect, useState } from 'react';
@@ -16,30 +10,28 @@ function canUseDom(): boolean {
   return typeof window !== 'undefined' && typeof document !== 'undefined';
 }
 
-function resolvePreset(): LiquidPreset {
+export type LiquidVariant = 'home' | 'about';
+
+function resolvePreset(variant: LiquidVariant): LiquidPreset {
   if (!canUseDom()) {
-    return liquidPresets.light;
+    return liquidPresets[variant].light;
   }
 
-  if (document.documentElement.classList.contains('dark')) {
-    return liquidPresets.dark;
-  }
+  const root = document.documentElement;
+  const isDark = root.classList.contains('dark') ||
+    (!root.classList.contains('light') && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
-  if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    return liquidPresets.dark;
-  }
-
-  return liquidPresets.light;
+  return isDark ? liquidPresets[variant].dark : liquidPresets[variant].light;
 }
 
-export function useThemePreset(): LiquidPreset {
-  const [preset, setPreset] = useState<LiquidPreset>(() => resolvePreset());
+export function useThemePreset(variant: LiquidVariant = 'home'): LiquidPreset {
+  const [preset, setPreset] = useState<LiquidPreset>(() => resolvePreset(variant));
 
   useEffect(() => {
     if (!canUseDom()) return;
 
     const updatePreset = () => {
-      setPreset(resolvePreset());
+      setPreset(resolvePreset(variant));
     };
 
     const mutationObserver = new MutationObserver(updatePreset);
@@ -55,7 +47,7 @@ export function useThemePreset(): LiquidPreset {
       mutationObserver.disconnect();
       mediaQuery.removeEventListener('change', updatePreset);
     };
-  }, []);
+  }, [variant]);
 
   return preset;
 }

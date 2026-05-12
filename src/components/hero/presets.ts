@@ -1,20 +1,12 @@
 /**
  * presets.ts
- * Paletas e parâmetros WebGL por tema (claro / escuro).
- *
- * Agora com suporte a pointer interaction, cloud layer e center glow
- * — efeito mesh multicolorido inspirado no imaginizim.
- *
- * Tema claro: base branca, rosa vibrante, ciano elétrico.
- * Tema escuro: base preta, fúcsia, ciano brilhante.
- *
- * Valores calibrados para máxima riqueza visual:
- *  - contrast ≥ 0.70 (vibrancy)
- *  - chrome  ≥ 0.60 (specular reflections)
- *  - warp    ≥ 0.70 (mesh deformation)
+ * Paletas e parâmetros WebGL por tema e cena.
  */
 
+export type LiquidScene = 'liquid-chrome' | 'morning-sky' | 'cosmic-night';
+
 export interface LiquidPreset {
+  scene: LiquidScene;
   speed: number;
   warp: number;
   ripple: number;
@@ -23,6 +15,8 @@ export interface LiquidPreset {
   grain: number;
   pointer: number;   // 0–1, intensidade da interação com o mouse
   clouds: number;    // 0–1, opacidade da camada de nuvens
+  stars: number;     // 0–1, intensidade do campo de estrelas
+  bloom: number;     // 0–1, brilho/glow atmosférico
   centerX: number;   // 0–1, centro X do foco
   centerY: number;   // 0–1, centro Y do foco
   centerSize: number; // zoom ao redor do centro
@@ -32,36 +26,84 @@ export interface LiquidPreset {
 }
 
 export const liquidPresets = {
-  light: {
-    speed:     0.30,
-    warp:      0.72,
-    ripple:    0.58,
-    chrome:    0.62,
-    contrast:  0.76,
-    grain:     0.03,
-    pointer:   0.80,
-    clouds:    0.25,
-    centerX:   0.50,
-    centerY:   0.50,
-    centerSize: 1.00,
-    colorA: '#ffffff',  // base branca
-    colorB: '#f43f5e',  // rose-500 — rosa vibrante
-    colorC: '#06b6d4',  // cyan-500 — ciano elétrico
+  home: {
+    light: {
+      scene: 'morning-sky',
+      speed: 0.22,
+      warp: 0.45,
+      ripple: 0.52,
+      chrome: 0.12,
+      contrast: 0.35,
+      grain: 0.01,
+      pointer: 0.80,
+      clouds: 0.65,
+      stars: 0,
+      bloom: 0.12,
+      centerX: 0.50,
+      centerY: 0.50,
+      centerSize: 1.10,
+      colorA: '#72b7f0',
+      colorB: '#fffdf7',
+      colorC: '#d9efff',
+    },
+    dark: {
+      scene: 'cosmic-night',
+      speed: 0.26,
+      warp: 0.55,
+      ripple: 0.48,
+      chrome: 0.38,
+      contrast: 0.72,
+      grain: 0.02,
+      pointer: 0.80,
+      clouds: 0.10,
+      stars: 0,
+      bloom: 0.45,
+      centerX: 0.50,
+      centerY: 0.50,
+      centerSize: 1.05,
+      colorA: '#020617',
+      colorB: '#8b5cf6',
+      colorC: '#22d3ee',
+    },
   },
-  dark: {
-    speed:     0.35,
-    warp:      0.82,
-    ripple:    0.68,
-    chrome:    0.72,
-    contrast:  0.82,
-    grain:     0.04,
-    pointer:   0.80,
-    clouds:    0.30,
-    centerX:   0.50,
-    centerY:   0.50,
-    centerSize: 1.00,
-    colorA: '#000000',  // base preta
-    colorB: '#d946ef',  // fuchsia-500 — fúcsia vibrante
-    colorC: '#22d3ee',  // cyan-400 — ciano brilhante
+  about: {
+    light: {
+      scene: 'morning-sky',
+      speed: 0.12,
+      warp: 0.38,
+      ripple: 0.52,
+      chrome: 0.06,
+      contrast: 0.20,
+      grain: 0.00,
+      pointer: 0,
+      clouds: 0.78,
+      stars: 0,
+      bloom: 0.08,
+      centerX: 0.52,
+      centerY: 0.28,
+      centerSize: 1.65,
+      colorA: '#72b7f0',
+      colorB: '#fffdf7',
+      colorC: '#d9efff',
+    },
+    dark: {
+      scene: 'cosmic-night',
+      speed: 0.16,
+      warp: 0.50,
+      ripple: 0.42,
+      chrome: 0.32,
+      contrast: 0.78,
+      grain: 0.025,
+      pointer: 0,
+      clouds: 0.05,
+      stars: 0,
+      bloom: 0.72,
+      centerX: 0.58,
+      centerY: 0.42,
+      centerSize: 1.20,
+      colorA: '#020617',
+      colorB: '#8b5cf6',
+      colorC: '#22d3ee',
+    },
   },
-} as const satisfies Record<string, LiquidPreset>;
+} as const satisfies Record<string, Record<string, LiquidPreset>>;
