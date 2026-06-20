@@ -1,34 +1,37 @@
 # Fremit
 
-Turn links, screenshots, and image URLs into cleaner presentation assets.
+Turn links, screenshots, and image URLs into polished presentation assets.
 
-![Fremit home in light mode](docs/readme/home-light.png)
+[Open the live app](https://mafhper.github.io/fremit/)
 
-Fremit is a static app for turning screenshots, image URLs, and best-effort website previews into cleaner presentation assets. It runs entirely on GitHub Pages and is now structured as a product site plus a dedicated editor.
+![Fremit promotional site](docs/readme/promo-site.png)
 
-## Live Demo
+Fremit is a static React app for creating framed mockups from a website link, direct image URL, uploaded screenshot, or pasted image. It runs on GitHub Pages and is split into a public promo site plus a focused editor workspace.
 
-[https://mafhper.github.io/fremit/](https://mafhper.github.io/fremit/)
+## What It Does
 
-## Current Feature Set
+- Imports screenshots, clipboard images, and direct image URLs
+- Attempts website previews through Microlink screenshots, then Open Graph images
+- Keeps the last successful composition when a later URL preview fails
+- Frames content in desktop browser, phone, or tablet mockups
+- Supports portrait and landscape device orientations
+- Tunes viewport preset, shadow, radius, image fit, background, format, and export scale
+- Exports the current canvas as PNG or JPG through `html-to-image`
+- Supports English, Portuguese, and Spanish UI copy
 
-- Upload screenshots or paste images from the clipboard
-- Import direct image URLs
-- Try website URLs through Microlink screenshot or Open Graph fallback
-- Keep the last valid composition when a new website preview fails
-- Switch between desktop browser frames and simple phone/tablet frames
-- Use portrait or landscape orientation for phone/tablet frames
-- Tune viewport preset, shadow, radius, fit mode, background, and export scale
+![Fremit editor framing the promo site](docs/readme/editor-promo-site.png)
 
-## Honest URL Behavior
+## URL Preview Contract
 
-Fremit does not run a real browser in the backend. Website URLs are resolved in this order:
+Fremit is intentionally static. It does not run a backend browser or access private sessions.
+
+Website URLs are resolved in this order:
 
 1. Microlink screenshot
 2. Open Graph image
-3. Manual fallback message asking for a screenshot
+3. Manual fallback asking for a screenshot
 
-If no reliable preview is available, the current composition stays in place.
+Use an uploaded screenshot for authenticated pages, private apps, highly dynamic views, or any page where the generated URL preview does not match the desired state.
 
 ## Stack
 
@@ -46,8 +49,6 @@ If no reliable preview is available, the current composition stays in place.
 - Vitest
 - Playwright
 
-![Fremit editor using a Mark-Lee link](docs/readme/usage-mark-lee.png)
-
 ## Getting Started
 
 ```bash
@@ -55,7 +56,7 @@ bun install
 bun run dev
 ```
 
-The dev server runs on Vite's default port unless you pass a custom one.
+Vite serves the app at `/fremit/`, matching the GitHub Pages base path.
 
 ## Scripts
 
@@ -69,28 +70,42 @@ bun run test:smoke
 
 ## GitHub Pages
 
-This project is configured for GitHub Pages deployment through `.github/workflows/deploy.yml`.
+Deployment is handled by `.github/workflows/deploy.yml`.
 
 - GitHub Actions installs with `bun install --frozen-lockfile`
 - GitHub Actions builds with `bun run build`
-- `vite.config.ts` uses `base: '/fremit/'`
+- `vite.config.ts` sets `base: '/fremit/'`
 - `public/404.html` handles SPA deep-link fallback
 - `src/main.tsx` restores redirected routes after a Pages refresh
+
+## Dependency Safety
+
+The repository keeps both `bun.lock` and `package-lock.json` committed because Bun drives local/CI installs while GitHub Dependabot audits npm manifests. Security overrides in `package.json` pin vulnerable transitive packages to patched versions when upstream dependency ranges lag behind advisories.
+
+## Verification
+
+Use the full local gate before publishing changes:
+
+```bash
+bun run lint
+bun run build
+bun run test
+bun run test:smoke
+```
+
+For dependency or lockfile changes, also run:
+
+```bash
+bun install --frozen-lockfile --ignore-scripts
+npm audit --package-lock-only --audit-level=high
+npm audit signatures
+```
 
 ## Project Notes
 
 - The app is intentionally static and zero-cost.
-- Mobile and tablet frames are generic by design, not hardware simulations.
-- Long-lived project history and saved presets are still out of scope for this phase.
-
-## Verification
-
-The current repo passes:
-
-- `bun run build`
-- `bun run lint`
-- `bun run test`
-- `bun run test:smoke`
+- Mobile and tablet frames are generic mockups, not hardware simulations.
+- Saved projects and long-lived composition history are out of scope for this phase.
 
 ## License
 
