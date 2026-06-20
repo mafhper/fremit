@@ -1,6 +1,11 @@
 import { useEffect } from 'react';
-import ColorThief from 'colorthief';
+import { getPaletteSync } from 'colorthief';
 import { useStore } from '@/store/useStore';
+
+function toRgbString(color: { rgb(): { r: number; g: number; b: number } }) {
+  const { r, g, b } = color.rgb();
+  return `rgb(${r},${g},${b})`;
+}
 
 export function useImageColors() {
   const imageUrl = useStore((state) => state.source.active?.resolvedImageUrl);
@@ -15,13 +20,12 @@ export function useImageColors() {
 
     img.onload = () => {
       try {
-        const colorThief = new ColorThief();
-        const palette = colorThief.getPalette(img, 4);
+        const palette = getPaletteSync(img, { colorCount: 4 });
 
         if (palette && palette.length >= 3) {
-          const color1 = `rgb(${palette[0].join(',')})`;
-          const color2 = `rgb(${palette[1].join(',')})`;
-          const color3 = `rgb(${palette[2].join(',')})`;
+          const color1 = toRgbString(palette[0]);
+          const color2 = toRgbString(palette[1]);
+          const color3 = toRgbString(palette[2]);
 
           updateBackground({
             bgType: 'gradient',
