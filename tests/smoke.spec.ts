@@ -71,8 +71,9 @@ test('editor desktop stays inside the viewport with a dedicated side panel', asy
 });
 
 test('theme selector switches between dark and light', async ({ page }) => {
-  await page.addInitScript(() => window.localStorage.clear());
   await page.goto('/fremit/editor');
+  await page.evaluate(() => window.localStorage.clear());
+  await page.reload();
 
   const selector = page.getByRole('button', {
     name: /Color selector|Seletor de cores|Selector de color/i,
@@ -84,17 +85,22 @@ test('theme selector switches between dark and light', async ({ page }) => {
   await expect
     .poll(() => page.evaluate(() => document.documentElement.className))
     .not.toBe(initialTheme);
+  const expectedTheme = initialTheme === 'dark' ? 'light' : 'dark';
+  await expect
+    .poll(() => page.evaluate(() => window.localStorage.getItem('fremit.theme')))
+    .toBe(expectedTheme);
 
   await page.reload();
-  const toggledTheme = await page.evaluate(() => document.documentElement.className);
-  expect(toggledTheme).not.toBe(initialTheme);
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.className))
+    .toBe(expectedTheme);
 
   await page.getByRole('button', {
     name: /Color selector|Seletor de cores|Selector de color/i,
   }).click();
   await expect
     .poll(() => page.evaluate(() => document.documentElement.className))
-    .not.toBe(toggledTheme);
+    .toBe(initialTheme);
 });
 
 test('editor hides internal source strategy labels after loading a url', async ({ page }) => {
