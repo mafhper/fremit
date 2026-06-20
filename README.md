@@ -52,8 +52,8 @@ Use an uploaded screenshot for authenticated pages, private apps, highly dynamic
 ## Getting Started
 
 ```bash
-bun install
-bun run dev
+npm install
+npm run dev
 ```
 
 Vite serves the app at `/fremit/`, matching the GitHub Pages base path.
@@ -61,42 +61,42 @@ Vite serves the app at `/fremit/`, matching the GitHub Pages base path.
 ## Scripts
 
 ```bash
-bun run dev
-bun run build
-bun run lint
-bun run test
-bun run test:smoke
+npm run dev
+npm run build
+npm run lint
+npm run test
+npm run test:smoke
 ```
 
 ## GitHub Pages
 
 Deployment is handled by `.github/workflows/deploy.yml`.
 
-- GitHub Actions installs with `bun install --frozen-lockfile`
-- GitHub Actions builds with `bun run build`
+- GitHub Actions installs with `npm ci`
+- GitHub Actions builds with `npm run build`
 - `vite.config.ts` sets `base: '/fremit/'`
 - `public/404.html` handles SPA deep-link fallback
 - `src/main.tsx` restores redirected routes after a Pages refresh
 
 ## Dependency Safety
 
-The repository keeps both `bun.lock` and `package-lock.json` committed because Bun drives local/CI installs while GitHub Dependabot audits npm manifests. Security overrides in `package.json` pin vulnerable transitive packages to patched versions when upstream dependency ranges lag behind advisories.
+The repository uses npm as the single package manager and commits `package-lock.json` for deterministic installs. Dependabot tracks npm and GitHub Actions updates, while Dependency Guard audits dependency-changing pull requests without lifecycle scripts or secrets.
 
 ## Verification
 
 Use the full local gate before publishing changes:
 
 ```bash
-bun run lint
-bun run build
-bun run test
-bun run test:smoke
+npm run lint
+npm run build
+npm run test
+npm run test:smoke
 ```
 
 For dependency or lockfile changes, also run:
 
 ```bash
-bun install --frozen-lockfile --ignore-scripts
+npm ci --ignore-scripts
 npm audit --package-lock-only --audit-level=high
 npm audit signatures
 ```
