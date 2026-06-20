@@ -123,8 +123,32 @@ test('dark theme text meets WCAG AA contrast', async ({ page }) => {
   }
 });
 
+function parseCssColor(color: string): [number, number, number, number] {
+  const normalized = color.trim().replace(/,/g, ' ').replace(/\//g, ' / ');
+
+  const rgbMatch = normalized.match(/^rgba?\((.+)\)$/);
+  if (rgbMatch) {
+    const parts = rgbMatch[1].trim().split(/\s+/);
+    const channels = parts.filter((part) => part !== '/');
+    const [r, g, b] = channels.slice(0, 3).map((part) => Math.round(Number.parseFloat(part)));
+    const alpha = channels[3] === undefined ? 1 : Number.parseFloat(channels[3]);
+    return [r, g, b, alpha];
+  }
+
+  const srgbMatch = normalized.match(/^color\(srgb\s+(.+)\)$/);
+  if (srgbMatch) {
+    const parts = srgbMatch[1].trim().split(/\s+/);
+    const channels = parts.filter((part) => part !== '/');
+    const [r, g, b] = channels.slice(0, 3).map((part) => Math.round(Number.parseFloat(part) * 255));
+    const alpha = channels[3] === undefined ? 1 : Number.parseFloat(channels[3]);
+    return [r, g, b, alpha];
+  }
+
+  throw new Error(`Unsupported CSS color format: ${color}`);
+}
+
 function alphaBlend(fg: [number, number, number, number], bg: [number, number, number]): [number, number, number] {
-  const alpha = fg[3] / 255;
+  const alpha = fg[3];
   return [
     Math.round(fg[0] * alpha + bg[0] * (1 - alpha)),
     Math.round(fg[1] * alpha + bg[1] * (1 - alpha)),
@@ -137,25 +161,25 @@ test('hero subtitle has sufficient contrast in light theme', async ({ page }) =>
     localStorage.setItem('fremit.theme', 'light');
   });
   await page.goto('/fremit/');
+  await expect(page.getByTestId('home-subtitle')).toBeVisible();
 
   const result = await page.evaluate(() => {
     const bgVar = getComputedStyle(document.documentElement).getPropertyValue('--background').trim();
-    const bg = parseColor(bgVar);
-
-    const subtitle = document.querySelector('.hero__content p');
+    const subtitle = document.querySelector('[data-testid="home-subtitle"]');
     if (!subtitle) return null;
-    const rgba = getComputedStyle(subtitle).color; // "rgba(r, g, b, a)" or "rgb(r, g, b)"
-    const parts = rgba.match(/\d+/g)!.map(Number);
-    const fgRgba: [number, number, number, number] = parts.length === 4
-      ? [parts[0], parts[1], parts[2], parts[3]]
-      : [parts[0], parts[1], parts[2], 255];
-
-    const effectiveFg = alphaBlend(fgRgba, bg);
-    const ratio = contrastRatio(effectiveFg, bg);
-    return ratio;
+    return {
+      bgVar,
+      subtitleColor: getComputedStyle(subtitle).color,
+    };
   });
   expect(result).not.toBeNull();
-  expect.soft(result!, `hero subtitle contrast (light): ${result!.toFixed(2)}:1`).toBeGreaterThanOrEqual(AA_LARGE);
+
+  const bg = parseColor(result!.bgVar);
+  const fg = parseCssColor(result!.subtitleColor);
+  const effectiveFg = alphaBlend(fg, bg);
+  const ratio = contrastRatio(effectiveFg, bg);
+
+  expect.soft(ratio, `hero subtitle contrast (light): ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(AA_LARGE);
 });
 
 test('hero subtitle has sufficient contrast in dark theme', async ({ page }) => {
@@ -163,23 +187,23 @@ test('hero subtitle has sufficient contrast in dark theme', async ({ page }) => 
     localStorage.setItem('fremit.theme', 'dark');
   });
   await page.goto('/fremit/');
+  await expect(page.getByTestId('home-subtitle')).toBeVisible();
 
   const result = await page.evaluate(() => {
     const bgVar = getComputedStyle(document.documentElement).getPropertyValue('--background').trim();
-    const bg = parseColor(bgVar);
-
-    const subtitle = document.querySelector('.hero__content p');
+    const subtitle = document.querySelector('[data-testid="home-subtitle"]');
     if (!subtitle) return null;
-    const rgba = getComputedStyle(subtitle).color;
-    const parts = rgba.match(/\d+/g)!.map(Number);
-    const fgRgba: [number, number, number, number] = parts.length === 4
-      ? [parts[0], parts[1], parts[2], parts[3]]
-      : [parts[0], parts[1], parts[2], 255];
-
-    const effectiveFg = alphaBlend(fgRgba, bg);
-    const ratio = contrastRatio(effectiveFg, bg);
-    return ratio;
+    return {
+      bgVar,
+      subtitleColor: getComputedStyle(subtitle).color,
+    };
   });
   expect(result).not.toBeNull();
-  expect.soft(result!, `hero subtitle contrast (dark): ${result!.toFixed(2)}:1`).toBeGreaterThanOrEqual(AA_LARGE);
+
+  const bg = parseColor(result!.bgVar);
+  const fg = parseCssColor(result!.subtitleColor);
+  const effectiveFg = alphaBlend(fg, bg);
+  const ratio = contrastRatio(effectiveFg, bg);
+
+  expect.soft(ratio, `hero subtitle contrast (dark): ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(AA_LARGE);
 });
