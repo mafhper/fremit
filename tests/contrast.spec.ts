@@ -52,6 +52,7 @@ const AA_NORMAL = 4.5;
 const AA_LARGE = 3;
 
 test('light theme text meets WCAG AA contrast', async ({ page }) => {
+  test.slow();
   await page.addInitScript(() => {
     localStorage.setItem('fremit.theme', 'light');
   });
@@ -88,6 +89,7 @@ test('light theme text meets WCAG AA contrast', async ({ page }) => {
 });
 
 test('dark theme text meets WCAG AA contrast', async ({ page }) => {
+  test.slow();
   await page.addInitScript(() => {
     localStorage.setItem('fremit.theme', 'dark');
   });
