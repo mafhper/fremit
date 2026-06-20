@@ -1,10 +1,7 @@
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 import { ProductLayout } from '@/components/layout/ProductLayout';
-
-const HomePage = lazy(() => import('@/pages/HomePage').then((module) => ({ default: module.HomePage })));
-const AboutPage = lazy(() => import('@/pages/AboutPage').then((module) => ({ default: module.AboutPage })));
-const EditorPage = lazy(() => import('@/pages/EditorPage').then((module) => ({ default: module.EditorPage })));
+import { AboutPage, EditorPage, HomePage } from '@/app/lazyPages';
 
 export const router = createBrowserRouter(
   [
