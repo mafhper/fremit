@@ -1,29 +1,36 @@
 import { expect, test } from '@playwright/test';
 
-test('home hero stays inside the first viewport with SourceControls below fold', async ({ page }) => {
+test('home hero and source controls stay inside the first viewport', async ({ page }) => {
   test.slow();
   await page.goto('/fremit/');
 
   await expect(page.getByRole('heading', { name: /Paste, edit, and export\.|Cole, edite e exporte\./i })).toBeVisible();
   await expect(page.getByTestId('home-source')).toBeVisible();
-  await expect(page.getByLabel('Link or image URL').or(page.getByLabel('Link ou URL da imagem'))).toBeVisible();
+  await expect(page.getByLabel(/Enter a link|Insira um link|Insertar un enlace/i)).toBeVisible();
 
   const hero = page.locator('.hero');
   await expect(hero).toBeVisible();
   const heroRect = await hero.boundingBox();
-  expect(heroRect!.height).toBeGreaterThanOrEqual(600);
+  const viewport = page.viewportSize();
+  expect(heroRect!.height).toBeGreaterThanOrEqual(Math.min(viewport!.height * 0.75, 560));
+  expect(heroRect!.y + heroRect!.height).toBeLessThanOrEqual(viewport!.height + 8);
 
   const sourceSection = page.getByTestId('home-source');
   await expect(sourceSection).toBeVisible();
   const sourceRect = await sourceSection.boundingBox();
-  expect(sourceRect!.y).toBeGreaterThanOrEqual(heroRect!.y + heroRect!.height - 50);
+  expect(sourceRect!.y).toBeGreaterThanOrEqual(heroRect!.y);
+  expect(sourceRect!.y + sourceRect!.height).toBeLessThanOrEqual(viewport!.height + 8);
 });
 
 test('public mobile menu exposes navigation and open app', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/fremit/');
 
-  await page.getByRole('button', { name: /Menu|Menú/i }).click();
+  await expect(page.getByRole('heading', { name: /Paste, edit, and export\.|Cole, edite e exporte\./i })).toBeVisible();
+
+  const menu = page.getByRole('button', { name: /Menu|Menú/i });
+  await menu.click();
+  await expect(menu).toHaveAttribute('aria-expanded', 'true');
 
   await expect(page.getByRole('link', { name: /Home|Início|Inicio/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /About|Sobre/i })).toBeVisible();

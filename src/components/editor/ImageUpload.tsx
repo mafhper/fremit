@@ -176,6 +176,7 @@ export function SourceControls({ variant = 'home' }: SourceControlsProps) {
                 <input
                   id="source-url"
                   type="text"
+                  aria-label={copy.source.label}
                   autoFocus
                   placeholder={copy.source.placeholder}
                   className={cn(
