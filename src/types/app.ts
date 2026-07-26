@@ -1,5 +1,6 @@
 export type SourceMode = 'upload' | 'clipboard-image' | 'image-url' | 'website-url';
 export type SourceStatus = 'idle' | 'loading' | 'ready' | 'error';
+export type CaptureDelay = 1000 | 3000 | 5000;
 export type SourceStrategy =
   | 'direct-image'
   | 'microlink-screenshot'
@@ -25,6 +26,8 @@ export interface ResolvedSource {
   title: string;
   requestedViewportWidth: number | null;
   requestedViewportHeight: number | null;
+  requestedCaptureDelayMs: number | null;
+  requestedCaptureSelector: string | null;
   status: Extract<SourceStatus, 'ready'>;
   errorCode: string | null;
   errorMessage: string | null;
@@ -36,6 +39,8 @@ export interface SourceState {
   active: ResolvedSource | null;
   pendingMode: SourceMode | null;
   pendingUrl: string | null;
+  captureDelayMs: CaptureDelay;
+  captureSelector: string;
   errorCode: string | null;
   errorMessage: string | null;
 }
@@ -54,6 +59,9 @@ export interface FrameState {
   windowWidth: number;
   windowHeight: number;
   fitMode: FitMode;
+  imageZoom: number;
+  imagePositionX: number;
+  imagePositionY: number;
   showDeviceCamera: boolean;
 }
 

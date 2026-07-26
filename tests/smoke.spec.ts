@@ -108,10 +108,72 @@ test('editor hides internal source strategy labels after loading a url', async (
 
   const input = page.getByTestId('editor-source').locator('input[type="text"]').first();
   await input.fill('https://mafhper.github.io/mark-lee/pt-BR/faq');
-  await page.getByRole('button', { name: /Open|Abrir/i }).click();
+  await page.getByRole('button', { name: /Capture page|Capturar página/i }).click();
 
   await expect(page.getByTestId('editor-panel').getByText(/mark-lee\/pt-BR\/faq/i)).toBeVisible({ timeout: 15000 });
   await expect(page.getByText(/microlink-screenshot|og-image|direct-image/i)).toHaveCount(0);
+});
+
+test('editor waits for dynamic pages and offers precise framing', async ({ page }) => {
+  const captureRequests: URL[] = [];
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+    'base64',
+  );
+
+  await page.route('https://api.microlink.io/**', async (route) => {
+    captureRequests.push(new URL(route.request().url()));
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        status: 'success',
+        data: {
+          title: 'Dinopad — Atlas',
+          screenshot: { url: 'https://preview.example.test/dinopad.png' },
+        },
+      }),
+    });
+  });
+  await page.route('https://preview.example.test/dinopad.png', (route) =>
+    route.fulfill({ contentType: 'image/png', body: png }),
+  );
+
+  await page.goto('/fremit/editor');
+
+  await page.getByLabel(/Page to capture|Página a capturar|Página para capturar/i).fill(
+    'https://mafhper.github.io/dinopad/#/atlas',
+  );
+  await page.getByLabel(/Wait for the page|Aguardar a página|Esperar la página/i).click();
+  await page.getByRole('option', { name: /Complex page|Página complexa/i }).click();
+  await page.getByLabel(/Focus section|Seção em foco|Sección en foco/i).fill('main');
+  await page.getByRole('button', { name: /Capture page|Capturar página/i }).click();
+
+  await expect(page.getByTestId('preview-image')).toBeVisible();
+  await expect(page.getByTestId('framing-controls')).toBeVisible();
+  await expect(page.getByTestId('editor-panel').getByText('Dinopad — Atlas')).toBeVisible();
+
+  expect(captureRequests).toHaveLength(1);
+  expect(captureRequests[0].searchParams.get('url')).toBe(
+    'https://mafhper.github.io/dinopad/#/atlas',
+  );
+  expect(captureRequests[0].searchParams.get('waitForTimeout')).toBe('5000');
+  expect(captureRequests[0].searchParams.get('waitForSelector')).toBe('main');
+  expect(captureRequests[0].searchParams.get('element')).toBe('main');
+
+  const preview = page.getByTestId('preview-image');
+  const image = preview.locator('img');
+  await preview.focus();
+  await preview.press('ArrowRight');
+  await expect(image).toHaveCSS('object-position', '52% 50%');
+
+  const zoom = page.getByRole('slider', { name: /Zoom/i });
+  await zoom.focus();
+  await zoom.press('ArrowRight');
+  await expect(zoom).toHaveAttribute('aria-valuenow', '101');
+
+  await page.getByRole('button', { name: /Reset framing|Redefinir enquadramento|Restablecer encuadre/i }).click();
+  await expect(image).toHaveCSS('object-position', '50% 50%');
+  await expect(zoom).toHaveAttribute('aria-valuenow', '100');
 });
 
 test('editor mobile uses controls overlay without turning into a long page', async ({ page }) => {

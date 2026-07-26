@@ -18,6 +18,9 @@ export function DownloadButton() {
 
     setIsLoading(true);
     try {
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
       await new Promise((resolve) => setTimeout(resolve, 150));
 
       const options = {

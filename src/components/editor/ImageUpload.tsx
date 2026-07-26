@@ -1,7 +1,15 @@
 import { type ClipboardEvent, type FormEvent, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ClipboardPanelIcon, LinkPanelIcon, UploadPanelIcon } from '@/components/icons/AppIcons';
-import { Button } from '@/components/ui';
+import {
+  Button,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui';
 import { useI18n } from '@/i18n/useI18n';
 import {
   SourceResolutionError,
@@ -11,6 +19,7 @@ import {
 } from '@/lib/sourceResolver';
 import { cn } from '@/lib/utils';
 import { useStore } from '@/store/useStore';
+import type { CaptureDelay } from '@/types/app';
 
 interface SourceControlsProps {
   variant?: 'home' | 'editor';
@@ -41,6 +50,8 @@ export function SourceControls({ variant = 'home' }: SourceControlsProps) {
   const source = useStore((state) => state.source);
   const frame = useStore((state) => state.frame);
   const setDraftUrl = useStore((state) => state.setDraftUrl);
+  const setCaptureDelay = useStore((state) => state.setCaptureDelay);
+  const setCaptureSelector = useStore((state) => state.setCaptureSelector);
   const startSourceLoading = useStore((state) => state.startSourceLoading);
   const commitResolvedSource = useStore((state) => state.commitResolvedSource);
   const failSourceLoading = useStore((state) => state.failSourceLoading);
@@ -83,6 +94,8 @@ export function SourceControls({ variant = 'home' }: SourceControlsProps) {
             ? {
                 viewportWidth: frame.windowWidth,
                 viewportHeight: frame.windowHeight,
+                captureDelayMs: source.captureDelayMs,
+                captureSelector: source.captureSelector,
               }
             : {},
         ),
@@ -309,9 +322,9 @@ export function SourceControls({ variant = 'home' }: SourceControlsProps) {
         <div className="space-y-3">
           <form onSubmit={handleUrlSubmit} className="space-y-2">
             <label className="text-xs font-medium uppercase tracking-[0.18em] text-[hsl(var(--text-muted))]" htmlFor="source-url">
-              {copy.source.label}
+              {copy.source.pageUrlLabel}
             </label>
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="flex flex-col gap-3">
               <div className="relative flex-1">
                 <LinkPanelIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[hsl(var(--text-soft))]" />
                 <input
@@ -326,11 +339,52 @@ export function SourceControls({ variant = 'home' }: SourceControlsProps) {
                   <span className="absolute right-4 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-accent animate-pulse" />
                 )}
               </div>
-              <Button type="submit" className="h-11 rounded-[1rem] px-5">
-                {source.status === 'loading' ? copy.source.loading : copy.source.submit}
+              <Button
+                type="submit"
+                className="h-11 w-full rounded-[1rem] px-5"
+                disabled={source.status === 'loading' || !hasUrlValue}
+              >
+                {source.status === 'loading' ? copy.source.loading : copy.source.capturePage}
               </Button>
             </div>
           </form>
+
+          <div className="space-y-3 rounded-[1rem] border border-border/60 bg-background/55 p-3">
+            <div className="space-y-1">
+              <Label>{copy.source.captureDelay}</Label>
+              <p className="text-xs leading-5 text-[hsl(var(--text-muted))]">{copy.source.captureDelayHint}</p>
+            </div>
+            <Select
+              value={String(source.captureDelayMs)}
+              onValueChange={(value) => setCaptureDelay(Number(value) as CaptureDelay)}
+            >
+              <SelectTrigger className="rounded-[0.9rem]" aria-label={copy.source.captureDelay}>
+                <SelectValue placeholder={copy.source.captureDelay} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1000">{copy.source.captureQuick}</SelectItem>
+                <SelectItem value="3000">{copy.source.captureBalanced}</SelectItem>
+                <SelectItem value="5000">{copy.source.captureComplete}</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <div className="space-y-2">
+              <Label htmlFor="capture-selector">{copy.source.captureSelector}</Label>
+              <input
+                id="capture-selector"
+                type="text"
+                spellCheck={false}
+                placeholder={copy.source.captureSelectorPlaceholder}
+                aria-describedby="capture-selector-hint"
+                className="h-11 w-full rounded-[0.9rem] border border-border/60 bg-background px-4 text-sm text-foreground outline-none transition placeholder:text-[hsl(var(--text-soft))] focus:border-accent/60 focus:ring-4 focus:ring-accent/10"
+                value={source.captureSelector}
+                onChange={(event) => setCaptureSelector(event.target.value)}
+              />
+              <p id="capture-selector-hint" className="text-xs leading-5 text-[hsl(var(--text-muted))]">
+                {copy.source.captureSelectorHint}
+              </p>
+            </div>
+          </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <button

@@ -10,6 +10,8 @@ const workingSource: ResolvedSource = {
   title: 'Working preview',
   requestedViewportWidth: null,
   requestedViewportHeight: null,
+  requestedCaptureDelayMs: null,
+  requestedCaptureSelector: null,
   status: 'ready',
   errorCode: null,
   errorMessage: null,
@@ -25,6 +27,8 @@ describe('useStore', () => {
         active: null,
         pendingMode: null,
         pendingUrl: null,
+        captureDelayMs: 3000,
+        captureSelector: '',
         errorCode: null,
         errorMessage: null,
       },
@@ -41,5 +45,43 @@ describe('useStore', () => {
     expect(state.source.active?.resolvedImageUrl).toBe('data:image/png;base64,working');
     expect(state.source.status).toBe('error');
     expect(state.source.errorCode).toBe('no-preview');
+  });
+
+  it('preserves framing on a recapture and resets it for a different page', () => {
+    const firstPage: ResolvedSource = {
+      ...workingSource,
+      mode: 'website-url',
+      strategy: 'microlink-screenshot',
+      sourceUrl: 'https://example.com/page-a',
+    };
+
+    useStore.getState().commitResolvedSource(firstPage);
+    useStore.getState().updateFrame({
+      imageZoom: 160,
+      imagePositionX: 72,
+      imagePositionY: 28,
+    });
+    useStore.getState().commitResolvedSource({
+      ...firstPage,
+      requestedViewportWidth: 390,
+      requestedViewportHeight: 844,
+    });
+
+    expect(useStore.getState().frame).toMatchObject({
+      imageZoom: 160,
+      imagePositionX: 72,
+      imagePositionY: 28,
+    });
+
+    useStore.getState().commitResolvedSource({
+      ...firstPage,
+      sourceUrl: 'https://example.com/page-b',
+    });
+
+    expect(useStore.getState().frame).toMatchObject({
+      imageZoom: 100,
+      imagePositionX: 50,
+      imagePositionY: 50,
+    });
   });
 });

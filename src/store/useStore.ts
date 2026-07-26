@@ -3,6 +3,7 @@ import { getViewportSize } from '@/lib/framePresets';
 import type {
   AppShellState,
   BackgroundState,
+  CaptureDelay,
   DesktopChromePreset,
   DevicePreset,
   ExportFormat,
@@ -44,6 +45,8 @@ interface AppState {
   };
   appShell: AppShellState;
   setDraftUrl: (value: string) => void;
+  setCaptureDelay: (value: CaptureDelay) => void;
+  setCaptureSelector: (value: string) => void;
   startSourceLoading: (mode: SourceMode, pendingUrl?: string | null) => void;
   commitResolvedSource: (resolved: ResolvedSource) => void;
   failSourceLoading: (code: string, message: string) => void;
@@ -93,6 +96,9 @@ const defaultFrame: FrameState = {
   windowWidth: 1440,
   windowHeight: 900,
   fitMode: 'contain',
+  imageZoom: 100,
+  imagePositionX: 50,
+  imagePositionY: 50,
   showDeviceCamera: false,
 };
 
@@ -130,6 +136,8 @@ export const useStore = create<AppState>((set) => ({
     active: null,
     pendingMode: null,
     pendingUrl: null,
+    captureDelayMs: 3000,
+    captureSelector: '',
     errorCode: null,
     errorMessage: null,
   },
@@ -152,6 +160,20 @@ export const useStore = create<AppState>((set) => ({
         draftUrl: value,
       },
     })),
+  setCaptureDelay: (captureDelayMs) =>
+    set((state) => ({
+      source: {
+        ...state.source,
+        captureDelayMs,
+      },
+    })),
+  setCaptureSelector: (captureSelector) =>
+    set((state) => ({
+      source: {
+        ...state.source,
+        captureSelector,
+      },
+    })),
   startSourceLoading: (mode, pendingUrl = null) =>
     set((state) => ({
       source: {
@@ -164,23 +186,32 @@ export const useStore = create<AppState>((set) => ({
       },
     })),
   commitResolvedSource: (resolved) =>
-    set((state) => ({
-      source: {
-        ...state.source,
-        status: 'ready',
-        active: resolved,
-        pendingMode: null,
-        pendingUrl: null,
-        draftUrl: '',
-        errorCode: null,
-        errorMessage: null,
-      },
-      frame: {
-        ...state.frame,
-        windowTitle: resolved.title,
-        fitMode: resolved.mode === 'website-url' ? 'cover' : state.frame.fitMode,
-      },
-    })),
+    set((state) => {
+      const isNewSource =
+        state.source.active?.mode !== resolved.mode ||
+        state.source.active?.sourceUrl !== resolved.sourceUrl;
+
+      return {
+        source: {
+          ...state.source,
+          status: 'ready',
+          active: resolved,
+          pendingMode: null,
+          pendingUrl: null,
+          draftUrl: resolved.sourceUrl ?? '',
+          errorCode: null,
+          errorMessage: null,
+        },
+        frame: {
+          ...state.frame,
+          windowTitle: resolved.title,
+          fitMode: isNewSource && resolved.mode === 'website-url' ? 'cover' : state.frame.fitMode,
+          imageZoom: isNewSource ? 100 : state.frame.imageZoom,
+          imagePositionX: isNewSource ? 50 : state.frame.imagePositionX,
+          imagePositionY: isNewSource ? 50 : state.frame.imagePositionY,
+        },
+      };
+    }),
   failSourceLoading: (code, message) =>
     set((state) => ({
       source: {

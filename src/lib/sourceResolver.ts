@@ -3,6 +3,8 @@ import type { ResolvedSource, SourceMode, SourceStrategy } from '@/types/app';
 interface ResolveViewportOptions {
   viewportWidth?: number | null;
   viewportHeight?: number | null;
+  captureDelayMs?: number | null;
+  captureSelector?: string | null;
 }
 
 export class SourceResolutionError extends Error {
@@ -35,7 +37,9 @@ export function getUrlTitle(url: string): string {
   try {
     const urlObj = new URL(url);
     const pathname = urlObj.pathname.replace(/^\/$/, '').replace(/\/$/, '');
-    return pathname ? `${urlObj.hostname}${pathname}` : urlObj.hostname;
+    const hashRoute = urlObj.hash.replace(/^#\/?/, '');
+    const route = [pathname, hashRoute].filter(Boolean).join('/');
+    return route ? `${urlObj.hostname}${route.startsWith('/') ? '' : '/'}${route}` : urlObj.hostname;
   } catch {
     return 'Imported preview';
   }
@@ -130,6 +134,8 @@ async function resolveLoadedImage(
     title,
     requestedViewportWidth: options.viewportWidth ?? null,
     requestedViewportHeight: options.viewportHeight ?? null,
+    requestedCaptureDelayMs: options.captureDelayMs ?? null,
+    requestedCaptureSelector: options.captureSelector?.trim() || null,
     status: 'ready',
     errorCode: null,
     errorMessage: null,
@@ -159,6 +165,16 @@ function buildMicrolinkUrl(url: string, options: ResolveViewportOptions = {}) {
     params.set('viewport.height', String(options.viewportHeight));
   }
 
+  if (options.captureDelayMs) {
+    params.set('waitForTimeout', String(options.captureDelayMs));
+  }
+
+  const captureSelector = options.captureSelector?.trim();
+  if (captureSelector) {
+    params.set('waitForSelector', captureSelector);
+    params.set('element', captureSelector);
+  }
+
   return `https://api.microlink.io/?${params.toString()}`;
 }
 
@@ -184,7 +200,10 @@ export async function resolveWebsiteUrl(url: string, options: ResolveViewportOpt
 
   const payload = await response.json();
   if (payload.status !== 'success' || !payload.data) {
-    throw new SourceResolutionError('microlink-failed', 'No preview metadata was returned for this website.');
+    throw new SourceResolutionError(
+      'microlink-failed',
+      payload.message || 'No preview metadata was returned for this website.',
+    );
   }
 
   const title = payload.data.title || getUrlTitle(url);
@@ -236,6 +255,8 @@ export async function resolveFileSource(file: File, mode: Extract<SourceMode, 'u
     title: file.name || 'Imported image',
     requestedViewportWidth: null,
     requestedViewportHeight: null,
+    requestedCaptureDelayMs: null,
+    requestedCaptureSelector: null,
     status: 'ready',
     errorCode: null,
     errorMessage: null,

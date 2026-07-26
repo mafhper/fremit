@@ -58,9 +58,19 @@ export interface MessageSchema {
   };
   source: {
     label: string;
+    pageUrlLabel: string;
     placeholder: string;
     submit: string;
+    capturePage: string;
     loading: string;
+    captureDelay: string;
+    captureDelayHint: string;
+    captureQuick: string;
+    captureBalanced: string;
+    captureComplete: string;
+    captureSelector: string;
+    captureSelectorPlaceholder: string;
+    captureSelectorHint: string;
     upload: string;
     uploadHint: string;
     paste: string;
@@ -110,6 +120,15 @@ export interface MessageSchema {
     width: string;
     height: string;
     imageFit: string;
+    fitContain: string;
+    fitCover: string;
+    imageFraming: string;
+    imageFramingHint: string;
+    imageZoom: string;
+    imagePositionX: string;
+    imagePositionY: string;
+    resetFraming: string;
+    dragPreview: string;
     shadow: string;
     cornerRadius: string;
     windowTitle: string;
@@ -200,8 +219,8 @@ export const messages: Record<Locale, MessageSchema> = {
           body: 'Generic mobile and tablet shells with portrait and landscape orientation.',
         },
         {
-          title: 'Viewport-aware previews',
-          body: 'Website captures can follow the selected viewport instead of staying stuck in one desktop shot.',
+          title: 'Dynamic page capture',
+          body: 'Wait for asynchronous content, choose a public route, or focus a specific section before framing it.',
         },
         {
           title: 'Background and export',
@@ -243,7 +262,7 @@ export const messages: Record<Locale, MessageSchema> = {
           },
           {
             question: 'Do single-page apps always resolve correctly?',
-            answer: 'Not always. If the site does not publish a usable preview, Fremit cannot reconstruct the live page.',
+            answer: 'Not always. Fremit can wait for dynamic content and focus a CSS-selected section, but it cannot reproduce login or interaction-only states.',
           },
           {
             question: 'Will a failed link erase my current canvas?',
@@ -254,9 +273,19 @@ export const messages: Record<Locale, MessageSchema> = {
     },
     source: {
       label: 'Enter a link',
+      pageUrlLabel: 'Page to capture',
       placeholder: 'Paste a website or image URL...',
       submit: 'Open in Editor',
+      capturePage: 'Capture page',
       loading: 'Loading...',
+      captureDelay: 'Wait for the page',
+      captureDelayHint: 'Gives dynamic content time to finish rendering.',
+      captureQuick: 'Quick · 1 second',
+      captureBalanced: 'Balanced · 3 seconds',
+      captureComplete: 'Complex page · 5 seconds',
+      captureSelector: 'Focus section (optional)',
+      captureSelectorPlaceholder: 'Example: main or #hero',
+      captureSelectorHint: 'Waits for this CSS selector and captures only that section.',
       upload: 'Upload image',
       uploadHint: 'or drop it here',
       paste: 'Paste',
@@ -306,6 +335,15 @@ export const messages: Record<Locale, MessageSchema> = {
       width: 'Width',
       height: 'Height',
       imageFit: 'Image fit',
+      fitContain: 'Show entire image',
+      fitCover: 'Fill the frame',
+      imageFraming: 'Framing',
+      imageFramingHint: 'Drag the preview or adjust the focus precisely.',
+      imageZoom: 'Zoom',
+      imagePositionX: 'Horizontal focus',
+      imagePositionY: 'Vertical focus',
+      resetFraming: 'Reset framing',
+      dragPreview: 'Preview image. Drag to reposition; use arrow keys for precise focus.',
       shadow: 'Shadow',
       cornerRadius: 'Corner radius',
       windowTitle: 'Window title',
@@ -388,8 +426,8 @@ export const messages: Record<Locale, MessageSchema> = {
           body: 'Shells genéricos de mobile e tablet com portrait e landscape.',
         },
         {
-          title: 'Preview guiado por viewport',
-          body: 'Capturas de site podem seguir o viewport selecionado, em vez de ficar presas a um único desktop.',
+          title: 'Captura de páginas dinâmicas',
+          body: 'Aguarde conteúdo assíncrono, escolha uma rota pública ou foque uma seção específica antes de aplicar a moldura.',
         },
         {
           title: 'Fundo e exportação',
@@ -432,7 +470,7 @@ export const messages: Record<Locale, MessageSchema> = {
           },
           {
             question: 'Apps SPA sempre resolvem corretamente?',
-            answer: 'Nem sempre. Se o site não publicar um preview utilizável, o Fremit não consegue reconstruir a página ao vivo.',
+            answer: 'Nem sempre. O Fremit pode aguardar conteúdo dinâmico e focar uma seção por seletor CSS, mas não reproduz login ou estados que exigem interação.',
           },
           {
             question: 'Um link com falha apaga meu canvas atual?',
@@ -443,9 +481,19 @@ export const messages: Record<Locale, MessageSchema> = {
     },
     source: {
       label: 'Insira um link',
+      pageUrlLabel: 'Página a capturar',
       placeholder: 'Cole a URL de um site ou imagem...',
       submit: 'Abrir no Editor',
+      capturePage: 'Capturar página',
       loading: 'Carregando...',
+      captureDelay: 'Aguardar a página',
+      captureDelayHint: 'Dá tempo para o conteúdo dinâmico terminar de renderizar.',
+      captureQuick: 'Rápida · 1 segundo',
+      captureBalanced: 'Equilibrada · 3 segundos',
+      captureComplete: 'Página complexa · 5 segundos',
+      captureSelector: 'Seção em foco (opcional)',
+      captureSelectorPlaceholder: 'Exemplo: main ou #hero',
+      captureSelectorHint: 'Aguarda este seletor CSS e captura somente essa seção.',
       upload: 'Enviar imagem',
       uploadHint: 'ou arraste para cá',
       paste: 'Colar',
@@ -495,6 +543,15 @@ export const messages: Record<Locale, MessageSchema> = {
       width: 'Largura',
       height: 'Altura',
       imageFit: 'Ajuste da imagem',
+      fitContain: 'Mostrar imagem inteira',
+      fitCover: 'Preencher a moldura',
+      imageFraming: 'Enquadramento',
+      imageFramingHint: 'Arraste a prévia ou ajuste o foco com precisão.',
+      imageZoom: 'Zoom',
+      imagePositionX: 'Foco horizontal',
+      imagePositionY: 'Foco vertical',
+      resetFraming: 'Redefinir enquadramento',
+      dragPreview: 'Imagem da prévia. Arraste para reposicionar; use as setas para ajustar o foco.',
       shadow: 'Sombra',
       cornerRadius: 'Raio dos cantos',
       windowTitle: 'Título da janela',
@@ -577,8 +634,8 @@ export const messages: Record<Locale, MessageSchema> = {
           body: 'Shells genéricos de mobile y tablet con portrait y landscape.',
         },
         {
-          title: 'Preview guiado por viewport',
-          body: 'Las capturas del sitio pueden seguir el viewport seleccionado en lugar de quedar fijadas en una sola versión desktop.',
+          title: 'Captura de páginas dinámicas',
+          body: 'Espera contenido asíncrono, elige una ruta pública o enfoca una sección específica antes de aplicar el marco.',
         },
         {
           title: 'Fondo y exportación',
@@ -621,7 +678,7 @@ export const messages: Record<Locale, MessageSchema> = {
           },
           {
             question: '¿Las SPA siempre resuelven bien?',
-            answer: 'No siempre. Si el sitio no publica un preview utilizable, Fremit no puede reconstruir la página en vivo.',
+            answer: 'No siempre. Fremit puede esperar contenido dinámico y enfocar una sección con un selector CSS, pero no reproduce login ni estados que requieren interacción.',
           },
           {
             question: '¿Un enlace fallido borra el canvas actual?',
@@ -632,9 +689,19 @@ export const messages: Record<Locale, MessageSchema> = {
     },
     source: {
       label: 'Insertar un enlace',
+      pageUrlLabel: 'Página para capturar',
       placeholder: 'Pega la URL de un sitio o imagen...',
       submit: 'Abrir en Editor',
+      capturePage: 'Capturar página',
       loading: 'Cargando...',
+      captureDelay: 'Esperar la página',
+      captureDelayHint: 'Da tiempo al contenido dinámico para terminar de renderizar.',
+      captureQuick: 'Rápida · 1 segundo',
+      captureBalanced: 'Equilibrada · 3 segundos',
+      captureComplete: 'Página compleja · 5 segundos',
+      captureSelector: 'Sección en foco (opcional)',
+      captureSelectorPlaceholder: 'Ejemplo: main o #hero',
+      captureSelectorHint: 'Espera este selector CSS y captura solo esa sección.',
       upload: 'Subir imagen',
       uploadHint: 'o arrastra aquí',
       paste: 'Pegar',
@@ -684,6 +751,15 @@ export const messages: Record<Locale, MessageSchema> = {
       width: 'Ancho',
       height: 'Alto',
       imageFit: 'Ajuste de imagen',
+      fitContain: 'Mostrar imagen completa',
+      fitCover: 'Llenar el marco',
+      imageFraming: 'Encuadre',
+      imageFramingHint: 'Arrastra la vista previa o ajusta el foco con precisión.',
+      imageZoom: 'Zoom',
+      imagePositionX: 'Foco horizontal',
+      imagePositionY: 'Foco vertical',
+      resetFraming: 'Restablecer encuadre',
+      dragPreview: 'Imagen de vista previa. Arrastra para reposicionar; usa las flechas para ajustar el foco.',
       shadow: 'Sombra',
       cornerRadius: 'Radio de esquinas',
       windowTitle: 'Título da janela',

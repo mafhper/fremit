@@ -34,6 +34,8 @@ export function useViewportSourceSync() {
         const resolved = await resolveWebsiteUrl(sourceUrl, {
           viewportWidth: frame.windowWidth,
           viewportHeight: frame.windowHeight,
+          captureDelayMs: useStore.getState().source.captureDelayMs,
+          captureSelector: useStore.getState().source.captureSelector,
         });
 
         if (!cancelled) {

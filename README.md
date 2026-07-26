@@ -11,11 +11,12 @@ Fremit is a static React app for creating framed mockups from a website link, di
 ## What It Does
 
 - Imports screenshots, clipboard images, and direct image URLs
-- Attempts website previews through Microlink screenshots, then Open Graph images
+- Waits for dynamic website content before capturing through Microlink, then falls back to Open Graph images
+- Captures a chosen public route or an optional CSS-selected section
 - Keeps the last successful composition when a later URL preview fails
 - Frames content in desktop browser, phone, or tablet mockups
 - Supports portrait and landscape device orientations
-- Tunes viewport preset, shadow, radius, image fit, background, format, and export scale
+- Tunes viewport preset, shadow, radius, image fit, zoom, focal position, background, format, and export scale
 - Exports the current canvas as PNG or JPG through `html-to-image`
 - Supports English, Portuguese, and Spanish UI copy
 
@@ -27,11 +28,11 @@ Fremit is intentionally static. It does not run a backend browser or access priv
 
 Website URLs are resolved in this order:
 
-1. Microlink screenshot
+1. Microlink screenshot after the selected 1, 3, or 5 second render wait
 2. Open Graph image
 3. Manual fallback asking for a screenshot
 
-Use an uploaded screenshot for authenticated pages, private apps, highly dynamic views, or any page where the generated URL preview does not match the desired state.
+The editor keeps the active URL editable so a public route can be captured directly. An optional CSS selector waits for and crops a specific section. Use an uploaded screenshot for authenticated pages, private apps, interaction-only states, or any page where the generated URL preview still does not match the desired state.
 
 ## Stack
 

@@ -1,4 +1,6 @@
+import { type KeyboardEvent, type PointerEvent, useRef } from 'react';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/i18n/useI18n';
 import { useStore } from '@/store/useStore';
 import { getDeviceMetrics } from './previewMetrics';
 
@@ -12,25 +14,104 @@ const shadowStyleMap = {
 } as const;
 
 function PreviewImage() {
-  const sourceMode = useStore((state) => state.source.active?.mode);
+  const { copy } = useI18n();
   const imageUrl = useStore((state) => state.source.active?.resolvedImageUrl);
-  const fitMode = useStore((state) => state.frame.fitMode);
+  const frame = useStore((state) => state.frame);
+  const updateFrame = useStore((state) => state.updateFrame);
+  const dragState = useRef<{
+    pointerId: number;
+    clientX: number;
+    clientY: number;
+    positionX: number;
+    positionY: number;
+  } | null>(null);
 
   if (!imageUrl) {
     return null;
   }
 
+  const clampPosition = (value: number) => Math.min(100, Math.max(0, value));
+
+  const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragState.current = {
+      pointerId: event.pointerId,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      positionX: frame.imagePositionX,
+      positionY: frame.imagePositionY,
+    };
+  };
+
+  const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    const drag = dragState.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    const bounds = event.currentTarget.getBoundingClientRect();
+    if (bounds.width === 0 || bounds.height === 0) return;
+
+    updateFrame({
+      imagePositionX: clampPosition(drag.positionX - ((event.clientX - drag.clientX) / bounds.width) * 100),
+      imagePositionY: clampPosition(drag.positionY - ((event.clientY - drag.clientY) / bounds.height) * 100),
+    });
+  };
+
+  const finishPointerDrag = (event: PointerEvent<HTMLDivElement>) => {
+    if (dragState.current?.pointerId !== event.pointerId) return;
+    dragState.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const step = event.shiftKey ? 10 : 2;
+    const next = {
+      imagePositionX: frame.imagePositionX,
+      imagePositionY: frame.imagePositionY,
+    };
+
+    if (event.key === 'ArrowLeft') next.imagePositionX -= step;
+    else if (event.key === 'ArrowRight') next.imagePositionX += step;
+    else if (event.key === 'ArrowUp') next.imagePositionY -= step;
+    else if (event.key === 'ArrowDown') next.imagePositionY += step;
+    else return;
+
+    event.preventDefault();
+    updateFrame({
+      imagePositionX: clampPosition(next.imagePositionX),
+      imagePositionY: clampPosition(next.imagePositionY),
+    });
+  };
+
   return (
     <div
-      aria-label="Loaded preview"
-      className="h-full w-full bg-white"
-      style={{
-        backgroundImage: `url("${imageUrl}")`,
-        backgroundPosition: 'top center',
-        backgroundRepeat: 'no-repeat',
-        backgroundSize: sourceMode === 'website-url' ? 'cover' : fitMode,
-      }}
-    />
+      aria-label={copy.controls.dragPreview}
+      className="relative h-full w-full cursor-grab touch-none overflow-hidden bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-ring active:cursor-grabbing"
+      data-testid="preview-image"
+      role="group"
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={finishPointerDrag}
+      onPointerCancel={finishPointerDrag}
+    >
+      <img
+        src={imageUrl}
+        alt=""
+        draggable={false}
+        className="pointer-events-none absolute inset-0 h-full w-full select-none"
+        style={{
+          objectFit: frame.fitMode,
+          objectPosition: `${frame.imagePositionX}% ${frame.imagePositionY}%`,
+          transform: `scale(${frame.imageZoom / 100})`,
+          transformOrigin: `${frame.imagePositionX}% ${frame.imagePositionY}%`,
+        }}
+      />
+    </div>
   );
 }
 

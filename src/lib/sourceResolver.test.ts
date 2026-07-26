@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   detectSourceMode,
+  getUrlTitle,
   resolveImageUrl,
   resolveWebsiteUrl,
   SourceResolutionError,
@@ -43,6 +44,12 @@ describe('sourceResolver', () => {
     expect(detectSourceMode('https://example.com/docs')).toBe('website-url');
   });
 
+  it('keeps hash routes visible in fallback titles', () => {
+    expect(getUrlTitle('https://mafhper.github.io/dinopad/#/atlas')).toBe(
+      'mafhper.github.io/dinopad/atlas',
+    );
+  });
+
   it('resolves image URLs directly', async () => {
     vi.stubGlobal(
       'fetch',
@@ -61,41 +68,51 @@ describe('sourceResolver', () => {
   });
 
   it('prefers microlink screenshot when available', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockImplementation(async (input: string | URL) => {
-        const url = String(input);
+    const fetchMock = vi.fn().mockImplementation(async (input: string | URL) => {
+      const url = String(input);
 
-        if (url.startsWith('https://api.microlink.io/')) {
-          return {
-            ok: true,
-            json: async () => ({
-              status: 'success',
-              data: {
-                title: 'Spread',
-                screenshot: { url: 'https://preview.example.com/screenshot.png' },
-              },
-            }),
-          };
-        }
-
+      if (url.startsWith('https://api.microlink.io/')) {
         return {
           ok: true,
-          blob: async () => pngBlob,
+          json: async () => ({
+            status: 'success',
+            data: {
+              title: 'Spread',
+              screenshot: { url: 'https://preview.example.com/screenshot.png' },
+            },
+          }),
         };
-      }),
+      }
+
+      return {
+        ok: true,
+        blob: async () => pngBlob,
+      };
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      fetchMock,
     );
 
     const resolved = await resolveWebsiteUrl('https://mafhper.github.io/spread/', {
       viewportWidth: 390,
       viewportHeight: 844,
+      captureDelayMs: 3000,
+      captureSelector: '#hero',
     });
 
+    const requestUrl = new URL(String(fetchMock.mock.calls[0][0]));
     expect(resolved.mode).toBe('website-url');
     expect(resolved.strategy).toBe('microlink-screenshot');
     expect(resolved.title).toBe('Spread');
     expect(resolved.requestedViewportWidth).toBe(390);
     expect(resolved.requestedViewportHeight).toBe(844);
+    expect(resolved.requestedCaptureDelayMs).toBe(3000);
+    expect(resolved.requestedCaptureSelector).toBe('#hero');
+    expect(requestUrl.searchParams.get('waitForTimeout')).toBe('3000');
+    expect(requestUrl.searchParams.get('waitForSelector')).toBe('#hero');
+    expect(requestUrl.searchParams.get('element')).toBe('#hero');
   });
 
   it('fails direct image urls that cannot be exported', async () => {
