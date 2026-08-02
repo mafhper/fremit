@@ -38,6 +38,21 @@ try {
   process.exit(audit.status || 1);
 }
 
+const isAuditReport =
+  report &&
+  typeof report === 'object' &&
+  report.auditReportVersion &&
+  report.vulnerabilities &&
+  report.metadata?.vulnerabilities &&
+  !report.error;
+
+if (!isAuditReport) {
+  console.error(`npm audit returned an invalid or error-shaped report (exit ${audit.status ?? 'unknown'}).`);
+  console.error(JSON.stringify(report, null, 2));
+  if (audit.stderr) console.error(audit.stderr);
+  process.exit(1);
+}
+
 const severityRank = { info: 0, low: 1, moderate: 2, high: 3, critical: 4 };
 
 function versionParts(version) {
@@ -84,7 +99,8 @@ function matchesException(name, vulnerability, exception, vulnerabilities) {
   if (name === 'react-router-dom') {
     const upstream = vulnerabilities['react-router'];
     return (
-      vulnerability.via?.includes('react-router') &&
+      vulnerability.via?.length === 1 &&
+      vulnerability.via[0] === 'react-router' &&
       upstream &&
       advisoryIds(upstream).includes(exception.advisory.toUpperCase())
     );
