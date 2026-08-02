@@ -98,9 +98,11 @@ For dependency or lockfile changes, also run:
 
 ```bash
 npm ci --ignore-scripts
-npm audit --package-lock-only --audit-level=high
+npm run audit:security
 npm audit signatures
 ```
+
+The security audit fails on any unapproved high or critical finding. It contains one narrow, version-guarded exception for the React Router advisory that upstream limits to unstable RSC APIs; review that exception before introducing RSC usage or a React Router major migration.
 
 ## Project Notes
 

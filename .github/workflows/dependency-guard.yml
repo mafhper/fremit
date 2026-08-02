@@ -6,6 +6,8 @@ on:
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/**"
+      - ".github/dependency-audit-exceptions.json"
+      - "scripts/audit-security.mjs"
 
 permissions:
   contents: read
@@ -33,7 +35,7 @@ jobs:
         run: npm audit signatures
 
       - name: Audit known vulnerabilities
-        run: npm audit --audit-level=high
+        run: npm run audit:security
 
       - name: Dependency Review
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
