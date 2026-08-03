@@ -39,7 +39,7 @@ The editor keeps the active URL editable so a public route can be captured direc
 - React 19
 - TypeScript 6
 - Vite 8
-- React Router
+- React Router 8
 - Zustand
 - Tailwind CSS 4
 - Radix UI primitives
@@ -55,21 +55,24 @@ The editor keeps the active URL editable so a public route can be captured direc
 Node.js 24 and npm 11 are the supported local toolchain, matching GitHub Actions.
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
-Vite serves the app at `/fremit/`, matching the GitHub Pages base path.
+Vite serves the app at `/fremit/`, matching the GitHub Pages base path. Use `npm install` only when intentionally changing dependencies and refreshing `package-lock.json`.
 
 ## Scripts
 
-```bash
-npm run dev
-npm run build
-npm run lint
-npm run test
-npm run test:smoke
-```
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the Vite development server. |
+| `npm run build` | Type-check the project and create the production build. |
+| `npm run preview` | Serve the production build locally on port 4273. |
+| `npm run lint` | Run ESLint across the repository. |
+| `npm run test` | Run the Vitest unit suite once. |
+| `npm run test:watch` | Run Vitest in watch mode. |
+| `npm run test:smoke` | Run Chromium smoke, accessibility, and contrast tests. |
+| `npm run audit:security` | Fail on high or critical npm vulnerabilities. |
 
 ## GitHub Pages
 
@@ -84,7 +87,13 @@ Deployment is handled by `.github/workflows/deploy.yml`.
 
 ## Dependency Safety
 
-The repository uses npm as the single package manager and commits `package-lock.json` for deterministic installs. Dependabot tracks npm and GitHub Actions updates, while Dependency Guard audits dependency-changing pull requests without lifecycle scripts or secrets.
+The repository uses npm as the single package manager and commits `package-lock.json` for deterministic installs. Dependabot tracks npm and GitHub Actions updates, while Dependency Guard audits dependency-changing pull requests without lifecycle scripts or repository secrets.
+
+- GitHub Actions are pinned to full commit SHAs and use explicit permissions.
+- Dependency Guard verifies npm registry signatures, runs the security audit, and rejects high-severity dependency changes.
+- CodeQL analyzes GitHub Actions and JavaScript/TypeScript on pull requests and pushes to `main`.
+- Secret scanning and push protection are enabled.
+- `main` requires pull requests, resolved review conversations, a current branch, and the `lint, test, and build` plus `browser smoke and accessibility` checks.
 
 ## Verification
 
@@ -115,4 +124,4 @@ The security audit and dependency review action fail on any high or critical fin
 
 ## License
 
-MIT
+This repository currently does not publish a `LICENSE` file.
