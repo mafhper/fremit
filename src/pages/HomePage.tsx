@@ -10,7 +10,7 @@ export function HomePage() {
       {/* Background Layer */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden" aria-hidden="true">
         <LiquidMeshBackdrop variant="home" />
-        <div className="absolute inset-0 z-2 bg-gradient-to-b from-[hsl(var(--color-base)/0.02)] to-[hsl(var(--color-base)/0.8)]" />
+        <div className="absolute inset-0 z-2 bg-gradient-to-b from-[hsl(var(--background)/0.02)] to-[hsl(var(--background)/0.8)]" />
       </div>
 
       <section className="hero relative flex h-full flex-col items-center justify-center z-10">

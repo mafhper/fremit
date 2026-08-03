@@ -5,6 +5,7 @@ process.env.BROWSERSLIST_IGNORE_OLD_DATA = 'true';
 
 export default defineConfig({
   testDir: './tests',
+  workers: 1,
   use: {
     baseURL: 'http://127.0.0.1:4275',
     trace: 'retain-on-failure',

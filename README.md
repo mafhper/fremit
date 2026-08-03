@@ -37,11 +37,11 @@ The editor keeps the active URL editable so a public route can be captured direc
 ## Stack
 
 - React 19
-- TypeScript 5.9
-- Vite 7
+- TypeScript 6
+- Vite 8
 - React Router
 - Zustand
-- Tailwind CSS
+- Tailwind CSS 4
 - Radix UI primitives
 - `html-to-image`
 - `colorthief`
@@ -51,6 +51,8 @@ The editor keeps the active URL editable so a public route can be captured direc
 - Playwright
 
 ## Getting Started
+
+Node.js 24 and npm 11 are the supported local toolchain, matching GitHub Actions.
 
 ```bash
 npm install
@@ -73,6 +75,7 @@ npm run test:smoke
 
 Deployment is handled by `.github/workflows/deploy.yml`.
 
+- Pull requests and `main` run lint, unit tests, build, and browser smoke checks in `.github/workflows/ci.yml`
 - GitHub Actions installs with `npm ci`
 - GitHub Actions builds with `npm run build`
 - `vite.config.ts` sets `base: '/fremit/'`
