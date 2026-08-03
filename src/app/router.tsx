@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter } from 'react-router';
 import { ProductLayout } from '@/components/layout/ProductLayout';
 import { AboutPage, EditorPage, HomePage } from '@/app/lazyPages';
 

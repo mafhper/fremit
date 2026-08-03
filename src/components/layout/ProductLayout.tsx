@@ -1,5 +1,5 @@
 import * as Popover from '@radix-ui/react-popover';
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { GitHubPanelIcon, MenuPanelIcon } from '@/components/icons/AppIcons';
 import iconUrl from '/icon.svg?url';
 import { LocaleSelector } from '@/components/layout/LocaleSelector';

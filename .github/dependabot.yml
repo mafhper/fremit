@@ -16,7 +16,12 @@ updates:
       semver-minor-days: 7
       semver-major-days: 30
     ignore:
+      # Keep runtime typings aligned with the Node 24 LTS line used by CI.
       - dependency-name: "@types/node"
+        update-types:
+          - "version-update:semver-major"
+      # typescript-eslint 8 currently supports TypeScript versions below 6.1.
+      - dependency-name: "typescript"
         update-types:
           - "version-update:semver-major"
     groups:

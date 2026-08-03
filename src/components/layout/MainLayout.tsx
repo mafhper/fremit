@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import iconUrl from '/icon.svg?url';
 import { Button } from '@/components/ui';
 import { ThemeSelector } from '@/components/layout/ThemeSelector';
