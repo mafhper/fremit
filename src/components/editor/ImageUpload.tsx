@@ -1,5 +1,5 @@
 import { type ClipboardEvent, type FormEvent, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router';
 import { ClipboardPanelIcon, LinkPanelIcon, UploadPanelIcon } from '@/components/icons/AppIcons';
 import {
   Button,

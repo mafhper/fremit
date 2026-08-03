@@ -12,7 +12,7 @@
     "test": "node scripts/run-with-baseline-env.mjs \"vitest run\"",
     "test:watch": "vitest",
     "test:smoke": "node scripts/run-with-baseline-env.mjs \"playwright test\"",
-    "audit:security": "node scripts/audit-security.mjs"
+    "audit:security": "npm audit --audit-level=high"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
@@ -33,7 +33,7 @@
     "lucide-react": "^1.16.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router-dom": "^7.18.2",
+    "react-router": "^8.3.0",
     "tailwind-merge": "^3.4.0",
     "zustand": "^5.0.8"
   },
@@ -41,7 +41,7 @@
     "@axe-core/playwright": "^4.11.3",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.56.1",
-    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
     "@types/node": "^24.13.3",
@@ -54,7 +54,7 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
-    "jsdom": "^29.1.1",
+    "jsdom": "^30.0.1",
     "postcss": "^8.5.25",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.3",

@@ -105,7 +105,7 @@ npm run audit:security
 npm audit signatures
 ```
 
-The security audit fails on any unapproved high or critical finding. The dependency review action and local audit wrapper contain one narrow exception for the React Router advisory that upstream limits to unstable RSC APIs; the wrapper independently requires React Router 7.18.2+ and must be reviewed before introducing RSC usage or a React Router major migration.
+The security audit and dependency review action fail on any high or critical finding. Neither gate uses advisory exceptions, so dependency updates must leave the committed lockfile free of known high-severity vulnerabilities.
 
 ## Project Notes
 
