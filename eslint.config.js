@@ -18,6 +18,14 @@ export default defineConfig([
       reactHooks.configs.flat.recommended,
       reactRefresh.configs.vite,
     ],
+    rules: {
+      // shadcn/ui pattern: Radix primitive aliases (e.g. const Select = SelectPrimitive.Root)
+      // are not recognized as components by react-refresh 0.5.5+. Allow those export names.
+      'react-refresh/only-export-components': [
+        'error',
+        { allowExportNames: ['Select', 'SelectGroup', 'SelectValue', 'Tabs'] },
+      ],
+    },
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
