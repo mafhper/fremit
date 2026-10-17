@@ -1,0 +1,20 @@
+Fremit — third-party notices
+============================
+
+Attribution Assurance License (AAL) components
+----------------------------------------------
+
+Doory
+  Source: https://github.com/shaongitbd/doory
+  License: Attribution Assurance License (AAL)
+
+  NOT REDISTRIBUTED. No Doory source code is included in this repository, in
+  whole or in part. The editor in this repository is an original
+  implementation; shared concepts (pages, objects, layers, rulers, export
+  from a document) are standard editor concepts, not copied code.
+
+  This notice is kept in place so the attribution requirement travels with
+  any future code: if Doory code is ever introduced here, the AAL credit
+  becomes mandatory and must be added at the same time.
+
+  Recorded on 2026-10-17, when the editor document schema was introduced.
