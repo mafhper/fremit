@@ -1,81 +1,88 @@
-# Dependencies
-node_modules/
-
-# Build outputs
-build/
-dist/
-dist-ssr/
-coverage/
-.nyc_output/
-.cache/
-*.lcov
-*.local
-
-# Test artifacts
-playwright-report/
-test-results/
-_performance-reports/
-performance-reports/*
-
-# Logs
-logs/
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-# Environment files
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Temporary files
-*.tmp
-*.temp
-
-# Editors and IDEs
-.idea/
-.vscode/*
-!.vscode/extensions.json
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# OS files
-.DS_Store
-.AppleDouble
-.LSOverride
-Thumbs.db
-
-# Package manager lockfiles not used in this repo
-yarn.lock
-pnpm-lock.yaml
-
-# Private agent/tooling directories
+# Workspace privado
+.dev/
+_dev/
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+QWEN.md
+KIMI.md
+.codex/
 .agents/
 .claude/
 .claude-code/
-.codex/
 .cursor/
-.dev/
 .gemini/
 .gemini-clipboard/
 .kimi/
 .qwen/
 .roo/
 .windsurf/
-_dev/
-.dev/
 
-# Private agent/tooling files
-AGENTS.md
-CLAUDE.md
-GEMINI.md
-KIMI.md
-QWEN.md
+# Sistema operacional
+desktop.ini
+Thumbs.db
+ehthumbs.db
+.DS_Store
+*.lnk
+
+# Dependencias
+node_modules/
+
+# Build
+dist/
+dist-ssr/
+build/
+coverage/
+.nyc_output/
+*.tsbuildinfo
+*.local
+
+# Temporarios
+*.tmp
+*.temp
+*.bak
+*.orig
+
+# Logs
+logs/
+*.log
+*.out
+*.err
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Ambiente
+.env
+.env.*
+!*.example
+
+# Editores
+.vscode/
+!/.vscode/
+/.vscode/*
+!/.vscode/extensions.json
+.idea/
+.cache/
+*.sw?
+*.sublime-project
+*.sublime-workspace
+*.lcov
+playwright-report/
+test-results/
+performance-reports/
+_performance-reports/
+.AppleDouble
+.LSOverride
+yarn.lock
+pnpm-lock.yaml
+
+# Sondas
+# `scripts/sonda-porta.ts` NAO entra aqui de proposito: ele e IMPORTADO por
+# `vite.config.ts`. Ignorar um arquivo que o build carrega quebra o repo para
+# qualquer clone limpo / checkout de CI -- a sonda fica versionada (padrao da
+# frota; `dev-dashboard/tools/replicar-sonda.mjs --check` compara o corpo).
+/ports.ts
+/ports.mjs
