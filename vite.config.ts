@@ -2,6 +2,7 @@ import path from "path"
 import { execFileSync } from 'node:child_process'
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
+import { findSafePort, formatPortFallback } from './scripts/sonda-porta.ts'
 
 process.env.BASELINE_BROWSER_MAPPING_IGNORE_OLD_DATA = 'true'
 process.env.BROWSERSLIST_IGNORE_OLD_DATA = 'true'
@@ -98,9 +99,24 @@ const lastCommit = getLastCommit()
 const repositoryUrl = getRepositoryUrl()
 const developerProfile = await getDeveloperProfile()
 
+// `fremit` ja tem portas autorais (preview 4273, e2e 4275) e por isso nao disputa
+// 5173 com o resto da frota — mas o `dev` nao declara NENHUMA e herda o default
+// do Vite, que e exatamente a classe de colisao que a frota esta corrigindo.
+// A porta nomeada aqui e 5220 (fora das faixas de incremento 5173-5175).
+const DEV_PORT = Number(process.env.PORT) || 5220
+
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(async ({ command }) => {
+  const devPort = command === 'serve' ? await findSafePort(DEV_PORT, { rotulo: 'fremit' }) : DEV_PORT
+  if (devPort !== DEV_PORT) console.warn(formatPortFallback(DEV_PORT, devPort, 'fremit'))
+
+  return {
   base: '/fremit/',
+  server: {
+    host: '127.0.0.1',
+    port: devPort,
+    strictPort: true,
+  },
   define: {
     __APP_LAST_COMMIT__: JSON.stringify(lastCommit),
     __APP_REPOSITORY__: JSON.stringify({ url: repositoryUrl }),
@@ -117,4 +133,5 @@ export default defineConfig({
       "@": path.resolve(import.meta.dirname, "./src"),
     },
   },
+  }
 })

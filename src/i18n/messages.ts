@@ -104,6 +104,38 @@ export interface MessageSchema {
     previewEmptyTitle: string;
     previewEmptyBody: string;
   };
+  canvas: {
+    insert: string;
+    addText: string;
+    addShape: string;
+    addImage: string;
+    zoom: string;
+    zoomIn: string;
+    zoomOut: string;
+    zoomFit: string;
+    snap: string;
+    layers: string;
+    layersEmpty: string;
+    layerUp: string;
+    layerDown: string;
+    deleteObject: string;
+    showObject: string;
+    hideObject: string;
+    lockObject: string;
+    unlockObject: string;
+    pages: string;
+    addPage: string;
+    duplicatePage: string;
+    pageUp: string;
+    pageDown: string;
+    pageName: string;
+    format: string;
+    formatPoster: string;
+    formatBanner: string;
+    formatHero: string;
+    selection: string;
+    canvasLabel: string;
+  };
   controls: {
     frameFamily: string;
     desktop: string;
@@ -319,6 +351,38 @@ export const messages: Record<Locale, MessageSchema> = {
       previewEmptyTitle: 'Drop a screenshot or paste a link.',
       previewEmptyBody: 'The canvas scales to the viewport while keeping the export ready.',
     },
+    canvas: {
+      insert: 'Insert',
+      addText: 'Add text',
+      addShape: 'Add shape',
+      addImage: 'Add image',
+      zoom: 'Zoom',
+      zoomIn: 'Zoom in',
+      zoomOut: 'Zoom out',
+      zoomFit: 'Fit page',
+      snap: 'Snap to guides',
+      layers: 'Layers',
+      layersEmpty: 'No objects on this page yet.',
+      layerUp: 'Move layer up',
+      layerDown: 'Move layer down',
+      deleteObject: 'Delete object',
+      showObject: 'Show object',
+      hideObject: 'Hide object',
+      lockObject: 'Lock object',
+      unlockObject: 'Unlock object',
+      pages: 'Pages',
+      addPage: 'Add page',
+      duplicatePage: 'Duplicate page',
+      pageUp: 'Move page up',
+      pageDown: 'Move page down',
+      pageName: 'Page name',
+      format: 'Format',
+      formatPoster: 'Poster',
+      formatBanner: 'Banner',
+      formatHero: 'Hero',
+      selection: 'Selection',
+      canvasLabel: 'Canvas workspace',
+    },
     controls: {
       frameFamily: 'Frame family',
       desktop: 'Desktop',
@@ -527,6 +591,38 @@ export const messages: Record<Locale, MessageSchema> = {
       previewEmptyTitle: 'Solte um screenshot ou cole um link.',
       previewEmptyBody: 'O canvas escala para o viewport e mantém a exportação pronta.',
     },
+    canvas: {
+      insert: 'Inserir',
+      addText: 'Adicionar texto',
+      addShape: 'Adicionar forma',
+      addImage: 'Adicionar imagem',
+      zoom: 'Zoom',
+      zoomIn: 'Aumentar zoom',
+      zoomOut: 'Diminuir zoom',
+      zoomFit: 'Ajustar à página',
+      snap: 'Encaixar nas guias',
+      layers: 'Camadas',
+      layersEmpty: 'Nenhum objeto nesta página ainda.',
+      layerUp: 'Mover camada para cima',
+      layerDown: 'Mover camada para baixo',
+      deleteObject: 'Excluir objeto',
+      showObject: 'Mostrar objeto',
+      hideObject: 'Ocultar objeto',
+      lockObject: 'Travar objeto',
+      unlockObject: 'Destravar objeto',
+      pages: 'Páginas',
+      addPage: 'Adicionar página',
+      duplicatePage: 'Duplicar página',
+      pageUp: 'Mover página para cima',
+      pageDown: 'Mover página para baixo',
+      pageName: 'Nome da página',
+      format: 'Formato',
+      formatPoster: 'Pôster',
+      formatBanner: 'Banner',
+      formatHero: 'Hero',
+      selection: 'Seleção',
+      canvasLabel: 'Área de trabalho do canvas',
+    },
     controls: {
       frameFamily: 'Família da moldura',
       desktop: 'Desktop',
@@ -734,6 +830,38 @@ export const messages: Record<Locale, MessageSchema> = {
       previewEmptyTag: 'Listo',
       previewEmptyTitle: 'Suelta una captura o pega un enlace.',
       previewEmptyBody: 'El canvas escala al viewport y mantiene el export listo.',
+    },
+    canvas: {
+      insert: 'Insertar',
+      addText: 'Añadir texto',
+      addShape: 'Añadir forma',
+      addImage: 'Añadir imagen',
+      zoom: 'Zoom',
+      zoomIn: 'Acercar',
+      zoomOut: 'Alejar',
+      zoomFit: 'Ajustar a la página',
+      snap: 'Ajustar a las guías',
+      layers: 'Capas',
+      layersEmpty: 'Todavía no hay objetos en esta página.',
+      layerUp: 'Subir capa',
+      layerDown: 'Bajar capa',
+      deleteObject: 'Eliminar objeto',
+      showObject: 'Mostrar objeto',
+      hideObject: 'Ocultar objeto',
+      lockObject: 'Bloquear objeto',
+      unlockObject: 'Desbloquear objeto',
+      pages: 'Páginas',
+      addPage: 'Añadir página',
+      duplicatePage: 'Duplicar página',
+      pageUp: 'Subir página',
+      pageDown: 'Bajar página',
+      pageName: 'Nombre de la página',
+      format: 'Formato',
+      formatPoster: 'Póster',
+      formatBanner: 'Banner',
+      formatHero: 'Hero',
+      selection: 'Selección',
+      canvasLabel: 'Área de trabajo del lienzo',
     },
     controls: {
       frameFamily: 'Familia del marco',

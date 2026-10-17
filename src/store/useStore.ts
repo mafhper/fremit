@@ -1,5 +1,22 @@
 import { create } from 'zustand';
 import { getViewportSize } from '@/lib/framePresets';
+import { createImageObject, type DocumentObject, type FremitDocument } from '@/lib/document';
+import {
+  addObjectToPage,
+  addPage as addPageToDocument,
+  duplicatePage as duplicateDocumentPage,
+  findPage,
+  moveObjectInPage,
+  movePage as moveDocumentPage,
+  removeObjectFromPage,
+  renamePage as renameDocumentPage,
+  replacePage,
+  resizePageToFormat,
+  updateObjectInPage,
+  type DocumentObjectPatch,
+  type PageFormatId,
+} from '@/lib/documentOps';
+import { createStarterDocument } from '@/lib/starterDocument';
 import type {
   AppShellState,
   BackgroundState,
@@ -44,6 +61,10 @@ interface AppState {
     scale: ExportScale;
   };
   appShell: AppShellState;
+  /** Documento JSON rendered by the dedicated canvas at `/editor`. */
+  document: FremitDocument;
+  activePageId: string;
+  selectedObjectId: string | null;
   setDraftUrl: (value: string) => void;
   setCaptureDelay: (value: CaptureDelay) => void;
   setCaptureSelector: (value: string) => void;
@@ -61,6 +82,18 @@ interface AppState {
   updateBackground: (config: Partial<BackgroundState>) => void;
   updateExport: (config: Partial<{ format: ExportFormat; scale: ExportScale }>) => void;
   setThemePreference: (theme: ThemePreference) => void;
+  setActivePage: (pageId: string) => void;
+  addPage: () => void;
+  duplicatePage: (pageId: string) => void;
+  movePage: (pageId: string, direction: 'up' | 'down') => void;
+  renamePage: (pageId: string, name: string) => void;
+  resizePage: (pageId: string, format: PageFormatId) => void;
+  addObject: (object: DocumentObject) => void;
+  updateObject: (objectId: string, patch: DocumentObjectPatch) => void;
+  removeObject: (objectId: string) => void;
+  moveObjectZ: (objectId: string, direction: 'up' | 'down') => void;
+  selectObject: (objectId: string | null) => void;
+  upsertSourceImage: (src: string, name: string) => void;
 }
 
 const themeStorageKey = 'fremit.theme';
@@ -112,6 +145,8 @@ const defaultBackground: BackgroundState = {
   padding: 56,
 };
 
+const initialDocument = createStarterDocument();
+
 function withViewport(frame: FrameState, next: Partial<FrameState>) {
   const merged = { ...frame, ...next };
   const { width, height } = getViewportSize(
@@ -153,6 +188,9 @@ export const useStore = create<AppState>((set) => ({
       themePreference,
     };
   })(),
+  document: initialDocument,
+  activePageId: initialDocument.pages[0].id,
+  selectedObjectId: null,
   setDraftUrl: (value) =>
     set((state) => ({
       source: {
@@ -302,4 +340,109 @@ export const useStore = create<AppState>((set) => ({
         themePreference,
       },
     })),
+  setActivePage: (pageId) =>
+    set((state) =>
+      findPage(state.document, pageId)
+        ? { activePageId: pageId, selectedObjectId: null }
+        : {},
+    ),
+  addPage: () =>
+    set((state) => {
+      const result = addPageToDocument(state.document);
+
+      return {
+        document: result.document,
+        activePageId: result.pageId,
+        selectedObjectId: null,
+      };
+    }),
+  duplicatePage: (pageId) =>
+    set((state) => {
+      if (!findPage(state.document, pageId)) return {};
+
+      const result = duplicateDocumentPage(state.document, pageId);
+
+      return {
+        document: result.document,
+        activePageId: result.pageId,
+        selectedObjectId: null,
+      };
+    }),
+  movePage: (pageId, direction) =>
+    set((state) => ({ document: moveDocumentPage(state.document, pageId, direction) })),
+  renamePage: (pageId, name) =>
+    set((state) => ({ document: renameDocumentPage(state.document, pageId, name) })),
+  resizePage: (pageId, format) =>
+    set((state) => {
+      const page = findPage(state.document, pageId);
+
+      if (!page) return {};
+
+      return { document: replacePage(state.document, resizePageToFormat(page, format)) };
+    }),
+  addObject: (object) =>
+    set((state) => {
+      const page = findPage(state.document, state.activePageId);
+
+      if (!page) return {};
+
+      return {
+        document: replacePage(state.document, addObjectToPage(page, object)),
+        selectedObjectId: object.id,
+      };
+    }),
+  updateObject: (objectId, patch) =>
+    set((state) => {
+      const page = findPage(state.document, state.activePageId);
+
+      if (!page) return {};
+
+      return { document: replacePage(state.document, updateObjectInPage(page, objectId, patch)) };
+    }),
+  removeObject: (objectId) =>
+    set((state) => {
+      const page = findPage(state.document, state.activePageId);
+
+      if (!page) return {};
+
+      return {
+        document: replacePage(state.document, removeObjectFromPage(page, objectId)),
+        selectedObjectId: state.selectedObjectId === objectId ? null : state.selectedObjectId,
+      };
+    }),
+  moveObjectZ: (objectId, direction) =>
+    set((state) => {
+      const page = findPage(state.document, state.activePageId);
+
+      if (!page) return {};
+
+      return { document: replacePage(state.document, moveObjectInPage(page, objectId, direction)) };
+    }),
+  selectObject: (objectId) => set({ selectedObjectId: objectId }),
+  upsertSourceImage: (src, name) =>
+    set((state) => {
+      const page = findPage(state.document, state.activePageId);
+
+      if (!page) return {};
+
+      // A capture already on the page is selected again instead of duplicated.
+      const existing = page.objects.find(
+        (object) => object.type === 'image' && object.src === src,
+      );
+
+      if (existing) return { selectedObjectId: existing.id };
+
+      const object = createImageObject(src, {
+        name: name.trim() || 'Source',
+        x: page.width * 0.1,
+        y: page.height * 0.12,
+        width: page.width * 0.8,
+        height: page.height * 0.6,
+      });
+
+      return {
+        document: replacePage(state.document, addObjectToPage(page, object)),
+        selectedObjectId: object.id,
+      };
+    }),
 }));

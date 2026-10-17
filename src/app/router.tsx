@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { createBrowserRouter } from 'react-router';
 import { ProductLayout } from '@/components/layout/ProductLayout';
-import { AboutPage, EditorPage, HomePage } from '@/app/lazyPages';
+import { AboutPage, EditorPage, HomePage, MockupPage } from '@/app/lazyPages';
 
 export const router = createBrowserRouter(
   [
@@ -22,6 +22,10 @@ export const router = createBrowserRouter(
     {
       path: '/editor',
       element: <Suspense fallback={<div className="min-h-[40vh]" />}><EditorPage /></Suspense>,
+    },
+    {
+      path: '/mockup',
+      element: <Suspense fallback={<div className="min-h-[40vh]" />}><MockupPage /></Suspense>,
     },
   ],
   {

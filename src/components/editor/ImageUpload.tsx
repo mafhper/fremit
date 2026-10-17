@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui';
 import { useI18n } from '@/i18n/useI18n';
+import { isAppRoute } from '@/lib/appPath';
 import {
   SourceResolutionError,
   detectSourceMode,
@@ -58,7 +59,10 @@ export function SourceControls({ variant = 'home' }: SourceControlsProps) {
   const clearSourceError = useStore((state) => state.clearSourceError);
 
   const goToEditor = () => {
-    if (!location.pathname.startsWith('/editor')) {
+    // From the public site the capture lands on the dedicated canvas; the
+    // mockup composer keeps its own capture in place. `isAppRoute` strips the
+    // deploy base, so the check holds whatever `useLocation` reports.
+    if (!isAppRoute(location.pathname, '/editor') && !isAppRoute(location.pathname, '/mockup')) {
       navigate('/editor');
     }
   };
