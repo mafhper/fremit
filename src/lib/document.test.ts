@@ -8,6 +8,7 @@ import {
   createTextObject,
   parseDocument,
   serializeDocument,
+  type DocumentParseErrorCode,
   type FremitDocument,
   type ImageObject,
 } from '@/lib/document';
@@ -150,7 +151,9 @@ describe('Documento JSON round-trip', () => {
 });
 
 describe('Documento JSON validation', () => {
-  function parseErrorCode(input: string): string {
+  function parseErrorCode(
+    input: string,
+  ): DocumentParseErrorCode | 'no-error' | `unexpected: ${string}` {
     try {
       parseDocument(input);
     } catch (error) {
@@ -194,5 +197,23 @@ describe('Documento JSON validation', () => {
     delete missingWidth.pages[0].objects[1].width;
 
     expect(parseErrorCode(JSON.stringify(missingWidth))).toBe('invalid-structure');
+  });
+
+  it('rejects opacity outside the 0..1 range', () => {
+    const outOfRange = JSON.parse(serializeDocument(workedDocument)) as {
+      pages: { objects: { opacity: number }[] }[];
+    };
+    outOfRange.pages[0].objects[0].opacity = 2;
+
+    expect(parseErrorCode(JSON.stringify(outOfRange))).toBe('invalid-structure');
+  });
+
+  it('rejects a text object with fontSize 0', () => {
+    const zeroFontSize = JSON.parse(serializeDocument(workedDocument)) as {
+      pages: { objects: { fontSize?: number }[] }[];
+    };
+    zeroFontSize.pages[0].objects[2].fontSize = 0;
+
+    expect(parseErrorCode(JSON.stringify(zeroFontSize))).toBe('invalid-structure');
   });
 });

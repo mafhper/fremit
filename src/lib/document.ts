@@ -209,7 +209,7 @@ export function serializeDocument(document: FremitDocument): string {
   return JSON.stringify(document);
 }
 
-function fail(message: string, code: DocumentParseErrorCode = 'invalid-structure'): never {
+function throwParseError(message: string, code: DocumentParseErrorCode = 'invalid-structure'): never {
   throw new DocumentParseError(code, message);
 }
 
@@ -220,7 +220,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function readString(source: Record<string, unknown>, key: string, where: string): string {
   const value = source[key];
   if (typeof value !== 'string') {
-    fail(`${where}.${key} must be a string`);
+    throwParseError(`${where}.${key} must be a string`);
   }
   return value;
 }
@@ -233,13 +233,13 @@ function readNumber(
 ): number {
   const value = source[key];
   if (typeof value !== 'number' || !Number.isFinite(value)) {
-    fail(`${where}.${key} must be a finite number`);
+    throwParseError(`${where}.${key} must be a finite number`);
   }
   if (bounds.min !== undefined && value < bounds.min) {
-    fail(`${where}.${key} must be >= ${bounds.min}`);
+    throwParseError(`${where}.${key} must be >= ${bounds.min}`);
   }
   if (bounds.max !== undefined && value > bounds.max) {
-    fail(`${where}.${key} must be <= ${bounds.max}`);
+    throwParseError(`${where}.${key} must be <= ${bounds.max}`);
   }
   return value;
 }
@@ -247,7 +247,7 @@ function readNumber(
 function readBoolean(source: Record<string, unknown>, key: string, where: string): boolean {
   const value = source[key];
   if (typeof value !== 'boolean') {
-    fail(`${where}.${key} must be a boolean`);
+    throwParseError(`${where}.${key} must be a boolean`);
   }
   return value;
 }
@@ -269,12 +269,12 @@ function readObjectBase(source: Record<string, unknown>, where: string): Documen
 
 function parseObject(value: unknown, where: string): DocumentObject {
   if (!isRecord(value)) {
-    fail(`${where} must be an object`);
+    throwParseError(`${where} must be an object`);
   }
 
   const type = value.type;
   if (type !== 'text' && type !== 'shape' && type !== 'image') {
-    fail(`${where}.type is not a known object type: ${String(type)}`, 'unknown-object-type');
+    throwParseError(`${where}.type is not a known object type: ${String(type)}`, 'unknown-object-type');
   }
 
   const base = readObjectBase(value, where);
@@ -282,11 +282,11 @@ function parseObject(value: unknown, where: string): DocumentObject {
   if (type === 'text') {
     const align = value.align;
     if (align !== 'left' && align !== 'center' && align !== 'right') {
-      fail(`${where}.align must be left, center or right`);
+      throwParseError(`${where}.align must be left, center or right`);
     }
     const fontSize = readNumber(value, 'fontSize', where, { min: 0 });
     if (fontSize === 0) {
-      fail(`${where}.fontSize must be > 0`);
+      throwParseError(`${where}.fontSize must be > 0`);
     }
     return {
       ...base,
@@ -303,11 +303,11 @@ function parseObject(value: unknown, where: string): DocumentObject {
   if (type === 'shape') {
     const shape = value.shape;
     if (shape !== 'rect' && shape !== 'ellipse') {
-      fail(`${where}.shape must be rect or ellipse`);
+      throwParseError(`${where}.shape must be rect or ellipse`);
     }
     const stroke = value.stroke;
     if (stroke !== null && typeof stroke !== 'string') {
-      fail(`${where}.stroke must be a string or null`);
+      throwParseError(`${where}.stroke must be a string or null`);
     }
     return {
       ...base,
@@ -322,7 +322,7 @@ function parseObject(value: unknown, where: string): DocumentObject {
 
   const fit = value.fit;
   if (fit !== 'contain' && fit !== 'cover') {
-    fail(`${where}.fit must be contain or cover`);
+    throwParseError(`${where}.fit must be contain or cover`);
   }
   return {
     ...base,
@@ -334,12 +334,12 @@ function parseObject(value: unknown, where: string): DocumentObject {
 
 function parsePage(value: unknown, where: string): DocumentPage {
   if (!isRecord(value)) {
-    fail(`${where} must be an object`);
+    throwParseError(`${where} must be an object`);
   }
 
   const objects = value.objects;
   if (!Array.isArray(objects)) {
-    fail(`${where}.objects must be an array`);
+    throwParseError(`${where}.objects must be an array`);
   }
 
   return {
@@ -364,20 +364,20 @@ export function parseDocument(input: string): FremitDocument {
   try {
     parsed = JSON.parse(input);
   } catch {
-    fail('document is not valid JSON', 'invalid-json');
+    throwParseError('document is not valid JSON', 'invalid-json');
   }
 
   if (!isRecord(parsed)) {
-    fail('document must be a JSON object');
+    throwParseError('document must be a JSON object');
   }
 
   if (parsed.schemaVersion !== DOCUMENT_SCHEMA_VERSION) {
-    fail(`unsupported schemaVersion: ${String(parsed.schemaVersion)}`, 'unsupported-version');
+    throwParseError(`unsupported schemaVersion: ${String(parsed.schemaVersion)}`, 'unsupported-version');
   }
 
   const pages = parsed.pages;
   if (!Array.isArray(pages) || pages.length === 0) {
-    fail('document must have at least one page');
+    throwParseError('document must have at least one page');
   }
 
   return {
