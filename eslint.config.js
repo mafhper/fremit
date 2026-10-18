@@ -9,7 +9,12 @@ process.env.BASELINE_BROWSER_MAPPING_IGNORE_OLD_DATA = 'true'
 process.env.BROWSERSLIST_IGNORE_OLD_DATA = 'true'
 
 export default defineConfig([
-  globalIgnores(['dist', '.dev']),
+  // Ignora `dist` e qualquer diretório oculto — o critério é o formato do
+  // segmento (nome começando com `.`), não um nome específico de pasta.
+  globalIgnores([
+    'dist',
+    (filePath) => filePath.split(/[/\\]/).some((segment) => segment.startsWith('.')),
+  ]),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
