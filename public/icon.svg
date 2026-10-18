@@ -1,1 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="743" height="743" fill="none"><g clip-path="url(#a)"><path fill="#335281" d="M743 371.5C743 576.674 576.674 743 371.5 743S0 576.674 0 371.5 166.326 0 371.5 0 743 166.326 743 371.5Z"/><mask id="b" width="682" height="656" x="156" y="181" maskUnits="userSpaceOnUse" style="mask-type:alpha"><path fill="#020202" d="M156.684 555.901 581 181.5l256.603 254.335-400.492 400.493-280.427-280.427Z"/></mask><g mask="url(#b)"><circle cx="371.5" cy="371.5" r="371.5" fill="#000" fill-opacity=".2"/></g><path stroke="#fff" stroke-width="20" d="M175 192h397c8.837 0 16 7.163 16 16v337c0 8.837-7.163 16-16 16H175c-8.837 0-16-7.163-16-16V208c0-8.837 7.163-16 16-16Z"/><path fill="url(#c)" d="M168 293h412v260H168V293Z"/><path fill="#18345C" d="M168 200h412v75H168v-75Z"/><path fill="#fff" d="M168 275h412v22H168v-22ZM554 237c0 8.284-6.716 15-15 15-8.284 0-15-6.716-15-15 0-8.284 6.716-15 15-15 8.284 0 15 6.716 15 15ZM501 237c0 8.284-6.716 15-15 15-8.284 0-15-6.716-15-15 0-8.284 6.716-15 15-15 8.284 0 15 6.716 15 15ZM448 237c0 8.284-6.716 15-15 15-8.284 0-15-6.716-15-15 0-8.284 6.716-15 15-15 8.284 0 15 6.716 15 15Z"/></g><defs><linearGradient id="c" x1="168" x2="579.427" y1="293" y2="553.903" gradientUnits="userSpaceOnUse"><stop stop-color="#6C84A6"/><stop offset="1" stop-color="#B8C1D0"/></linearGradient><clipPath id="a"><path fill="#fff" d="M0 0h743v743H0z"/></clipPath></defs></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none" role="img" aria-label="Fremit">
+  <defs>
+    <linearGradient id="fremit-badge" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#14315E"/>
+      <stop offset="1" stop-color="#0B1730"/>
+    </linearGradient>
+    <linearGradient id="fremit-bar-i" x1="136" y1="116" x2="400" y2="396" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1E4FB4"/>
+      <stop offset=".55" stop-color="#2B7DE9"/>
+      <stop offset="1" stop-color="#54CDF8"/>
+    </linearGradient>
+    <linearGradient id="fremit-mid-i" x1="136" y1="242" x2="312" y2="324" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9CD4F7"/>
+      <stop offset="1" stop-color="#3DC2F7"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#fremit-badge)"/>
+  <rect x="136" y="116" width="92" height="260" rx="30" fill="url(#fremit-bar-i)"/>
+  <rect x="136" y="116" width="252" height="92" rx="30" fill="url(#fremit-bar-i)"/>
+  <rect x="136" y="242" width="176" height="82" rx="26" fill="url(#fremit-mid-i)"/>
+  <rect x="304" y="300" width="96" height="96" rx="30" fill="#EDF2FA"/>
+</svg>
