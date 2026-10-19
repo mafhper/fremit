@@ -17,7 +17,7 @@
 import { Ellipse, FabricImage, Gradient, Path, Polygon, Polyline, Rect, Text, Textbox, Triangle, type FabricObject } from 'fabric';
 import type { DocumentObject, DocumentPage, ImageObject, PageBackground, ShapeObject, TextAlign, TextArc, TextObject } from '@/lib/document';
 import type { CommonObjectFields, DocumentObjectPatch } from '@/lib/documentOps';
-import { arcTextBox, buildArcPathData, measureTextWidth, type TextMetricsInput } from '@/lib/arcText';
+import { arcTextBox, arcTextWidth, buildArcPathData, measureTextWidth, type TextMetricsInput } from '@/lib/arcText';
 import { gradientLine, safePageColor } from '@/lib/pageBackground';
 import { containSize, coverCrop, type Size } from '@/lib/imageFit';
 import { imageMaskClipGeometry } from '@/lib/imageMask';
@@ -196,8 +196,14 @@ export function createPageBackgroundRect(
  * valley readable.
  */
 function applyArcPath(object: Text, arc: TextArc): void {
+  // The path must cover the width the engine lays the glyphs out at, not only
+  // the one-shot string measurement. Fabric sums per glyph to center the run
+  // (`_measureLine`); the two measurements differ by a fraction of a pixel
+  // across rasterizers, and a path shorter than that sum makes the centering
+  // offset negative — the first glyph then wraps to the end of the path.
+  const textWidth = arcTextWidth(measureTextWidth(textMetrics(object)), object.calcTextWidth());
   const geometry = buildArcPathData({
-    textWidth: measureTextWidth(textMetrics(object)),
+    textWidth,
     direction: arc.direction,
     amount: arc.amount,
   });
@@ -355,7 +361,8 @@ const textCodec: CanvasCodec<TextObject> = {
       const fields = readTextFields(object, docObject);
       // The box is derived from the text and the font like the path itself:
       // reading Fabric's copy of the old path box would keep the box of the
-      // previous render after an edit.
+      // previous render after an edit. The engine's layout width goes in too,
+      // so the stored box and the path share the same slack.
       const box = arcTextBox(
         {
           text: fields.text,
@@ -364,6 +371,7 @@ const textCodec: CanvasCodec<TextObject> = {
           fontWeight: fields.fontWeight,
         },
         docObject.arc,
+        object.calcTextWidth(),
       );
 
       return {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Ellipse, FabricImage, Gradient, Polygon, Polyline, Rect, Text, Textbox, Triangle } from 'fabric';
-import { arcTextBox } from '@/lib/arcText';
+import { arcTextBox, measureTextWidth } from '@/lib/arcText';
 import {
   createImageObject,
   createPage,
@@ -108,6 +108,35 @@ describe('canvas codec: text', () => {
     // The commit that follows reads the scaled font, so the document gets the
     // resize instead of dropping it.
     expect(CANVAS_CODECS.text.readGeometry(canvasText, doc).fontSize).toBe(90);
+  });
+
+  it('builds the arc from the wider engine layout, so the first glyph cannot wrap', () => {
+    const doc = arcTextFixture();
+    const canvasText = createFrom(doc);
+    const layout =
+      measureTextWidth({
+        text: doc.text,
+        fontFamily: doc.fontFamily,
+        fontSize: doc.fontSize,
+        fontWeight: doc.fontWeight,
+      }) + 3;
+
+    // The engine's per-glyph sum (the Linux case) runs past the one-shot
+    // string measure: the path has to cover it.
+    canvasText.calcTextWidth = () => layout;
+
+    CANVAS_CODECS.text.normalizeGeometry(canvasText, doc, null);
+
+    // Fabric centers with `(pathLength - layoutWidth) / 2` and wraps the first
+    // glyph to the end of the path when that offset is negative. `segmentsInfo`
+    // is the very length its layout reads.
+    const pathLength = canvasText.path?.segmentsInfo?.at(-1)?.length ?? 0;
+
+    expect(pathLength).toBeGreaterThan(layout);
+    expect((pathLength - layout) / 2).toBeGreaterThan(0);
+
+    // The stored box follows the same width as the path.
+    expect(CANVAS_CODECS.text.readGeometry(canvasText, doc).width).toBeGreaterThan(doc.width);
   });
 
   it('reads the straight branch with the full contract too', () => {
