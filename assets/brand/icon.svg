@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none" role="img" aria-label="Fremit">
+  <defs>
+    <linearGradient id="fremit-badge" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#14315E"/>
+      <stop offset="1" stop-color="#0B1730"/>
+    </linearGradient>
+    <linearGradient id="fremit-bar-i" x1="136" y1="116" x2="400" y2="396" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1E4FB4"/>
+      <stop offset=".55" stop-color="#2B7DE9"/>
+      <stop offset="1" stop-color="#54CDF8"/>
+    </linearGradient>
+    <linearGradient id="fremit-mid-i" x1="136" y1="242" x2="312" y2="324" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9CD4F7"/>
+      <stop offset="1" stop-color="#3DC2F7"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#fremit-badge)"/>
+  <rect x="136" y="116" width="92" height="260" rx="30" fill="url(#fremit-bar-i)"/>
+  <rect x="136" y="116" width="252" height="92" rx="30" fill="url(#fremit-bar-i)"/>
+  <rect x="136" y="242" width="176" height="82" rx="26" fill="url(#fremit-mid-i)"/>
+  <rect x="304" y="300" width="96" height="96" rx="30" fill="#EDF2FA"/>
+</svg>

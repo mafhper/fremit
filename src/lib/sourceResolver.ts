@@ -53,7 +53,12 @@ function ensureValidUrl(url: string) {
   }
 }
 
-function preloadImage(url: string) {
+/**
+ * Decodes an image source before it is trusted. Exported because the
+ * background-image resolver shares this exact check instead of re-implementing
+ * a second decode path.
+ */
+export function preloadImage(url: string) {
   return new Promise<string>((resolve, reject) => {
     const image = new Image();
     image.crossOrigin = 'anonymous';
@@ -72,7 +77,8 @@ function preloadImage(url: string) {
   });
 }
 
-function blobToDataUrl(blob: Blob) {
+/** Reads a blob into a data URL; shared with the background-image resolver. */
+export function blobToDataUrl(blob: Blob) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
