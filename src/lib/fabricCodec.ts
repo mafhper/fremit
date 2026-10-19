@@ -73,18 +73,11 @@ function bakeScale(object: FabricObject): void {
 
 function applyImageFit(object: FabricImage, docObject: ImageObject, natural: Size): void {
   if (docObject.fit === 'cover') {
-    const crop = coverCrop(natural, { width: docObject.width, height: docObject.height });
-
-    object.set({
-      left: docObject.x,
-      top: docObject.y,
-      cropX: crop.x,
-      cropY: crop.y,
-      width: crop.width,
-      height: crop.height,
-      scaleX: docObject.width / crop.width,
-      scaleY: docObject.height / crop.height,
-    });
+    fitImageCover(
+      object,
+      { x: docObject.x, y: docObject.y, width: docObject.width, height: docObject.height },
+      natural,
+    );
 
     return;
   }

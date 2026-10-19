@@ -158,6 +158,7 @@ export interface MessageSchema {
     selection: string;
     canvasLabel: string;
     workspaceBackground: string;
+    pageBackground: string;
   };
   contextMenu: {
     /** Accessible name of the menu opened over an image object. */
@@ -188,6 +189,32 @@ export interface MessageSchema {
     curved: string;
     arcUp: string;
     arcDown: string;
+  };
+  background: {
+    kind: string;
+    solid: string;
+    gradient: string;
+    image: string;
+    color: string;
+    from: string;
+    to: string;
+    angle: string;
+    imageUrl: string;
+    imagePlaceholder: string;
+    addImage: string;
+    uploadImage: string;
+    imageActive: string;
+    preview: string;
+    removeImage: string;
+    videoUnsupported: string;
+    unsupportedType: string;
+    notAnImage: string;
+    invalidUrl: string;
+    invalidFile: string;
+    readFailed: string;
+    fetchFailed: string;
+    loadFailed: string;
+    error: string;
   };
   brand: {
     palette: string;
@@ -646,6 +673,7 @@ export const messages: Record<Locale, MessageSchema> = {
       selection: 'Selection',
       canvasLabel: 'Canvas workspace',
       workspaceBackground: 'Workspace background',
+      pageBackground: 'Page background',
     },
     contextMenu: {
       label: 'Image actions',
@@ -675,6 +703,32 @@ export const messages: Record<Locale, MessageSchema> = {
       curved: 'Curved',
       arcUp: 'Arc up',
       arcDown: 'Arc down',
+    },
+    background: {
+      kind: 'Page fill',
+      solid: 'Solid',
+      gradient: 'Gradient',
+      image: 'Image',
+      color: 'Color',
+      from: 'From',
+      to: 'To',
+      angle: 'Angle',
+      imageUrl: 'Image URL',
+      imagePlaceholder: 'Paste an image URL',
+      addImage: 'Use image',
+      uploadImage: 'Upload image',
+      imageActive: 'Image fill applied.',
+      preview: 'Image fill preview',
+      removeImage: 'Remove image fill',
+      videoUnsupported: 'Video is not supported. Choose an image.',
+      unsupportedType: 'This file type is not supported. Use SVG, WebP, PNG or JPG.',
+      notAnImage: 'This URL did not return an image.',
+      invalidUrl: 'This URL is not valid.',
+      invalidFile: 'The file has no image type.',
+      readFailed: 'The image file could not be read.',
+      fetchFailed: 'This image URL could not be downloaded.',
+      loadFailed: 'The image could not be loaded.',
+      error: 'The image could not be added.',
     },
     brand: {
       palette: 'Palette',
@@ -1181,6 +1235,7 @@ export const messages: Record<Locale, MessageSchema> = {
       selection: 'Seleção',
       canvasLabel: 'Área de trabalho do canvas',
       workspaceBackground: 'Fundo da área de trabalho',
+      pageBackground: 'Fundo da página',
     },
     contextMenu: {
       label: 'Ações da imagem',
@@ -1210,6 +1265,32 @@ export const messages: Record<Locale, MessageSchema> = {
       curved: 'Curvado',
       arcUp: 'Arco para cima',
       arcDown: 'Arco para baixo',
+    },
+    background: {
+      kind: 'Preenchimento da página',
+      solid: 'Sólido',
+      gradient: 'Gradiente',
+      image: 'Imagem',
+      color: 'Cor',
+      from: 'De',
+      to: 'Para',
+      angle: 'Ângulo',
+      imageUrl: 'URL da imagem',
+      imagePlaceholder: 'Cole a URL de uma imagem',
+      addImage: 'Usar imagem',
+      uploadImage: 'Enviar imagem',
+      imageActive: 'Imagem aplicada.',
+      preview: 'Prévia do preenchimento de imagem',
+      removeImage: 'Remover preenchimento de imagem',
+      videoUnsupported: 'Vídeo não é suportado. Escolha uma imagem.',
+      unsupportedType: 'Este tipo de arquivo não é suportado. Use SVG, WebP, PNG ou JPG.',
+      notAnImage: 'Esta URL não retornou uma imagem.',
+      invalidUrl: 'Esta URL não é válida.',
+      invalidFile: 'O arquivo não tem um tipo de imagem.',
+      readFailed: 'Não foi possível ler o arquivo de imagem.',
+      fetchFailed: 'Não foi possível baixar esta URL de imagem.',
+      loadFailed: 'Não foi possível carregar a imagem.',
+      error: 'A imagem não pôde ser adicionada.',
     },
     brand: {
       palette: 'Paleta',
@@ -1716,6 +1797,7 @@ export const messages: Record<Locale, MessageSchema> = {
       selection: 'Selección',
       canvasLabel: 'Área de trabajo del lienzo',
       workspaceBackground: 'Fondo del área de trabajo',
+      pageBackground: 'Fondo de la página',
     },
     contextMenu: {
       label: 'Acciones de la imagen',
@@ -1745,6 +1827,32 @@ export const messages: Record<Locale, MessageSchema> = {
       curved: 'Curvado',
       arcUp: 'Arco hacia arriba',
       arcDown: 'Arco hacia abajo',
+    },
+    background: {
+      kind: 'Relleno de la página',
+      solid: 'Sólido',
+      gradient: 'Degradado',
+      image: 'Imagen',
+      color: 'Color',
+      from: 'Desde',
+      to: 'Hasta',
+      angle: 'Ángulo',
+      imageUrl: 'URL de la imagen',
+      imagePlaceholder: 'Pega la URL de una imagen',
+      addImage: 'Usar imagen',
+      uploadImage: 'Subir imagen',
+      imageActive: 'Imagen aplicada.',
+      preview: 'Vista previa del relleno de imagen',
+      removeImage: 'Quitar relleno de imagen',
+      videoUnsupported: 'El vídeo no es compatible. Elige una imagen.',
+      unsupportedType: 'Este tipo de archivo no es compatible. Usa SVG, WebP, PNG o JPG.',
+      notAnImage: 'Esta URL no devolvió una imagen.',
+      invalidUrl: 'Esta URL no es válida.',
+      invalidFile: 'El archivo no tiene un tipo de imagen.',
+      readFailed: 'No se pudo leer el archivo de imagen.',
+      fetchFailed: 'No se pudo descargar esta URL de imagen.',
+      loadFailed: 'No se pudo cargar la imagen.',
+      error: 'La imagen no pudo añadirse.',
     },
     brand: {
       palette: 'Paleta',
