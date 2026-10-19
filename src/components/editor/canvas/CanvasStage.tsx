@@ -501,6 +501,23 @@ export function CanvasStage({ viewport, onViewportChange, snapEnabled }: CanvasS
 
     const onKeyDown = (event: KeyboardEvent) => {
       const state = useStore.getState();
+      const active = canvas.getActiveObject();
+      if (active instanceof Textbox && active.isEditing) return;
+
+      // Esc clears the selection and the inspector returns to the page state.
+      // A text-editing surface (Fabric's hidden textarea, contenteditable) or
+      // an event another widget already consumed keeps the selection.
+      if (event.key === 'Escape') {
+        const target = event.target as HTMLElement | null;
+        const editingSurface =
+          !!target && (target.isContentEditable || target.tagName === 'TEXTAREA');
+
+        if (!event.defaultPrevented && !editingSurface && state.selectedObjectId) {
+          state.selectObject(null);
+        }
+        return;
+      }
+
       const id = state.selectedObjectId;
       if (!id) return;
 
@@ -511,9 +528,6 @@ export function CanvasStage({ viewport, onViewportChange, snapEnabled }: CanvasS
       ) {
         return;
       }
-
-      const active = canvas.getActiveObject();
-      if (active instanceof Textbox && active.isEditing) return;
 
       const documentPage = activePageFromStore();
       const docObject = documentPage?.objects.find((candidate) => candidate.id === id);

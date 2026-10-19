@@ -426,6 +426,10 @@ test('canvas editor renders the starter document and lists its layers', async ({
   await expect(page.getByTestId('layer-row').filter({ hasText: 'Cover image' })).toHaveCount(1);
   await expect(page.getByTestId('layer-row').filter({ hasText: 'Accent bar' })).toHaveCount(1);
   await expect(page.getByTestId('layer-row').filter({ hasText: 'Headline' })).toHaveCount(1);
+
+  // Pages live in the rail dock now: open the tool to list them.
+  await page.getByTestId('sidebar-rail').getByRole('button', { name: /Pages|Páginas/ }).click();
+  await expect(page.getByTestId('sidebar-panel-pages')).toBeVisible();
   await expect(page.getByTestId('page-row')).toHaveCount(1);
 
   // Something was actually painted on the canvas (page background + objects).
@@ -442,6 +446,170 @@ test('canvas editor renders the starter document and lists its layers', async ({
     return painted;
   });
   expect(paintedPixels ?? 0).toBeGreaterThan(1000);
+
+  const metrics = await page.evaluate(() => ({
+    height: window.innerHeight,
+    scrollHeight: document.documentElement.scrollHeight,
+  }));
+  expect(metrics.scrollHeight).toBeLessThanOrEqual(metrics.height + 8);
+});
+
+test('canvas shell exposes the ten-tool rail, the dock and the inspector', async ({ page }) => {
+  await page.goto('/fremit/editor');
+  await expect(page.getByTestId('editor-shell')).toBeVisible({ timeout: 15000 });
+
+  const rail = page.getByTestId('sidebar-rail');
+  await expect(rail).toBeVisible();
+  await expect(rail.getByRole('button')).toHaveCount(10);
+
+  // Every tool renders its icon; the vendored Runeicons inherit the text
+  // color (no color of their own) and stay decorative for the button label.
+  await expect(rail.locator('button svg')).toHaveCount(10);
+  const layersIcon = rail.getByRole('button', { name: /Layers|Camadas|Capas/ }).locator('svg');
+  await expect(layersIcon).toHaveAttribute('aria-hidden', 'true');
+  await expect(layersIcon).toHaveAttribute('stroke', 'currentColor');
+
+  // Layers opens by default and marks its tool as pressed.
+  await expect(page.getByTestId('sidebar-panel-layers')).toBeVisible();
+  await expect(rail.getByRole('button', { name: /Layers|Camadas|Capas/ })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+
+  // The docked section owns the region name; the panel body never repeats it.
+  await expect(page.getByRole('region', { name: /Layers|Camadas|Capas/ })).toHaveCount(1);
+
+  // The animate panel is real now: it opens with its two sections and a
+  // ready status.
+  await rail.getByRole('button', { name: /Animate|Animar/ }).click();
+  const animate = page.getByTestId('sidebar-panel-animate');
+  await expect(animate).toBeVisible();
+  await expect(animate).toHaveAttribute('data-status', 'ready');
+  await expect(animate.getByTestId('animate-element')).toBeVisible();
+  await expect(animate.getByTestId('animate-page')).toBeVisible();
+  await expect(page.getByTestId('sidebar-panel-layers')).toHaveCount(0);
+
+  // Clicking the open tool again closes the dock.
+  await rail.getByRole('button', { name: /Animate|Animar/ }).click();
+  await expect(page.getByTestId('sidebar-panel-animate')).toHaveCount(0);
+
+  // The brand panel is real now: it opens with its local palette.
+  await rail.getByRole('button', { name: /Brand|Marca/ }).click();
+  const brand = page.getByTestId('sidebar-panel-brand');
+  await expect(brand).toBeVisible();
+  await expect(brand).toHaveAttribute('data-status', 'ready');
+  await expect(brand.getByTestId('brand-palette').getByTestId('brand-swatch').first()).toBeVisible();
+
+  // The inspector shows the page state while nothing is selected.
+  const inspector = page.getByTestId('inspector');
+  await expect(inspector).toBeVisible();
+  await expect(inspector.getByRole('combobox', { name: /^Format(o)?$/ })).toBeVisible();
+});
+
+test('canvas workspace follows the theme while the page keeps its document color', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('fremit.theme', 'light');
+  });
+  await page.goto('/fremit/editor');
+  await expect(page.getByTestId('canvas-host')).toBeVisible({ timeout: 15000 });
+  await page.evaluate(() => document.fonts.ready);
+
+  // The cover image lands asynchronously; wait for the painted canvas.
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const canvas = document.querySelector('[data-testid="canvas-host"] canvas.lower-canvas');
+        if (!(canvas instanceof HTMLCanvasElement)) return -1;
+        const context = canvas.getContext('2d');
+        if (!context) return -1;
+        const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+        let painted = 0;
+        for (let index = 3; index < data.length; index += 4) {
+          if (data[index] > 0) painted += 1;
+        }
+        return painted;
+      }),
+    )
+    .toBeGreaterThan(1000);
+
+  const readWorkspace = () =>
+    page.evaluate(() => {
+      const host = document.querySelector('[data-testid="canvas-host"]');
+      return host ? getComputedStyle(host).backgroundColor : null;
+    });
+
+  // The page corner in the live canvas: the document is the only source.
+  const readPageCorner = () =>
+    page.evaluate(() => {
+      const canvas = document.querySelector('[data-testid="canvas-host"] canvas.lower-canvas');
+      if (!(canvas instanceof HTMLCanvasElement)) return null;
+      const context = canvas.getContext('2d');
+      if (!context) return null;
+
+      // Same math as `fitViewport`: the page is centered with FIT_PADDING.
+      const pageSize = 1080;
+      const fitPadding = 48;
+      const zoom = Math.min(
+        (canvas.clientWidth - fitPadding) / pageSize,
+        (canvas.clientHeight - fitPadding) / pageSize,
+      );
+      const originX = (canvas.clientWidth - pageSize * zoom) / 2;
+      const originY = (canvas.clientHeight - pageSize * zoom) / 2;
+      const dpr = canvas.width / canvas.clientWidth;
+
+      return Array.from(
+        context.getImageData(
+          Math.round((originX + 4 * zoom) * dpr),
+          Math.round((originY + 4 * zoom) * dpr),
+          1,
+          1,
+        ).data,
+      );
+    });
+
+  const lightWorkspace = await readWorkspace();
+  const lightPage = await readPageCorner();
+  // #f5f0e8 from the starter document, not from the workspace token.
+  expect(lightPage?.slice(0, 3)).toEqual([245, 240, 232]);
+
+  await page
+    .getByRole('button', { name: /Color selector|Seletor de cores|Selector de color/i })
+    .click();
+  await expect.poll(() => page.evaluate(() => document.documentElement.className)).toBe('dark');
+
+  const darkWorkspace = await readWorkspace();
+  const darkPage = await readPageCorner();
+
+  expect(lightWorkspace).not.toBeNull();
+  expect(darkWorkspace).not.toBe(lightWorkspace);
+  // The theme never touches the document: same page pixel in both themes.
+  expect(darkPage).toEqual(lightPage);
+});
+
+test('canvas editor mobile opens the rail and the panels in the bottom sheet', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/fremit/editor');
+  await expect(page.getByTestId('canvas-host')).toBeVisible({ timeout: 15000 });
+
+  await page.getByTestId('mobile-controls-trigger').click();
+
+  // The sheet is a container of its own: the desktop aside stays in the DOM
+  // (hidden by CSS), so the export test ids resolve twice without scoping.
+  const sheet = page.getByTestId('mobile-panel-sheet');
+  await expect(sheet.getByTestId('export-panel')).toBeVisible();
+
+  // The sheet hides the panel header, so the heading is kept for the outline.
+  await expect(sheet.getByRole('heading', { name: /Layers|Camadas|Capas/ })).toBeVisible();
+
+  // The sheet mounts its own copy of the active panel (the desktop dock is
+  // hidden by CSS but still in the DOM), so the sheet's section comes last.
+  const layersPanel = page.getByTestId('sidebar-panel-layers').last();
+  await expect(layersPanel).toBeVisible();
+  await expect(layersPanel.getByTestId('layer-row')).toHaveCount(3);
+
+  await page.getByRole('button', { name: /Pages|Páginas/ }).click();
+  await expect(page.getByTestId('sidebar-panel-pages').last()).toBeVisible();
+  await expect(page.getByTestId('page-row').last()).toHaveCount(1);
 
   const metrics = await page.evaluate(() => ({
     height: window.innerHeight,
@@ -1430,16 +1598,10 @@ test('canvas editor inserts text presets, shapes and images from the rail panels
   await page.goto('/fremit/editor');
   await expect(page.getByTestId('layer-row')).toHaveCount(3);
 
-  await page.getByRole('button', { name: /Add text|Adicionar texto|Añadir texto/i }).click();
-  await expect(page.getByTestId('layer-row')).toHaveCount(4);
-  await expect(page.getByTestId('layer-row').filter({ hasText: 'Text' })).toHaveCount(1);
   const rail = page.getByTestId('sidebar-rail');
   const openTool = (name: RegExp) => rail.getByRole('button', { name }).click();
   const layers = () => page.getByTestId('layer-row');
 
-  await page.getByRole('button', { name: /Add shape|Adicionar forma|Añadir forma/i }).click();
-  await expect(page.getByTestId('layer-row')).toHaveCount(5);
-  await expect(page.getByTestId('layer-row').filter({ hasText: 'Shape' })).toHaveCount(1);
   // Text drawer: straight presets, a pairing (heading + body) and a list. The
   // dock shows one panel at a time, so the layers panel comes back for counts.
   await openTool(/Text|Texto/);
@@ -1626,10 +1788,6 @@ test('canvas editor inspector edits the selected shape live', async ({ page }) =
   await expect(page.getByTestId('layer-row')).toHaveCount(3);
 
   await page
-    .locator('input[type="file"]')
-    .setInputFiles({ name: 'sticker.png', mimeType: 'image/png', buffer: png });
-  await expect(page.getByTestId('layer-row')).toHaveCount(6);
-  await expect(page.getByTestId('layer-row').filter({ hasText: 'sticker.png' })).toHaveCount(1);
     .getByTestId('layer-row')
     .filter({ hasText: 'Accent bar' })
     .getByTestId('layer-select')
@@ -1665,6 +1823,99 @@ test('canvas editor inspector edits the selected shape live', async ({ page }) =
   await expect.poll(() => canvasHash(page)).not.toBe(hash);
 });
 
+test('canvas editor inspector locks a selected object and Escape clears the selection', async ({
+  page,
+}) => {
+  await page.goto('/fremit/editor');
+  await expect(page.getByTestId('layer-row')).toHaveCount(3);
+
+  await page
+    .getByTestId('layer-row')
+    .filter({ hasText: 'Headline' })
+    .getByTestId('layer-select')
+    .click();
+  const inspector = page.getByTestId('inspector');
+  await expect(inspector.getByTestId('inspector-font-family')).toBeVisible();
+
+  await inspector.getByTestId('inspector-lock').click();
+  await expect(inspector.getByTestId('inspector-lock')).toHaveAttribute('aria-pressed', 'true');
+  await expect(inspector.getByTestId('inspector-locked-note')).toBeVisible();
+  await expect(inspector.getByTestId('inspector-font-size')).toBeDisabled();
+  await expect(inspector.getByTestId('inspector-name')).toBeDisabled();
+
+  await inspector.getByTestId('inspector-lock').click();
+  await expect(inspector.getByTestId('inspector-font-size')).toBeEnabled();
+
+  await page.keyboard.press('Escape');
+  await expect(inspector.getByTestId('inspector-font-size')).toHaveCount(0);
+  await expect(inspector.getByRole('combobox', { name: /^Format(o)?$/ })).toBeVisible();
+});
+
+test('images panel adds an image from a URL and from the clipboard', async ({ page }) => {
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+    'base64',
+  );
+  // A different 1x1 PNG so the clipboard path does not dedupe into the URL insert.
+  const pastedPng = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64',
+  );
+
+  await page.route('https://images.example.test/photo.png', (route) =>
+    route.fulfill({ contentType: 'image/png', body: png }),
+  );
+  await page.addInitScript((base64) => {
+    const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
+    const blob = new Blob([bytes], { type: 'image/png' });
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        read: async () => [{ types: ['image/png'], getType: async () => blob }],
+      },
+    });
+  }, pastedPng.toString('base64'));
+
+  await page.goto('/fremit/editor');
+  await expect(page.getByTestId('layer-row')).toHaveCount(3);
+
+  const rail = page.getByTestId('sidebar-rail');
+  const openTool = (name: RegExp) => rail.getByRole('button', { name }).click();
+
+  await openTool(/Images|Imagens|Imágenes/);
+  const panel = page.getByTestId('sidebar-panel-images');
+
+  // URL path: CORS fetch + data URL, like the home flow. The field clears
+  // itself on success, which is the signal that the object landed.
+  await panel.getByTestId('images-url').fill('https://images.example.test/photo.png');
+  await panel.getByTestId('images-add-url').click();
+  await expect(panel.getByTestId('images-url')).toHaveValue('');
+  await openTool(/Layers|Camadas|Capas/);
+  await expect(page.getByTestId('layer-row')).toHaveCount(4);
+  await expect(
+    page.getByTestId('layer-row').filter({ hasText: 'images.example.test/photo.png' }),
+  ).toHaveCount(1);
+
+  // Clipboard path: the pasted blob lands as its own image object.
+  await openTool(/Images|Imagens|Imágenes/);
+  await panel.getByTestId('images-paste').click();
+  await openTool(/Layers|Camadas|Capas/);
+  await expect(page.getByTestId('layer-row')).toHaveCount(5);
+  await expect(page.getByTestId('layer-row').filter({ hasText: 'Pasted image' })).toHaveCount(1);
+
+  // A file outside the matrix is refused by the shared source gate before the
+  // document changes, with copy that names the accepted formats.
+  await openTool(/Images|Imagens|Imágenes/);
+  await panel.getByTestId('images-file').setInputFiles({
+    name: 'notes.txt',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('not an image'),
+  });
+  await expect(panel.getByTestId('images-error')).toHaveText(
+    /This file type is not supported|Este tipo de arquivo não é suportado|Este tipo de archivo no es compatible/i,
+  );
+});
+
 test('canvas editor inspector switches the image fit live', async ({ page }) => {
   await page.goto('/fremit/editor');
   await expect(page.getByTestId('layer-row')).toHaveCount(3);
@@ -1689,6 +1940,27 @@ test('canvas editor inspector switches the image fit live', async ({ page }) => 
   await expect.poll(() => canvasHash(page)).not.toBe(covered);
 });
 
+test('canvas rail moves focus between tools with the arrow keys', async ({ page }) => {
+  await page.goto('/fremit/editor');
+  const rail = page.getByTestId('sidebar-rail');
+  await expect(rail).toBeVisible({ timeout: 15000 });
+
+  const layers = rail.getByRole('button', { name: /Layers|Camadas|Capas/ });
+  await layers.focus();
+  await page.keyboard.press('ArrowUp');
+  await expect(rail.getByRole('button', { name: /Pages|Páginas/ })).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await expect(rail.getByRole('button', { name: /Animate|Animar/ })).toBeFocused();
+  await page.keyboard.press('Home');
+  await expect(rail.getByRole('button', { name: /Templates|Plantillas/ })).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(layers).toBeFocused();
+
+  // The arrows continue from the tool that actually holds focus: after a click
+  // on Text (which also moves the roving tabindex), ArrowDown reaches Shapes.
+  await rail.getByRole('button', { name: /Text|Texto/ }).click();
+  await page.keyboard.press('ArrowDown');
+  await expect(rail.getByRole('button', { name: /Shapes|Formas/ })).toBeFocused();
 });
 
 test('canvas editor edits text in place and keeps it through a page round-trip', async ({ page }) => {
@@ -2146,3 +2418,52 @@ test('canvas editor applies and previews every page transition', async ({ page }
   );
 });
 
+test('canvas editor presents pages and plays the transition between them', async ({ page }) => {
+  test.slow();
+  await page.goto('/fremit/editor');
+  await expect(page.getByTestId('layer-row')).toHaveCount(3);
+
+  const rail = page.getByTestId('sidebar-rail');
+
+  // A second page with its own transition: entering it plays that transition.
+  await rail.getByRole('button', { name: /Pages|Páginas/ }).click();
+  await page.getByTestId('page-add').click();
+  await expect(page.getByTestId('page-row')).toHaveCount(2);
+
+  await rail.getByRole('button', { name: /Animate|Animar/ }).click();
+  const panel = page.getByTestId('sidebar-panel-animate');
+  await panel.getByTestId('animate-transition-fade').click();
+  // Long enough to be observed between polls on a loaded machine (the
+  // transition reports itself on the canvas host while it runs).
+  await panel.getByTestId('animate-transition-duration').fill('1000');
+
+  // Back to the first page and into presentation mode.
+  await rail.getByRole('button', { name: /Pages|Páginas/ }).click();
+  await page.getByTestId('page-row').first().getByTestId('page-select').click();
+  await rail.getByRole('button', { name: /Animate|Animar/ }).click();
+  await panel.getByTestId('animate-present').click();
+
+  await expect(page.getByTestId('present-bar')).toBeVisible();
+  // The toolbar carries its own name, distinct from the animate panel button
+  // that opened the mode (both used to be "Present").
+  await expect(
+    page.getByRole('toolbar', {
+      name: /Presentation controls|Controles da apresentação|Controles de la presentación/,
+    }),
+  ).toBeVisible();
+  await expect(page.getByTestId('present-page')).toHaveText('1 / 2');
+  await expect(page.getByTestId('present-prev')).toBeDisabled();
+  await expect(page.getByTestId('sidebar-rail')).toHaveCount(0);
+  await expect(page.getByTestId('editor-panel')).toHaveCount(0);
+
+  // Next: the page that lands plays its transition.
+  await page.getByTestId('present-next').click();
+  await expect(page.getByTestId('present-page')).toHaveText('2 / 2');
+  await expect(page.getByTestId('canvas-host')).toHaveAttribute('data-previewing', 'page');
+  await expect(page.getByTestId('present-next')).toBeDisabled();
+
+  // Escape leaves the mode and the shell comes back.
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('present-bar')).toHaveCount(0);
+  await expect(page.getByTestId('sidebar-rail')).toBeVisible();
+});
