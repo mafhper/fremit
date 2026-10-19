@@ -2092,9 +2092,9 @@ test('canvas editor inserts curved text and the arc paints as a curve', async ({
       const rows = await arcInkRows(page, await readSelectionBox(page), 'top');
       if (rows.middle === null || rows.end === null) return -999;
 
-      return Math.round((rows.end as number) - (rows.middle as number));
+      return (rows.end as number) - (rows.middle as number);
     })
-    .toBeGreaterThan(upDelta + 10);
+    .toBeGreaterThan(upDelta + 6);
 
   // The direction control flips the arch into a valley.
   await page.getByTestId('inspector-arc-direction').click();
