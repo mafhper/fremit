@@ -72,9 +72,14 @@ function dataUrlPrefix(mediaType: string): string {
   return `data:${mediaType};base64,`;
 }
 
-/** The prefix as a regex, with the `+` of `image/svg+xml` taken literally. */
+/** Escapes every regex metacharacter so the prefix is matched literally. */
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** The prefix as a regex; every metacharacter — the `+` of `image/svg+xml` included — is literal. */
 function dataUrlPrefixPattern(mediaType: string): RegExp {
-  return new RegExp(`^${dataUrlPrefix(mediaType).replace(/[+]/g, '\\+')}`);
+  return new RegExp(`^${escapeRegExp(dataUrlPrefix(mediaType))}`);
 }
 
 describe('image source matrix', () => {
