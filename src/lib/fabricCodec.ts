@@ -449,63 +449,193 @@ const shapeCodec: CanvasCodec<ShapeObject> = {
       visible: object.visible,
       ...TOP_LEFT_ORIGIN,
     };
+    const stroke = object.stroke ?? undefined;
 
-    if (object.shape === 'ellipse') {
-      return new Ellipse({
-        ...shared,
-        rx: object.width / 2,
-        ry: object.height / 2,
-        fill: object.fill,
-      });
+    switch (object.shape) {
+      case 'ellipse':
+        return new Ellipse({
+          ...shared,
+          rx: object.width / 2,
+          ry: object.height / 2,
+          fill: object.fill,
+          stroke,
+          strokeWidth: object.strokeWidth,
+        });
+      case 'triangle':
+        return new Triangle({
+          ...shared,
+          width: object.width,
+          height: object.height,
+          fill: object.fill,
+          stroke,
+          strokeWidth: object.strokeWidth,
+        });
+      case 'line':
+        return new Polyline(linePoints(), {
+          ...shared,
+          scaleX: object.width / SHAPE_BOX,
+          scaleY: object.height / SHAPE_BOX,
+          // A segment has no area to fill: the paint is the stroke.
+          fill: null,
+          stroke,
+          strokeWidth: object.strokeWidth,
+          // The scale over the normalized box must not stretch the stroke.
+          strokeUniform: true,
+        });
+      case 'star':
+      case 'polygon':
+        return new Polygon(polygonPointsFor(object), {
+          ...shared,
+          scaleX: object.width / SHAPE_BOX,
+          scaleY: object.height / SHAPE_BOX,
+          fill: object.fill,
+          stroke,
+          strokeWidth: object.strokeWidth,
+          strokeUniform: true,
+        });
+      case 'rect':
+        return new Rect({
+          ...shared,
+          width: object.width,
+          height: object.height,
+          fill: object.fill,
+          rx: object.cornerRadius,
+          ry: object.cornerRadius,
+          stroke,
+          strokeWidth: object.strokeWidth,
+        });
     }
-
-    return new Rect({
-      ...shared,
-      width: object.width,
-      height: object.height,
-      fill: object.fill,
-      rx: object.cornerRadius,
-      ry: object.cornerRadius,
-      stroke: object.stroke ?? undefined,
-      strokeWidth: object.strokeWidth,
-    });
   },
   applyGeometry(object, docObject) {
     applyBaseGeometry(object, docObject);
+    const stroke = docObject.stroke ?? undefined;
 
-    if (object instanceof Ellipse) {
-      object.set({
-        rx: docObject.width / 2,
-        ry: docObject.height / 2,
-        fill: docObject.fill,
-        scaleX: 1,
-        scaleY: 1,
-      });
-
-      return;
-    }
-
-    if (object instanceof Rect) {
-      object.set({
-        width: docObject.width,
-        height: docObject.height,
-        fill: docObject.fill,
-        rx: docObject.cornerRadius,
-        ry: docObject.cornerRadius,
-        stroke: docObject.stroke ?? undefined,
-        strokeWidth: docObject.strokeWidth,
-        scaleX: 1,
-        scaleY: 1,
-      });
+    switch (docObject.shape) {
+      case 'ellipse':
+        if (object instanceof Ellipse) {
+          object.set({
+            rx: docObject.width / 2,
+            ry: docObject.height / 2,
+            fill: docObject.fill,
+            stroke,
+            strokeWidth: docObject.strokeWidth,
+            scaleX: 1,
+            scaleY: 1,
+          });
+        }
+        return;
+      case 'triangle':
+        if (object instanceof Triangle) {
+          object.set({
+            width: docObject.width,
+            height: docObject.height,
+            fill: docObject.fill,
+            stroke,
+            strokeWidth: docObject.strokeWidth,
+            scaleX: 1,
+            scaleY: 1,
+          });
+        }
+        return;
+      case 'line':
+        if (object instanceof Polyline) {
+          object.set({
+            points: linePoints(),
+            scaleX: docObject.width / SHAPE_BOX,
+            scaleY: docObject.height / SHAPE_BOX,
+            fill: null,
+            stroke,
+            strokeWidth: docObject.strokeWidth,
+          });
+          // The points changed identity: refresh the derived dimensions and
+          // offsets so the render and the hit box follow the new points.
+          object.setDimensions();
+        }
+        return;
+      case 'star':
+      case 'polygon':
+        if (object instanceof Polygon) {
+          object.set({
+            points: polygonPointsFor(docObject),
+            scaleX: docObject.width / SHAPE_BOX,
+            scaleY: docObject.height / SHAPE_BOX,
+            fill: docObject.fill,
+            stroke,
+            strokeWidth: docObject.strokeWidth,
+          });
+          object.setDimensions();
+        }
+        return;
+      case 'rect':
+        if (object instanceof Rect) {
+          object.set({
+            width: docObject.width,
+            height: docObject.height,
+            fill: docObject.fill,
+            rx: docObject.cornerRadius,
+            ry: docObject.cornerRadius,
+            stroke,
+            strokeWidth: docObject.strokeWidth,
+            scaleX: 1,
+            scaleY: 1,
+          });
+        }
+        return;
     }
   },
   readGeometry(object) {
-    return baseGeometryPatch(object);
+    return { type: 'shape', ...baseGeometryPatch(object) };
   },
-  normalizeGeometry(object) {
+  normalizeGeometry(object, docObject) {
+    // The normalized-scale kinds keep their size in `scaleX/scaleY` over the
+    // constant points; the canvas read multiplies the two, so there is nothing
+    // to bake and a later reconcile writes the same scale back. Baking the
+    // points themselves would fight the constants and drift with every drag.
+    if (keepsNormalizedScale(docObject)) return;
+
     bakeScale(object);
   },
 };
+
+/**
+ * Applies the mask of an image object as a clip centered on the object. The
+ * FabricImage cache is drawn at the natural size and composited with the
+ * object scale, so the page rect is converted to those local units (see
+ * `imageMaskClipGeometry`): the rendered crop is the same rect the thumbnail
+ * writes in the SVG, for any cover/contain fit and any rotation.
+ */
+function applyImageMask(object: FabricImage, docObject: ImageObject): void {
+  const geometry = imageMaskClipGeometry(docObject, {
+    x: object.scaleX ?? 1,
+    y: object.scaleY ?? 1,
+  });
+
+  if (!geometry) {
+    // Clearing must invalidate the cached bitmap, or the rounded corners stay
+    // painted after the mask is gone.
+    if (object.clipPath) {
+      object.clipPath = undefined;
+      object.set('dirty', true);
+    }
+
+    return;
+  }
+
+  const clipPath =
+    object.clipPath instanceof Rect
+      ? object.clipPath
+      : new Rect({ originX: 'center', originY: 'center', left: 0, top: 0 });
+
+  clipPath.set({
+    width: geometry.width,
+    height: geometry.height,
+    rx: geometry.rx,
+    ry: geometry.ry,
+  });
+  clipPath.setCoords();
+  object.clipPath = clipPath;
+  object.set('dirty', true);
+}
 
 const imageCodec: CanvasCodec<ImageObject> = {
   applyGeometry(object, docObject, natural) {

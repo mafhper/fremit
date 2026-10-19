@@ -120,13 +120,51 @@ describe('useStore document slice', () => {
     expect(useStore.getState().document.pages[0].objects).toHaveLength(4);
     expect(useStore.getState().selectedObjectId).toBe(extra.id);
 
-    useStore.getState().updateObject(extra.id, { x: 200, y: 300, visible: false });
+    useStore.getState().updateObject(extra.id, { type: 'shape', x: 200, y: 300, visible: false });
     const updated = useStore.getState().document.pages[0].objects.find((o) => o.id === extra.id);
     expect(updated).toMatchObject({ x: 200, y: 300, visible: false });
 
     useStore.getState().removeObject(extra.id);
     expect(useStore.getState().document.pages[0].objects).toHaveLength(3);
     expect(useStore.getState().selectedObjectId).toBeNull();
+  });
+
+  it('adds a group in a single write and selects the last object', () => {
+    const store = useStore.getState();
+    const [heading, body] = createFontPairingTexts('classic', { width: 1080, height: 1080 });
+    const documentWrites: string[] = [];
+    const unsubscribe = useStore.subscribe((state, previous) => {
+      if (state.document !== previous.document) documentWrites.push('document');
+    });
+
+    store.addObjects([heading, body]);
+    unsubscribe();
+
+    const state = useStore.getState();
+    const objects = state.document.pages[0].objects;
+
+    expect(objects).toHaveLength(5);
+    expect(objects.slice(-2).map((object) => object.id)).toEqual([heading.id, body.id]);
+    // The pair lands atomically: one document write for the two objects, and
+    // the selection follows the last one (the body).
+    expect(documentWrites).toHaveLength(1);
+    expect(state.selectedObjectId).toBe(body.id);
+  });
+
+  it('ignores a batch with no objects', () => {
+    const before = useStore.getState().document;
+
+    useStore.getState().addObjects([]);
+
+    expect(useStore.getState().document).toBe(before);
+  });
+
+  it('does not write when updateObject targets an unknown id', () => {
+    const before = useStore.getState().document;
+
+    useStore.getState().updateObject('missing', { type: 'shape', x: 10 });
+
+    expect(useStore.getState().document).toBe(before);
   });
 
   it('keeps a different selection when another object is removed', () => {
@@ -149,6 +187,79 @@ describe('useStore document slice', () => {
       text.id,
       store.document.pages[0].objects[1].id,
     ]);
+  });
+
+  it('duplicates an object above the source and selects the copy', () => {
+    const store = useStore.getState();
+    const source = store.document.pages[0].objects[1];
+    const documentWrites: string[] = [];
+    const unsubscribe = useStore.subscribe((state, previous) => {
+      if (state.document !== previous.document) documentWrites.push('document');
+    });
+
+    store.duplicateObject(source.id);
+    unsubscribe();
+
+    const state = useStore.getState();
+    const objects = state.document.pages[0].objects;
+    const copy = objects[2];
+
+    expect(objects).toHaveLength(4);
+    expect(copy.id).not.toBe(source.id);
+    // Same content, different identity; the copy lands directly above its
+    // source in one document write and the selection follows it.
+    expect(copy).toEqual({ ...source, id: copy.id, name: 'Accent bar copy' });
+    expect(objects.indexOf(copy)).toBe(objects.indexOf(source) + 1);
+    expect(documentWrites).toHaveLength(1);
+    expect(state.selectedObjectId).toBe(copy.id);
+  });
+
+  it('does not write when duplicateObject targets an unknown id', () => {
+    const before = useStore.getState().document;
+
+    useStore.getState().duplicateObject('missing');
+
+    expect(useStore.getState().document).toBe(before);
+  });
+
+  it('replaces the source of an image object in place, keeping the selection', () => {
+    const store = useStore.getState();
+    const image = store.document.pages[0].objects[0];
+    const before = store.document;
+    store.selectObject(image.id);
+
+    const result = useStore.getState().replaceImageSource(image.id, 'data:image/png;base64,replacement');
+
+    expect(result).toEqual({ ok: true });
+
+    const after = useStore.getState().document;
+    const replaced = after.pages[0].objects[0];
+
+    expect(replaced).toMatchObject({
+      type: 'image',
+      id: image.id,
+      x: image.x,
+      y: image.y,
+      width: image.width,
+      height: image.height,
+      src: 'data:image/png;base64,replacement',
+    });
+    // Same object count and same identity order: a swap, not an insert.
+    expect(after.pages[0].objects).toHaveLength(before.pages[0].objects.length);
+    expect(after.pages[0].objects.map((object) => object.id)).toEqual(
+      before.pages[0].objects.map((object) => object.id),
+    );
+    expect(useStore.getState().selectedObjectId).toBe(image.id);
+  });
+
+  it('reports a typed failure and does not write when the target is not an image', () => {
+    const before = useStore.getState().document;
+    const shape = before.pages[0].objects[1];
+
+    const result = useStore.getState().replaceImageSource(shape.id, 'data:image/png;base64,replacement');
+
+    expect(result).toEqual({ ok: false, code: 'not-an-image' });
+    expect(useStore.getState().document).toBe(before);
   });
 
   it('manages pages: add, duplicate, move, rename and resize', () => {

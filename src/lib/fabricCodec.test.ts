@@ -144,3 +144,223 @@ describe('canvas codec: text', () => {
     expect(CANVAS_CODECS.text.readGeometry(canvasText, doc).rotation).toBe(-2.35);
   });
 });
+
+describe('canvas codec: shapes', () => {
+  it('creates a rect that carries the box, the corners and the stroke', () => {
+    const doc = createShapeObject('rect', {
+      id: 'shape-rect',
+      x: 12,
+      y: 34,
+      width: 200,
+      height: 80,
+      cornerRadius: 6,
+      fill: '#112233',
+      stroke: '#445566',
+      strokeWidth: 5,
+    });
+    const created = CANVAS_CODECS.shape.create?.(doc);
+
+    if (!(created instanceof Rect)) throw new Error('the rect must be a Fabric Rect');
+
+    expect(created.width).toBe(200);
+    expect(created.height).toBe(80);
+    expect(created.rx).toBe(6);
+    expect(created.ry).toBe(6);
+    expect(created.fill).toBe('#112233');
+    expect(created.stroke).toBe('#445566');
+    expect(created.strokeWidth).toBe(5);
+    expect(CANVAS_CODECS.shape.readGeometry(created, doc)).toMatchObject({
+      type: 'shape',
+      x: 12,
+      y: 34,
+      width: 200,
+      height: 80,
+    });
+  });
+
+  it('creates an ellipse with the document stroke instead of dropping it', () => {
+    const doc = createShapeObject('ellipse', {
+      id: 'shape-ellipse',
+      x: 40,
+      y: 50,
+      width: 200,
+      height: 100,
+      fill: '#112233',
+      stroke: '#ff0000',
+      strokeWidth: 6,
+    });
+    const created = CANVAS_CODECS.shape.create?.(doc);
+
+    if (!(created instanceof Ellipse)) throw new Error('the ellipse must be a Fabric Ellipse');
+
+    expect(created.rx).toBe(100);
+    expect(created.ry).toBe(50);
+    expect(created.fill).toBe('#112233');
+    // The inspector offers the stroke toggle for every filled kind; the canvas
+    // build has to carry the pair or the toggle is a silent no-op.
+    expect(created.stroke).toBe('#ff0000');
+    expect(created.strokeWidth).toBe(6);
+
+    // A document edit reaches the live object through the same branch.
+    CANVAS_CODECS.shape.applyGeometry(
+      created,
+      { ...doc, width: 300, stroke: '#00ff00', strokeWidth: 3 },
+      null,
+    );
+
+    expect(created.rx).toBe(150);
+    expect(created.stroke).toBe('#00ff00');
+    expect(created.strokeWidth).toBe(3);
+  });
+
+  it('keeps the ellipse stroke through a document -> canvas -> document round-trip', () => {
+    const doc = createShapeObject('ellipse', {
+      id: 'shape-ellipse',
+      width: 200,
+      height: 100,
+      stroke: '#ff0000',
+      strokeWidth: 6,
+    });
+    const created = CANVAS_CODECS.shape.create?.(doc);
+
+    if (!(created instanceof Ellipse)) throw new Error('the ellipse must be a Fabric Ellipse');
+
+    // The canvas read returns the geometry patch; applied to the page, it must
+    // leave the stroke the document already owns in place.
+    const page = { ...createPage(), objects: [doc] };
+    const patch = CANVAS_CODECS.shape.readGeometry(created, doc);
+    const edited = updateObjectInPage(page, doc.id, patch).objects[0] as ShapeObject;
+
+    expect(edited).toMatchObject({ stroke: '#ff0000', strokeWidth: 6 });
+  });
+
+  it('creates a star as a normalized polygon scaled into the document box', () => {
+    const doc = createShapeObject('star', {
+      id: 'shape-star',
+      x: 100,
+      y: 200,
+      width: 432,
+      height: 216,
+      sides: 7,
+      innerRadius: 0.35,
+      fill: '#112233',
+    });
+    const created = CANVAS_CODECS.shape.create?.(doc);
+
+    if (!(created instanceof Polygon)) throw new Error('the star must be a Fabric Polygon');
+
+    // The points live in the normalized box; the document box is the scale.
+    expect(created.width).toBe(100);
+    expect(created.height).toBe(100);
+    expect(created.scaleX).toBeCloseTo(4.32, 5);
+    expect(created.scaleY).toBeCloseTo(2.16, 5);
+    expect(created.points).toHaveLength(14);
+
+    // The canvas -> document read gives the box back, so the first commit
+    // after any interaction cannot shrink the shape to the normalized box.
+    expect(CANVAS_CODECS.shape.readGeometry(created, doc)).toMatchObject({
+      type: 'shape',
+      x: 100,
+      y: 200,
+      width: 432,
+      height: 216,
+    });
+  });
+
+  it('keeps a star resize through normalize + read', () => {
+    const doc = createShapeObject('star', { id: 'shape-star', width: 400, height: 400 });
+    const created = CANVAS_CODECS.shape.create?.(doc);
+
+    if (!(created instanceof Polygon)) throw new Error('the star must be a Fabric Polygon');
+
+    // What a drag does: the scale grows over the normalized box.
+    created.set({ scaleX: (created.scaleX ?? 1) * 1.5, scaleY: (created.scaleY ?? 1) * 0.75 });
+    CANVAS_CODECS.shape.normalizeGeometry(created, doc, null);
+
+    const patch = CANVAS_CODECS.shape.readGeometry(created, doc);
+
+    expect(patch.width).toBeCloseTo(600, 5);
+    expect(patch.height).toBeCloseTo(300, 5);
+  });
+
+  it('recomputes the star points when the parameters change', () => {
+    const doc = createShapeObject('star', { id: 'shape-star', sides: 5, innerRadius: 0.5 });
+    const created = CANVAS_CODECS.shape.create?.(doc);
+
+    if (!(created instanceof Polygon)) throw new Error('the star must be a Fabric Polygon');
+
+    expect(created.points).toHaveLength(10);
+
+    CANVAS_CODECS.shape.applyGeometry(created, { ...doc, sides: 8, innerRadius: 0.3 }, null);
+
+    expect(created.points).toHaveLength(16);
+    expect(created.width).toBe(100);
+  });
+
+  it('creates a polygon with one vertex per side', () => {
+    const doc = createShapeObject('polygon', { id: 'shape-polygon', sides: 6 });
+    const created = CANVAS_CODECS.shape.create?.(doc);
+
+    if (!(created instanceof Polygon)) throw new Error('the polygon must be a Fabric Polygon');
+
+    expect(created.points).toHaveLength(6);
+  });
+
+  it('creates a triangle that carries the document box directly', () => {
+    const doc = createShapeObject('triangle', {
+      id: 'shape-triangle',
+      x: 30,
+      y: 40,
+      width: 120,
+      height: 90,
+    });
+    const created = CANVAS_CODECS.shape.create?.(doc);
+
+    if (!(created instanceof Triangle)) throw new Error('the triangle must be a Fabric Triangle');
+
+    expect(created.width).toBe(120);
+    expect(created.height).toBe(90);
+
+    // A canvas resize bakes into width/height like a rect.
+    created.set({ scaleX: 2, scaleY: 0.5 });
+    CANVAS_CODECS.shape.normalizeGeometry(created, doc, null);
+    expect(created.width).toBe(240);
+    expect(created.height).toBe(45);
+    expect(CANVAS_CODECS.shape.readGeometry(created, doc)).toMatchObject({
+      width: 240,
+      height: 45,
+    });
+  });
+
+  it('creates a line as a stroked polyline over the box diagonal', () => {
+    const doc = createShapeObject('line', {
+      id: 'shape-line',
+      x: 324,
+      y: 540,
+      width: 432,
+      height: 1,
+      stroke: '#1f6feb',
+      strokeWidth: 4,
+    });
+    const created = CANVAS_CODECS.shape.create?.(doc);
+
+    if (!(created instanceof Polyline)) throw new Error('the line must be a Fabric Polyline');
+
+    // A line has no fill; its paint is the stroke.
+    expect(created.fill).toBeNull();
+    expect(created.stroke).toBe('#1f6feb');
+    expect(created.strokeWidth).toBe(4);
+    expect(created.points).toEqual([
+      { x: 0, y: 0 },
+      { x: 100, y: 100 },
+    ]);
+
+    expect(CANVAS_CODECS.shape.readGeometry(created, doc)).toMatchObject({
+      type: 'shape',
+      x: 324,
+      y: 540,
+      width: 432,
+      height: 1,
+    });
+  });
+});

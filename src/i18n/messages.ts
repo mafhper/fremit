@@ -129,6 +129,8 @@ export interface MessageSchema {
     snap: string;
     layers: string;
     layersEmpty: string;
+    addObject: string;
+    duplicateObject: string;
     layerUp: string;
     layerDown: string;
     deleteObject: string;
@@ -188,6 +190,14 @@ export interface MessageSchema {
     insertLogo: string;
     removeLogo: string;
     error: string;
+  };
+  shapes: {
+    rectangle: string;
+    ellipse: string;
+    triangle: string;
+    line: string;
+    star: string;
+    polygon: string;
   };
   templates: {
     socialPost: string;
@@ -556,6 +566,8 @@ export const messages: Record<Locale, MessageSchema> = {
       snap: 'Snap to guides',
       layers: 'Layers',
       layersEmpty: 'No objects on this page yet.',
+      addObject: 'Add object',
+      duplicateObject: 'Duplicate object',
       layerUp: 'Move layer up',
       layerDown: 'Move layer down',
       deleteObject: 'Delete object',
@@ -615,6 +627,14 @@ export const messages: Record<Locale, MessageSchema> = {
       insertLogo: 'Insert on page',
       removeLogo: 'Remove logo',
       error: 'The logo could not be added.',
+    },
+    shapes: {
+      rectangle: 'Rectangle',
+      ellipse: 'Ellipse',
+      triangle: 'Triangle',
+      line: 'Line',
+      star: 'Star',
+      polygon: 'Polygon',
     },
     templates: {
       socialPost: 'Social post',
@@ -1032,6 +1052,8 @@ export const messages: Record<Locale, MessageSchema> = {
       snap: 'Encaixar nas guias',
       layers: 'Camadas',
       layersEmpty: 'Nenhum objeto nesta página ainda.',
+      addObject: 'Adicionar objeto',
+      duplicateObject: 'Duplicar objeto',
       layerUp: 'Mover camada para cima',
       layerDown: 'Mover camada para baixo',
       deleteObject: 'Excluir objeto',
@@ -1091,6 +1113,14 @@ export const messages: Record<Locale, MessageSchema> = {
       insertLogo: 'Inserir na página',
       removeLogo: 'Remover logo',
       error: 'O logo não pôde ser adicionado.',
+    },
+    shapes: {
+      rectangle: 'Retângulo',
+      ellipse: 'Elipse',
+      triangle: 'Triângulo',
+      line: 'Linha',
+      star: 'Estrela',
+      polygon: 'Polígono',
     },
     templates: {
       socialPost: 'Post social',
@@ -1508,6 +1538,8 @@ export const messages: Record<Locale, MessageSchema> = {
       snap: 'Ajustar a las guías',
       layers: 'Capas',
       layersEmpty: 'Todavía no hay objetos en esta página.',
+      addObject: 'Añadir objeto',
+      duplicateObject: 'Duplicar objeto',
       layerUp: 'Subir capa',
       layerDown: 'Bajar capa',
       deleteObject: 'Eliminar objeto',
@@ -1567,6 +1599,14 @@ export const messages: Record<Locale, MessageSchema> = {
       insertLogo: 'Insertar en la página',
       removeLogo: 'Quitar logo',
       error: 'El logo no pudo añadirse.',
+    },
+    shapes: {
+      rectangle: 'Rectángulo',
+      ellipse: 'Elipse',
+      triangle: 'Triángulo',
+      line: 'Línea',
+      star: 'Estrella',
+      polygon: 'Polígono',
     },
     templates: {
       socialPost: 'Post social',

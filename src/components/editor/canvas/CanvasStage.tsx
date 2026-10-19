@@ -375,7 +375,7 @@ export function CanvasStage({ viewport, onViewportChange, snapEnabled }: CanvasS
       const docObject = documentPage.objects.find((candidate) => candidate.id === id);
       if (!docObject) return;
 
-      useStore.getState().updateObject(id, CANVAS_CODECS[docObject.type].readGeometry(object));
+      useStore.getState().updateObject(id, CANVAS_CODECS[docObject.type].readGeometry(object, docObject));
     };
 
     const handleMoving = (event: { target?: FabricObject }) => {
@@ -408,7 +408,7 @@ export function CanvasStage({ viewport, onViewportChange, snapEnabled }: CanvasS
         updateGuides(result.guides);
       }
 
-      useStore.getState().updateObject(id, { x: left, y: top });
+      useStore.getState().updateObject(id, objectPatch(docObject.type, { x: left, y: top }));
     };
 
     const handleModified = (event: { target?: FabricObject }) => {
@@ -536,7 +536,10 @@ export function CanvasStage({ viewport, onViewportChange, snapEnabled }: CanvasS
       if (!delta) return;
 
       event.preventDefault();
-      state.updateObject(id, { x: docObject.x + delta[0], y: docObject.y + delta[1] });
+      state.updateObject(
+        id,
+        objectPatch(docObject.type, { x: docObject.x + delta[0], y: docObject.y + delta[1] }),
+      );
     };
 
     window.addEventListener('keydown', onKeyDown);
