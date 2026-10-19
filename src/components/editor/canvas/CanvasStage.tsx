@@ -127,9 +127,16 @@ export function CanvasStage({ viewport, onViewportChange, snapEnabled }: CanvasS
   const fabricRef = useRef<Canvas | null>(null);
   const objectsRef = useRef(new Map<string, FabricObject>());
   const naturalSizesRef = useRef(new WeakMap<FabricObject, Size>());
-  const loadingImagesRef = useRef(new Set<string>());
-  const failedImagesRef = useRef(new Set<string>());
+  /** Source currently painted per image id; a different one means a rebuild. */
+  const loadedImageSrcRef = useRef(new Map<string, string>());
+  /** Source each in-flight image request asked for. */
+  const loadingImageSrcRef = useRef(new Map<string, string>());
+  /** Source that failed to load per image id; a new source retries. */
+  const failedImageSrcRef = useRef(new Map<string, string>());
   const pageBackgroundRef = useRef<Rect | null>(null);
+  const backgroundImageRef = useRef<FabricImage | null>(null);
+  const backgroundNaturalRef = useRef<Size | null>(null);
+  const backgroundImageSrcRef = useRef<string | null>(null);
   const interactingRef = useRef(false);
   const viewportRef = useRef(viewport);
   const snapEnabledRef = useRef(snapEnabled);
@@ -349,8 +356,9 @@ export function CanvasStage({ viewport, onViewportChange, snapEnabled }: CanvasS
     setReady(true);
 
     const objectMap = objectsRef.current;
-    const loadingImages = loadingImagesRef.current;
-    const failedImages = failedImagesRef.current;
+    const loadingImages = loadingImageSrcRef.current;
+    const failedImages = failedImageSrcRef.current;
+    const loadedImageSrc = loadedImageSrcRef.current;
 
     const updateGuides = (next: SnapGuide[]) => {
       const previous = guidesRef.current;
@@ -577,6 +585,150 @@ export function CanvasStage({ viewport, onViewportChange, snapEnabled }: CanvasS
     };
   }, []);
 
+  // Right-click over an image, the ContextMenu key over the selected image and
+  // a paste with an image selected all reach the same replacement. The menu is
+  // offered for an image object and for nothing else; the right-click is owned
+  // by the editor, so text, shape and empty area open no browser menu either.
+  useEffect(() => {
+    if (!ready) return;
+
+    const host = hostRef.current;
+    const canvas = fabricRef.current;
+    if (!host || !canvas) return;
+
+    /** Opens the menu for an image id; any other target closes what was open. */
+    const openMenu = (objectId: string, x: number, y: number) => {
+      const actions = contextMenuActionsFor(
+        activePageFromStore()?.objects.find((object) => object.id === objectId) ?? null,
+      );
+
+      if (!actions) {
+        setContextMenu(null);
+        return;
+      }
+
+      setReplaceError(null);
+      setContextMenu({
+        objectId,
+        actions,
+        position: clampMenuPosition({ x, y }, CONTEXT_MENU_BOX, {
+          width: host.clientWidth,
+          height: host.clientHeight,
+        }),
+      });
+    };
+
+    // A right-click is Fabric's own event: with `stopContextMenu` the canvas
+    // stops the browser menu before the event leaves its wrapper, so a DOM
+    // listener on the host would never see it. The event carries the target
+    // Fabric just hit-tested, and the empty area arrives with no target.
+    const onContextMenu = (event: { e: Event; target?: FabricObject }) => {
+      if (useStore.getState().presenting) return;
+      if (!(event.e instanceof MouseEvent)) return;
+
+      const id = event.target ? objectId(event.target) : null;
+      const docObject = id
+        ? (activePageFromStore()?.objects.find((candidate) => candidate.id === id) ?? null)
+        : null;
+
+      if (!docObject || !contextMenuActionsFor(docObject)) {
+        setContextMenu(null);
+        return;
+      }
+
+      const rect = host.getBoundingClientRect();
+      // Order matters: the selection is committed first, because the store
+      // subscriber below closes the menu on that change. Opening before the
+      // selection would be undone by the same notification.
+      useStore.getState().selectObject(docObject.id);
+      openMenu(docObject.id, event.e.clientX - rect.left, event.e.clientY - rect.top);
+    };
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      const isMenuKey = event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10');
+      if (!isMenuKey || event.defaultPrevented) return;
+
+      const state = useStore.getState();
+      const id = state.selectedObjectId;
+
+      if (!id || state.presenting) return;
+
+      const docObject =
+        activePageFromStore()?.objects.find((candidate) => candidate.id === id) ?? null;
+
+      if (!docObject || !contextMenuActionsFor(docObject)) return;
+
+      event.preventDefault();
+
+      // The menu opens over the object on screen, so its actions are next to
+      // what they act on.
+      const current = viewportRef.current;
+      openMenu(
+        docObject.id,
+        current.x + (docObject.x + docObject.width / 2) * current.zoom,
+        current.y + (docObject.y + docObject.height / 2) * current.zoom,
+      );
+    };
+
+    const onPaste = (event: ClipboardEvent) => {
+      // A paste over a form field belongs to the field; only the canvas area
+      // (or the page background when nothing else holds the focus) replaces an
+      // image, and only when the clipboard carries one.
+      const eventTarget = event.target as Node | null;
+      const withinCanvas =
+        !!eventTarget && (host.contains(eventTarget) || eventTarget === globalThis.document.body);
+      if (!withinCanvas) return;
+
+      const state = useStore.getState();
+      // The same predicate the right-click uses decides what a paste targets.
+      const target = pasteReplacementTarget(
+        activePageFromStore()?.objects ?? [],
+        state.selectedObjectId,
+      );
+      if (!target) return;
+
+      const file = pickClipboardImageFile(Array.from(event.clipboardData?.files ?? []));
+      if (!file) return;
+
+      event.preventDefault();
+      void replaceImageWithFile(target.id, file);
+    };
+
+    canvas.on('contextmenu', onContextMenu);
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('paste', onPaste);
+
+    return () => {
+      canvas.off('contextmenu', onContextMenu);
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('paste', onPaste);
+    };
+  }, [ready, replaceImageWithFile]);
+
+  // The menu follows the object it opened for: a selection change (including
+  // Escape on the canvas) or a page switch closes it instead of leaving it
+  // pointing at a stale target, and the error of a previous replacement goes
+  // with it — a message about an object that is no longer in front must not
+  // outlive the state it described.
+  //
+  // Ordering requirement, fixed here on purpose: this subscriber runs
+  // synchronously on every store write, and every opener commits the
+  // selection/page *before* opening the menu (see `onContextMenu`). Opening
+  // first would be cleared by the notification that follows.
+  useEffect(
+    () =>
+      useStore.subscribe((state, previous) => {
+        if (
+          state.selectedObjectId !== previous.selectedObjectId ||
+          state.activePageId !== previous.activePageId
+        ) {
+          setContextMenu(null);
+          setReplaceError(null);
+        }
+      }),
+    [],
+  );
+
   // Canvas size follows the measured host.
   useEffect(() => {
     const canvas = fabricRef.current;
@@ -647,33 +799,52 @@ export function CanvasStage({ viewport, onViewportChange, snapEnabled }: CanvasS
         continue;
       }
 
-      if (docObject.type === 'image') {
-        if (loadingImagesRef.current.has(docObject.id) || failedImagesRef.current.has(docObject.id)) {
-          continue;
-        }
+      if (existing) {
+        canvas.remove(existing);
+        objects.delete(docObject.id);
+      }
 
-        loadingImagesRef.current.add(docObject.id);
+      if (docObject.type === 'image') {
+        loadedImageSrcRef.current.delete(docObject.id);
+
+        // The same source already requested (or already failed) is not asked
+        // again; a different source starts a fresh load — that is what makes a
+        // replacement pick up the new picture.
+        if (loadingImageSrcRef.current.get(docObject.id) === docObject.src) continue;
+        if (failedImageSrcRef.current.get(docObject.id) === docObject.src) continue;
+
+        loadingImageSrcRef.current.set(docObject.id, docObject.src);
         const objectIdForLoad = docObject.id;
         const objectForLoad = docObject;
+        const requestedSrc = docObject.src;
 
         void FabricImage.fromURL(docObject.src, { crossOrigin: 'anonymous' })
           .then((image) => {
-            loadingImagesRef.current.delete(objectIdForLoad);
+            if (loadingImageSrcRef.current.get(objectIdForLoad) === requestedSrc) {
+              loadingImageSrcRef.current.delete(objectIdForLoad);
+            }
 
             const activeCanvas = fabricRef.current;
             const documentPage = activePageFromStore();
-            const stillPresent =
-              documentPage?.objects.some((candidate) => candidate.id === objectIdForLoad) ?? false;
+            const current = documentPage?.objects.find(
+              (candidate) => candidate.id === objectIdForLoad,
+            );
+            // A newer request took over (or the object is gone): this load is
+            // stale, and lands nothing.
+            const stillCurrent =
+              current?.type === 'image' && current.src === requestedSrc;
 
             if (
               !activeCanvas ||
               !documentPage ||
-              !stillPresent ||
+              !stillCurrent ||
               objectsRef.current.has(objectIdForLoad)
             ) {
               return;
             }
 
+            failedImageSrcRef.current.delete(objectIdForLoad);
+            loadedImageSrcRef.current.set(objectIdForLoad, requestedSrc);
             naturalSizesRef.current.set(image, { width: image.width, height: image.height });
             tagObject(image, objectIdForLoad);
             applyFlags(image, objectForLoad);
@@ -683,12 +854,34 @@ export function CanvasStage({ viewport, onViewportChange, snapEnabled }: CanvasS
             });
             objectsRef.current.set(objectIdForLoad, image);
             activeCanvas.add(image);
-            applyOrder(activeCanvas, documentPage, objectsRef.current);
+            // The background layers move with the page fill: an image fill
+            // keeps the loaded image right above the page rect.
+            applyOrder(
+              activeCanvas,
+              documentPage,
+              objectsRef.current,
+              documentPage.background.kind === 'image' ? 2 : 1,
+            );
+            // A rebuilt object (a replacement) keeps the selection it had.
+            if (useStore.getState().selectedObjectId === objectIdForLoad) {
+              activeCanvas.setActiveObject(image);
+            }
             activeCanvas.requestRenderAll();
           })
           .catch(() => {
-            loadingImagesRef.current.delete(objectIdForLoad);
-            failedImagesRef.current.add(objectIdForLoad);
+            if (loadingImageSrcRef.current.get(objectIdForLoad) === requestedSrc) {
+              loadingImageSrcRef.current.delete(objectIdForLoad);
+            }
+
+            const currentPage = activePageFromStore();
+            const sameSource = currentPage?.objects.some(
+              (candidate) =>
+                candidate.id === objectIdForLoad &&
+                candidate.type === 'image' &&
+                candidate.src === requestedSrc,
+            );
+
+            if (sameSource) failedImageSrcRef.current.set(objectIdForLoad, requestedSrc);
           });
 
         continue;
@@ -707,10 +900,13 @@ export function CanvasStage({ viewport, onViewportChange, snapEnabled }: CanvasS
       if (!seen.has(id)) {
         canvas.remove(object);
         objects.delete(id);
+        loadedImageSrcRef.current.delete(id);
+        loadingImageSrcRef.current.delete(id);
+        failedImageSrcRef.current.delete(id);
       }
     }
 
-    applyOrder(canvas, page, objects);
+    applyOrder(canvas, page, objects, objectOffset);
     canvas.requestRenderAll();
   }, [ready, page]);
 
