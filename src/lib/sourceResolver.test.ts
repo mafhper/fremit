@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   detectSourceMode,
+  fileToDataUrl,
   getUrlTitle,
   resolveImageUrl,
   resolveWebsiteUrl,
@@ -38,6 +39,7 @@ describe('sourceResolver', () => {
 
   it('detects direct image URLs', () => {
     expect(detectSourceMode('https://example.com/frame.png')).toBe('image-url');
+    expect(detectSourceMode('https://example.com/frame.webp')).toBe('image-url');
   });
 
   it('detects website URLs', () => {
@@ -65,6 +67,32 @@ describe('sourceResolver', () => {
     expect(resolved.strategy).toBe('direct-image');
     expect(resolved.resolvedImageUrl).toContain('data:image/png');
     expect(resolved.requestedViewportWidth).toBeNull();
+  });
+
+  it('resolves WebP image URLs to a WebP data URL', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        blob: async () => new Blob(['mock-webp'], { type: 'image/webp' }),
+      }),
+    );
+
+    const resolved = await resolveImageUrl('https://example.com/frame.webp');
+
+    expect(resolved.resolvedImageUrl.startsWith('data:image/webp')).toBe(true);
+  });
+
+  it('accepts WebP uploads and returns a WebP data URL', async () => {
+    // "RIFF" magic only: the browser decode is proven in the smoke suite; the
+    // unit contract here is the accepted type and the returned data URL.
+    const file = new File([new Uint8Array([0x52, 0x49, 0x46, 0x46])], 'photo.webp', {
+      type: 'image/webp',
+    });
+
+    const dataUrl = await fileToDataUrl(file);
+
+    expect(dataUrl.startsWith('data:image/webp;base64,')).toBe(true);
   });
 
   it('prefers microlink screenshot when available', async () => {
