@@ -112,6 +112,31 @@ export function addPage(document: FremitDocument): { document: FremitDocument; p
   };
 }
 
+/**
+ * Appends a page built from a template seed. A seed whose id is already in the
+ * document (the same seed applied twice) is re-identified — fresh page id and
+ * fresh object ids — so the two applications never share identity and stay
+ * independently editable; a free id lands exactly as built. The returned id
+ * lets the caller activate the page that landed.
+ */
+export function addTemplatePage(
+  document: FremitDocument,
+  page: DocumentPage,
+): { document: FremitDocument; pageId: string } {
+  const unique = findPage(document, page.id)
+    ? {
+        ...page,
+        id: crypto.randomUUID(),
+        objects: page.objects.map((object) => ({ ...cloneObject(object), id: crypto.randomUUID() })),
+      }
+    : page;
+
+  return {
+    document: { ...document, pages: [...document.pages, unique] },
+    pageId: unique.id,
+  };
+}
+
 export function duplicatePage(
   document: FremitDocument,
   pageId: string,
@@ -127,7 +152,10 @@ export function duplicatePage(
     ...source,
     id: crypto.randomUUID(),
     name: `${source.name} copy`,
-    objects: source.objects.map((object) => ({ ...object, id: crypto.randomUUID() })),
+    // The transition is a nested value like the object animation: the copy
+    // owns its own, never a shared reference.
+    transition: source.transition ? { ...source.transition } : null,
+    objects: source.objects.map((object) => ({ ...cloneObject(object), id: crypto.randomUUID() })),
   };
 
   const pages = [...document.pages];

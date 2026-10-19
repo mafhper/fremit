@@ -52,6 +52,31 @@ export type {
   ViewportPreset,
 } from '@/types/app';
 
+/** What the animate panel asks the canvas to preview. */
+export type AnimationPreviewKind = 'element' | 'page';
+
+/**
+ * One-shot preview request. The token makes every click a new request, so the
+ * canvas replays the animation even when the panel asks for the same scope
+ * twice in a row.
+ */
+export interface AnimationPreviewRequest {
+  kind: AnimationPreviewKind;
+  token: number;
+}
+
+/**
+ * The GitHub repo loaded into the template gallery, with the input text it was
+ * loaded from. The panel keeps it while the input still names that repo, so
+ * the gallery card (thumbnail and applied seed) reflects the provided data
+ * until the repo changes or the data is cleared.
+ */
+export interface GithubRepoState {
+  /** The repo input exactly as it was loaded (trimmed). */
+  input: string;
+  summary: RepoSummary;
+}
+
 interface AppState {
   source: SourceState;
   frame: FrameState;
@@ -84,16 +109,41 @@ interface AppState {
   setThemePreference: (theme: ThemePreference) => void;
   setActivePage: (pageId: string) => void;
   addPage: () => void;
+  /** Appends a page built from a template seed and makes it the active page. */
+  addTemplatePage: (page: DocumentPage) => void;
   duplicatePage: (pageId: string) => void;
   movePage: (pageId: string, direction: 'up' | 'down') => void;
   renamePage: (pageId: string, name: string) => void;
   resizePage: (pageId: string, format: PageFormatId) => void;
+  setPageBackground: (pageId: string, background: PageBackground) => void;
+  /** Sets or clears the page transition (schema v2); `null` is "None". */
+  setPageTransition: (pageId: string, transition: PageTransition | null) => void;
   addObject: (object: DocumentObject) => void;
+  /** Inserts a group (a pairing, a paste) in one write; selects the last object. */
+  addObjects: (objects: DocumentObject[]) => void;
   updateObject: (objectId: string, patch: DocumentObjectPatch) => void;
   removeObject: (objectId: string) => void;
   moveObjectZ: (objectId: string, direction: 'up' | 'down') => void;
+  /** Duplicates the object right above itself and selects the copy. */
+  duplicateObject: (objectId: string) => void;
+  /**
+   * Swaps the source of one image object in place (id, geometry, order and
+   * selection stay put) and reports a typed failure instead of writing when
+   * the target is missing or is not an image.
+   */
+  replaceImageSource: (objectId: string, src: string) => ImageReplaceResult;
   selectObject: (objectId: string | null) => void;
   upsertSourceImage: (src: string, name: string) => void;
+  /** Latest preview request; the canvas plays it and never writes the document. */
+  animationPreview: AnimationPreviewRequest | null;
+  requestAnimationPreview: (kind: AnimationPreviewKind) => void;
+  /** Presentation mode: the canvas plays the page and pages navigate by hand. */
+  presenting: boolean;
+  startPresenting: () => void;
+  stopPresenting: () => void;
+  /** The GitHub repo the gallery reflects; `null` = the seed's placeholders. */
+  githubRepo: GithubRepoState | null;
+  setGithubRepo: (loaded: GithubRepoState | null) => void;
 }
 
 const themeStorageKey = 'fremit.theme';
@@ -356,6 +406,16 @@ export const useStore = create<AppState>((set) => ({
         selectedObjectId: null,
       };
     }),
+  addTemplatePage: (page) =>
+    set((state) => {
+      const result = addTemplatePageToDocument(state.document, page);
+
+      return {
+        document: result.document,
+        activePageId: result.pageId,
+        selectedObjectId: null,
+      };
+    }),
   duplicatePage: (pageId) =>
     set((state) => {
       if (!findPage(state.document, pageId)) return {};
@@ -440,9 +500,16 @@ export const useStore = create<AppState>((set) => ({
         height: page.height * 0.6,
       });
 
-      return {
-        document: replacePage(state.document, addObjectToPage(page, object)),
-        selectedObjectId: object.id,
-      };
+      return insertObjects(state, [object]);
     }),
+  animationPreview: null,
+  requestAnimationPreview: (kind) =>
+    set((state) => ({
+      animationPreview: { kind, token: (state.animationPreview?.token ?? 0) + 1 },
+    })),
+  presenting: false,
+  startPresenting: () => set({ presenting: true }),
+  stopPresenting: () => set({ presenting: false }),
+  githubRepo: null,
+  setGithubRepo: (githubRepo) => set({ githubRepo }),
 }));

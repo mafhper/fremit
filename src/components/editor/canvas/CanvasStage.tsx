@@ -8,16 +8,44 @@
  * reference editor.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, FabricImage, FabricObject, Point, Rect, Textbox } from 'fabric';
-import { backgroundStyle } from '@/lib/backgroundStyle';
 import type { Size } from '@/lib/imageFit';
 import { snapRect, snapTolerance, type Rect as SnapTarget, type SnapGuide } from '@/lib/editorSnap';
 import { RULER_SIZE, zoomAtPoint, type Viewport } from '@/lib/editorViewport';
 import type { DocumentObject, DocumentPage } from '@/lib/document';
+import { objectPatch } from '@/lib/documentOps';
+import {
+  clampMenuPosition,
+  contextMenuActionsFor,
+  pasteReplacementTarget,
+  type ContextMenuActionId,
+  type ContextMenuActions,
+} from '@/lib/imageContextMenu';
+import {
+  ImageReplaceError,
+  imageReplaceErrorMessage,
+  pickClipboardImageFile,
+  readImageFile,
+} from '@/lib/imageReplace';
+import { DEFAULT_IMAGE_MASK } from '@/lib/imageMask';
+import { IMAGE_SOURCE_ACCEPT } from '@/lib/imageSource';
+import { imageBackgroundSurface } from '@/lib/pageBackground';
 import { useI18n } from '@/i18n/useI18n';
 import { useStore } from '@/store/useStore';
-import { CANVAS_CODECS } from './fabricCodec';
+import {
+  CANVAS_CODECS,
+  createPageBackgroundRect,
+  fitImageCover,
+  pageBackgroundFill,
+} from '@/lib/fabricCodec';
+import { ImageContextMenu } from './ImageContextMenu';
+
+/**
+ * Menu box used to keep the panel inside the canvas host: two rows (replace
+ * image and the mask action) at the current text size, plus the padding.
+ */
+const CONTEXT_MENU_BOX = { width: 224, height: 80 };
 
 export interface CanvasStageProps {
   viewport: Viewport;
@@ -110,17 +138,170 @@ export function CanvasStage({ viewport, onViewportChange, snapEnabled }: CanvasS
   const [guides, setGuides] = useState<SnapGuide[]>([]);
   const [hostSize, setHostSize] = useState({ width: 0, height: 0 });
   const [ready, setReady] = useState(false);
+  const playbackRef = useRef<{ stop: () => void } | null>(null);
+  const playbackSeqRef = useRef(0);
+  const [previewing, setPreviewing] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const pendingReplaceIdRef = useRef<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    objectId: string;
+    actions: ContextMenuActions;
+    position: { x: number; y: number };
+  } | null>(null);
+  const [replaceError, setReplaceError] = useState<string | null>(null);
 
   const document = useStore((state) => state.document);
   const activePageId = useStore((state) => state.activePageId);
   const selectedObjectId = useStore((state) => state.selectedObjectId);
-  const background = useStore((state) => state.background);
+  const animationPreview = useStore((state) => state.animationPreview);
+  const presenting = useStore((state) => state.presenting);
   const { copy } = useI18n();
   const page = useMemo(
     () => document.pages.find((candidate) => candidate.id === activePageId) ?? null,
     [document, activePageId],
   );
-  const workspaceBackground = useMemo(() => backgroundStyle(background), [background]);
+
+  const stopPlayback = useCallback(() => {
+    playbackRef.current?.stop();
+    playbackRef.current = null;
+  }, []);
+
+  /**
+   * Plays one preview on the live scene. The player is a lazy chunk of its own
+   * (`/editor` never pays for it), and everything is read from the store at
+   * play time, so a request always plays the current state. A new playback
+   * replaces the running one.
+   */
+  const startPlayback = useCallback(
+    (scope: 'element' | 'page') => {
+      const canvas = fabricRef.current;
+      const surface = canvasRef.current;
+      const state = useStore.getState();
+      const currentPage = state.document.pages.find(
+        (candidate) => candidate.id === state.activePageId,
+      );
+
+      // A new playback replaces the running one: stopping it clears the busy
+      // mark through the playback's own callback, before the sequence bump.
+      stopPlayback();
+      playbackSeqRef.current += 1;
+      const seq = playbackSeqRef.current;
+
+      if (!canvas || !surface || !currentPage) return;
+
+      const currentViewport = viewportRef.current;
+      const stage = {
+        page: {
+          x: currentViewport.x,
+          y: currentViewport.y,
+          width: currentPage.width * currentViewport.zoom,
+          height: currentPage.height * currentViewport.zoom,
+        },
+        container: { width: surface.clientWidth, height: surface.clientHeight },
+      };
+
+      void import('@/lib/animate/playback')
+        .then(({ startAnimationPlayback }) => {
+          // A newer request (or an unmount) already took over: this one is stale.
+          if (playbackSeqRef.current !== seq) return;
+
+          playbackRef.current = startAnimationPlayback({
+            canvas,
+            surface,
+            stage,
+            page: currentPage,
+            fabricObjects: objectsRef.current,
+            scope,
+            selectedObjectId: state.selectedObjectId,
+            onPreviewing: (value) => {
+              if (playbackSeqRef.current !== seq) return;
+              setPreviewing(value);
+            },
+          });
+        })
+        .catch(() => {
+          // A failed chunk load leaves the canvas idle; the next request retries.
+          if (playbackSeqRef.current === seq) setPreviewing(null);
+        });
+    },
+    [stopPlayback],
+  );
+
+  /**
+   * One replacement path for both inputs: the file (or the clipboard image
+   * turned into one) resolves first, and only then the document is written —
+   * a rejected file leaves the document byte for byte what it was.
+   */
+  const replaceImageWithFile = useCallback(
+    async (objectId: string, file: File) => {
+      try {
+        const src = await readImageFile(file);
+        const result = useStore.getState().replaceImageSource(objectId, src);
+
+        setReplaceError(result.ok ? null : imageReplaceErrorMessage(result.code, copy.contextMenu));
+      } catch (failure) {
+        setReplaceError(
+          failure instanceof ImageReplaceError
+            ? imageReplaceErrorMessage(failure.code, copy.contextMenu)
+            : copy.contextMenu.error,
+        );
+      } finally {
+        // The picker took the focus away; the canvas gets it back when done.
+        hostRef.current?.focus();
+      }
+    },
+    [copy],
+  );
+
+  const closeContextMenu = useCallback((restoreFocus: boolean) => {
+    setContextMenu(null);
+    if (restoreFocus) hostRef.current?.focus();
+  }, []);
+
+  // A canceled file picker fires `cancel`, not `change`: without this the
+  // pending target stays armed and the focus is left wherever the browser put
+  // it. Escape/back on the dialog must land back on the canvas host, the same
+  // place the menu's Escape returns to.
+  useEffect(() => {
+    const input = fileInputRef.current;
+    if (!input) return;
+
+    const onCancel = () => {
+      pendingReplaceIdRef.current = null;
+      setReplaceError(null);
+      hostRef.current?.focus();
+    };
+
+    input.addEventListener('cancel', onCancel);
+
+    return () => input.removeEventListener('cancel', onCancel);
+  }, []);
+
+  const handleMenuActivate = (action: ContextMenuActionId) => {
+    const menu = contextMenu;
+    setContextMenu(null);
+
+    if (!menu) return;
+
+    switch (action) {
+      case 'mask-image':
+      case 'clear-mask': {
+        // The preset is a document field: the canvas, the thumbnail and the
+        // exporter all derive their crop from it on their next render.
+        useStore.getState().updateObject(menu.objectId, {
+          type: 'image',
+          mask: action === 'mask-image' ? DEFAULT_IMAGE_MASK : null,
+        });
+        hostRef.current?.focus();
+        return;
+      }
+      case 'replace-image': {
+        pendingReplaceIdRef.current = menu.objectId;
+        fileInputRef.current?.click();
+        return;
+      }
+    }
+  };
 
   useEffect(() => {
     viewportRef.current = viewport;
@@ -539,15 +720,78 @@ export function CanvasStage({ viewport, onViewportChange, snapEnabled }: CanvasS
     canvas.requestRenderAll();
   }, [ready, selectedObjectId, page]);
 
+  // Preview requests from the animate panel: one shot per request, replacing
+  // whatever was playing.
+  useEffect(() => {
+    if (!animationPreview) return;
+
+    startPlayback(animationPreview.kind);
+  }, [animationPreview, startPlayback]);
+
+  // Presentation mode plays the page on entry and on every page switch; the
+  // playback stops when the mode ends.
+  useEffect(() => {
+    if (!presenting) {
+      stopPlayback();
+      playbackSeqRef.current += 1;
+      return;
+    }
+
+    startPlayback('page');
+  }, [presenting, activePageId, startPlayback, stopPlayback]);
+
+  // Unmount: never leave a playback running on a disposed canvas.
+  useEffect(
+    () => () => {
+      stopPlayback();
+      playbackSeqRef.current += 1;
+    },
+    [stopPlayback],
+  );
+
   return (
     <div className="absolute inset-0" style={{ paddingLeft: RULER_SIZE, paddingTop: RULER_SIZE }}>
       <div
         ref={hostRef}
-        className="relative h-full w-full overflow-hidden rounded-[1.4rem] border border-border/70"
-        style={workspaceBackground}
+        tabIndex={-1}
+        className="relative h-full w-full overflow-hidden rounded-[1.4rem] border border-border/70 bg-[hsl(var(--canvas-workspace))] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         data-testid="canvas-host"
+        data-previewing={previewing ?? undefined}
       >
         <canvas ref={canvasRef} role="application" aria-label={copy.canvas.canvasLabel} />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={IMAGE_SOURCE_ACCEPT}
+          aria-label={copy.contextMenu.replaceImage}
+          data-testid="image-replace-file"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0] ?? null;
+            const objectId = pendingReplaceIdRef.current;
+            event.target.value = '';
+            pendingReplaceIdRef.current = null;
+
+            if (file && objectId) void replaceImageWithFile(objectId, file);
+          }}
+        />
+        {contextMenu && (
+          <ImageContextMenu
+            position={contextMenu.position}
+            actions={contextMenu.actions}
+            onActivate={handleMenuActivate}
+            onClose={closeContextMenu}
+          />
+        )}
+        {replaceError && (
+          <p
+            role="alert"
+            data-testid="image-replace-error"
+            className="absolute bottom-3 left-3 z-30 max-w-[16rem] rounded-[0.7rem] border border-destructive/40 bg-background px-3 py-2 text-xs text-destructive shadow-lg"
+          >
+            {replaceError}
+          </p>
+        )}
         {guides.map((guide, index) => {
           const position =
             guide.axis === 'x'

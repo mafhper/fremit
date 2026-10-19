@@ -1,4 +1,210 @@
-import { expect, test } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
+import { expect, test, type Locator, type Page } from '@playwright/test';
+
+/**
+ * Screen position of a page point, mirroring `fitViewport` (the page is
+ * centered with FIT_PADDING around it).
+ */
+function pageToScreen(
+  host: { x: number; y: number; width: number; height: number },
+  pageSize: number,
+  x: number,
+  y: number,
+) {
+  const fitPadding = 48;
+  const zoom = Math.min((host.width - fitPadding) / pageSize, (host.height - fitPadding) / pageSize);
+  const originX = (host.width - pageSize * zoom) / 2;
+  const originY = (host.height - pageSize * zoom) / 2;
+
+  return { x: host.x + originX + x * zoom, y: host.y + originY + y * zoom };
+}
+
+/** Live canvas pixel at a screen point (device-pixel-ratio aware). */
+async function readCanvasPixel(page: Page, point: { x: number; y: number }) {
+  return page.evaluate(({ x, y }) => {
+    const canvas = document.querySelector('[data-testid="canvas-host"] canvas.lower-canvas');
+    if (!(canvas instanceof HTMLCanvasElement)) return null;
+    const context = canvas.getContext('2d');
+    if (!context) return null;
+
+    const rect = canvas.getBoundingClientRect();
+    const dpr = canvas.width / rect.width;
+    const { data } = context.getImageData(
+      Math.round((x - rect.left) * dpr),
+      Math.round((y - rect.top) * dpr),
+      1,
+      1,
+    );
+
+    return [data[0], data[1], data[2], data[3]];
+  }, point);
+}
+
+/** Cheap fingerprint of the painted canvas: any document edit changes it. */
+async function canvasHash(page: Page) {
+  return page.evaluate(() => {
+    const canvas = document.querySelector('[data-testid="canvas-host"] canvas.lower-canvas');
+    if (!(canvas instanceof HTMLCanvasElement)) return 'none';
+    const context = canvas.getContext('2d');
+    if (!context) return 'no-context';
+    const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+    let hash = 0;
+    for (let index = 0; index < data.length; index += 41) {
+      hash = (hash * 31 + data[index]) % 2147483647;
+    }
+    return String(hash);
+  });
+}
+
+/**
+ * Expands one family of the template gallery. The panel opens on the first
+ * family and keeps one open at a time, so the click is skipped when the
+ * section is already expanded (clicking an open header would collapse it).
+ */
+async function openTemplateSection(templates: Locator, section: string) {
+  const toggle = templates.getByTestId(`template-section-toggle-${section}`);
+
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
+    await toggle.click();
+  }
+}
+
+/**
+ * Reads the active page back through the SVG export — the document's own
+ * truth, the same bytes a user would download.
+ */
+async function exportActivePageAsSvg(page: Page): Promise<string> {
+  const exportPanel = page.getByTestId('editor-panel').getByTestId('export-panel');
+
+  await exportPanel.getByTestId('export-format').click();
+  await page.getByRole('option', { name: 'SVG', exact: true }).click();
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    exportPanel.getByTestId('export-button').click(),
+  ]);
+  const path = await download.path();
+
+  if (!path) throw new Error('the download has no local path');
+
+  return readFile(path, 'utf8');
+}
+
+/**
+ * Exports the active page as PNG at 1x and samples document points from the
+ * decoded file in the browser. The sample is the raster proof: it reads the
+ * bytes a user downloads, not the live canvas.
+ */
+async function sampleExportedPng(
+  page: Page,
+  points: { x: number; y: number }[],
+): Promise<number[][]> {
+  const exportPanel = page.getByTestId('editor-panel').getByTestId('export-panel');
+
+  await exportPanel.getByTestId('export-format').click();
+  await page.getByRole('option', { name: 'PNG', exact: true }).click();
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    exportPanel.getByTestId('export-button').click(),
+  ]);
+  const path = await download.path();
+
+  if (!path) throw new Error('the download has no local path');
+
+  const payload = (await readFile(path)).toString('base64');
+
+  return page.evaluate(
+    async ({ source, samples }) => {
+      const image = new Image();
+      image.src = `data:image/png;base64,${source}`;
+      await image.decode();
+
+      const canvas = document.createElement('canvas');
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('no 2d context for the exported PNG');
+      context.drawImage(image, 0, 0);
+
+      return samples.map((point) =>
+        Array.from(context.getImageData(point.x, point.y, 1, 1).data),
+      );
+    },
+    { source: payload, samples: points },
+  );
+}
+
+/**
+ * Page-space y of the first dark (ink) row inside a page-space box of the
+ * live canvas — scanned from the top or from the bottom — or `null` when the
+ * box holds no ink. The box math mirrors `fitViewport`, like the other canvas
+ * samplers in this file.
+ */
+async function edgeInkRowInPageBox(
+  page: Page,
+  pageSize: number,
+  box: { x: number; y: number; width: number; height: number },
+  edge: 'top' | 'bottom',
+): Promise<number | null> {
+  return page.evaluate(({ pageSize, box, edge }) => {
+    const canvas = document.querySelector('[data-testid="canvas-host"] canvas.lower-canvas');
+    if (!(canvas instanceof HTMLCanvasElement)) return null;
+    const context = canvas.getContext('2d');
+    if (!context) return null;
+
+    const fitPadding = 48;
+    const zoom = Math.min(
+      (canvas.clientWidth - fitPadding) / pageSize,
+      (canvas.clientHeight - fitPadding) / pageSize,
+    );
+    const originX = (canvas.clientWidth - pageSize * zoom) / 2;
+    const originY = (canvas.clientHeight - pageSize * zoom) / 2;
+    const dpr = canvas.width / canvas.clientWidth;
+    const startX = Math.round((originX + box.x * zoom) * dpr);
+    const startY = Math.round((originY + box.y * zoom) * dpr);
+    const width = Math.max(1, Math.round(box.width * zoom * dpr));
+    const height = Math.max(1, Math.round(box.height * zoom * dpr));
+    const { data } = context.getImageData(startX, startY, width, height);
+
+    for (let step = 0; step < height; step += 1) {
+      const row = edge === 'top' ? step : height - 1 - step;
+
+      for (let column = 0; column < width; column += 1) {
+        const index = (row * width + column) * 4;
+        if (data[index] < 90 && data[index + 1] < 90 && data[index + 2] < 90) {
+          return box.y + row / (zoom * dpr);
+        }
+      }
+    }
+
+    return null;
+  }, { pageSize, box, edge });
+}
+
+/**
+ * Ink rows of the middle of an arc's box vs its start, at the given edge of
+ * the glyphs. A rainbow (up) peaks at the top; a valley (down) bottoms out at
+ * the bottom edge.
+ */
+async function arcInkRows(
+  page: Page,
+  box: { x: number; y: number; width: number; height: number },
+  edge: 'top' | 'bottom',
+): Promise<{ middle: number | null; end: number | null }> {
+  const sample = { y: box.y - 90, height: box.height + 180 };
+  const middleX = box.x + box.width / 2;
+
+  return {
+    middle: await edgeInkRowInPageBox(
+      page,
+      1080,
+      { ...sample, x: middleX - 12, width: 24 },
+      edge,
+    ),
+    end: await edgeInkRowInPageBox(page, 1080, { ...sample, x: box.x + 2, width: 24 }, edge),
+  };
+}
 
 test('home hero and source controls stay inside the first viewport', async ({ page }) => {
   test.slow();
@@ -239,6 +445,762 @@ test('canvas editor renders the starter document and lists its layers', async ({
   expect(metrics.scrollHeight).toBeLessThanOrEqual(metrics.height + 8);
 });
 
+test('canvas editor applies a template and inserts a sticker from the rail panels', async ({
+  page,
+}) => {
+  // Two lazy chunks (templates, icons) plus several panel switches: the
+  // test is slow by design and deserves the same headroom as the first test.
+  test.slow();
+  await page.goto('/fremit/editor');
+  await expect(page.getByTestId('layer-row')).toHaveCount(3);
+
+  const rail = page.getByTestId('sidebar-rail');
+  const openTool = (name: RegExp) => rail.getByRole('button', { name }).click();
+
+  // Templates panel: applying a card lands the seed as a new active page.
+  await openTool(/Templates|Plantillas/);
+  const templates = page.getByTestId('sidebar-panel-templates');
+  await expect(templates).toBeVisible();
+  // The card shows a live thumbnail rendered from its own seed document.
+  await expect(templates.getByTestId('template-card-quote-card').locator('svg')).toBeVisible();
+  await templates.getByTestId('template-card-quote-card').click();
+
+  await openTool(/Layers|Camadas|Capas/);
+  await expect(page.getByTestId('layer-row')).toHaveCount(4);
+  await expect(page.getByTestId('layer-row').filter({ hasText: 'Quote mark' })).toHaveCount(1);
+  await expect(page.getByTestId('layer-row').filter({ hasText: 'Quote' })).toHaveCount(2);
+
+  await openTool(/Pages|Páginas/);
+  await expect(page.getByTestId('page-row')).toHaveCount(2);
+  await expect(page.getByTestId('page-row').last()).toContainText('Quote card');
+
+  // The Ícones shortcut opens on the icons workspace; the sticker pack is the
+  // second tab. Switch to it: the sticker inserts as normal objects on the
+  // active page.
+  await openTool(/Icons|Ícones|Iconos/);
+  const content = page.getByTestId('sidebar-panel-icons');
+  await expect(content).toBeVisible();
+  await expect(content.getByTestId('icon-search')).toBeVisible();
+
+  const workspaceTabs = content.getByTestId('icons-workspace-switch').getByRole('tab');
+  await expect(workspaceTabs).toHaveCount(2);
+  await expect(workspaceTabs.nth(0)).toHaveText(/Icons|Ícones|Iconos/);
+  await expect(workspaceTabs.nth(1)).toHaveText(/Stickers/);
+
+  await content.getByTestId('icons-tab-stickers').click();
+  await expect(content.getByTestId('sticker-card-star-rating').locator('svg')).toBeVisible();
+  await content.getByTestId('sticker-card-star-rating').click();
+
+  await openTool(/Layers|Camadas|Capas/);
+  await expect(page.getByTestId('layer-row')).toHaveCount(5);
+  await expect(page.getByTestId('layer-row').filter({ hasText: 'Star rating' })).toHaveCount(1);
+
+  // The page still paints: the seed plus the sticker are real content.
+  const paintedPixels = await page.evaluate(() => {
+    const canvas = document.querySelector('[data-testid="canvas-host"] canvas.lower-canvas');
+    if (!(canvas instanceof HTMLCanvasElement)) return null;
+    const context = canvas.getContext('2d');
+    if (!context) return null;
+    const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+    let painted = 0;
+    for (let index = 3; index < data.length; index += 4) {
+      if (data[index] > 0) painted += 1;
+    }
+    return painted;
+  });
+  expect(paintedPixels ?? 0).toBeGreaterThan(1000);
+});
+
+test('canvas editor groups the template gallery into collapsible families', async ({ page }) => {
+  await page.goto('/fremit/editor');
+  await expect(page.getByTestId('layer-row')).toHaveCount(3);
+
+  const rail = page.getByTestId('sidebar-rail');
+  await rail.getByRole('button', { name: /Templates|Plantillas/ }).click();
+  const templates = page.getByTestId('sidebar-panel-templates');
+  await expect(templates).toBeVisible();
+
+  // One collapsible section per family: each header is a button with the
+  // chevron and its label. The gallery opens on the first family (own
+  // starters) and every other family starts collapsed.
+  const sections = [
+    'own',
+    'readme-hero',
+    'animated',
+    'readme-demo',
+    'sponsors',
+    'release',
+    'profile',
+    'section-title',
+    'github',
+  ];
+
+  for (const id of sections) {
+    const toggle = templates.getByTestId(`template-section-toggle-${id}`);
+
+    await expect(toggle).toBeVisible();
+    await expect(toggle.locator('svg')).toBeVisible();
+  }
+
+  // The header carries the localized family label of the section.
+  await expect(templates.getByTestId('template-section-toggle-own')).toHaveText(
+    /Own starters|Designs próprios|Diseños propios/,
+  );
+
+  await expect(templates.getByTestId('template-section-toggle-own')).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
+  await expect(templates.getByTestId('template-card-social-post')).toBeVisible();
+  await expect(templates.getByTestId('template-card-readme-hero-369')).toHaveCount(0);
+
+  // Expanding another family collapses the open one (one at a time).
+  const heroToggle = templates.getByTestId('template-section-toggle-readme-hero');
+
+  await heroToggle.click();
+  await expect(heroToggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(templates.getByTestId('template-card-readme-hero-369')).toBeVisible();
+  await expect(templates.getByTestId('template-section-toggle-own')).toHaveAttribute(
+    'aria-expanded',
+    'false',
+  );
+  await expect(templates.getByTestId('template-card-social-post')).toHaveCount(0);
+
+  // Clicking the open header collapses it: the gallery can sit all-closed.
+  await heroToggle.click();
+  await expect(heroToggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(templates.getByTestId('template-card-readme-hero-369')).toHaveCount(0);
+
+  // Keyboard: the header is a native button — Enter expands, Space collapses.
+  await heroToggle.focus();
+  await page.keyboard.press('Enter');
+  await expect(heroToggle).toHaveAttribute('aria-expanded', 'true');
+  await page.keyboard.press('Space');
+  await expect(heroToggle).toHaveAttribute('aria-expanded', 'false');
+
+  // Applying a card inside an expanded family lands the seed as a new page.
+  await heroToggle.click();
+  const card = templates.getByTestId('template-card-readme-hero-840');
+
+  await expect(card.locator('svg')).toBeVisible();
+  await card.click();
+
+  await rail.getByRole('button', { name: /Pages|Páginas/ }).click();
+  await expect(page.getByTestId('page-row')).toHaveCount(2);
+  await expect(page.getByTestId('page-row').last()).toContainText('README hero 840');
+});
+
+test('canvas editor applies every README hero preset as its own page', async ({ page }) => {
+  test.slow();
+
+  await page.goto('/fremit/editor');
+  await expect(page.getByTestId('layer-row')).toHaveCount(3);
+
+  const rail = page.getByTestId('sidebar-rail');
+  await rail.getByRole('button', { name: /Templates|Plantillas/ }).click();
+  const templates = page.getByTestId('sidebar-panel-templates');
+  await expect(templates).toBeVisible();
+
+  // The hero family is its own collapsible section: expand it before
+  // applying. Each card shows its own seed as a live SVG thumbnail; applying
+  // it lands the seed as a new page of the document.
+  await openTemplateSection(templates, 'readme-hero');
+
+  const heroes = [
+    'readme-hero-369',
+    'readme-hero-430',
+    'readme-hero-720',
+    'readme-hero-840',
+    'readme-hero-1200',
+    'readme-hero-fluid-100',
+  ];
+
+  for (const hero of heroes) {
+    const card = templates.getByTestId(`template-card-${hero}`);
+    await expect(card.locator('svg')).toBeVisible();
+    await card.click();
+  }
+
+  // Six seeds applied on top of the starter page, each keeping its own name.
+  await rail.getByRole('button', { name: /Pages|Páginas/ }).click();
+  await expect(page.getByTestId('page-row')).toHaveCount(7);
+
+  const pageNames = (await page.getByTestId('page-row').allTextContents()).join(' | ');
+  for (const name of [
+    'README hero 369',
+    'README hero 430',
+    'README hero 720',
+    'README hero 840',
+    'README hero 1200',
+    'README hero 100%',
+  ]) {
+    expect(pageNames).toContain(name);
+  }
+
+  // The fluid seed (applied last) is the active page: its layers are the
+  // accent bar, the project name, the tagline and the hero image slot.
+  await rail.getByRole('button', { name: /Layers|Camadas|Capas/ }).click();
+  await expect(page.getByTestId('layer-row')).toHaveCount(4);
+  await expect(page.getByTestId('layer-row').filter({ hasText: 'Hero image' })).toHaveCount(1);
+  await expect(page.getByTestId('layer-row').filter({ hasText: 'Project name' })).toHaveCount(1);
+
+  // Fit the fluid page and sample a point inside its image slot: the
+  // placeholder SVG must paint over the page fill — #064e3b is the slot,
+  // #022c22 is the page.
+  await page.getByRole('button', { name: /Fit page|Ajustar à página|Ajustar a la página/ }).click();
+
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const canvas = document.querySelector('[data-testid="canvas-host"] canvas.lower-canvas');
+          if (!(canvas instanceof HTMLCanvasElement)) return null;
+          const context = canvas.getContext('2d');
+          if (!context) return null;
+
+          const pageWidth = 1600;
+          const pageHeight = 1392;
+          const fitPadding = 48;
+          const zoom = Math.min(
+            (canvas.clientWidth - fitPadding) / pageWidth,
+            (canvas.clientHeight - fitPadding) / pageHeight,
+          );
+          const originX = (canvas.clientWidth - pageWidth * zoom) / 2;
+          const originY = (canvas.clientHeight - pageHeight * zoom) / 2;
+          const dpr = canvas.width / canvas.clientWidth;
+          const { data } = context.getImageData(
+            Math.round((originX + 120 * zoom) * dpr),
+            Math.round((originY + 560 * zoom) * dpr),
+            1,
+            1,
+          );
+
+          return [data[0], data[1], data[2], data[3]];
+        }),
+      { timeout: 10000 },
+    )
+    .toEqual([6, 78, 59, 255]);
+});
+
+test('canvas editor applies the README demo and sponsors presets as their own pages', async ({
+  page,
+}) => {
+  test.slow();
+
+  await page.goto('/fremit/editor');
+  await expect(page.getByTestId('layer-row')).toHaveCount(3);
+
+  const rail = page.getByTestId('sidebar-rail');
+  await rail.getByRole('button', { name: /Templates|Plantillas/ }).click();
+  const templates = page.getByTestId('sidebar-panel-templates');
+  await expect(templates).toBeVisible();
+
+  // Demo first, sponsors after it: the reading order of the README, each
+  // family in its own collapsible section. Each card shows its own seed as a
+  // live SVG thumbnail.
+  await openTemplateSection(templates, 'readme-demo');
+  const demoCard = templates.getByTestId('template-card-readme-demo-600');
+  await expect(demoCard.locator('svg')).toBeVisible();
+  await demoCard.click();
+
+  await openTemplateSection(templates, 'sponsors');
+  const sponsorsCard = templates.getByTestId('template-card-sponsors-table');
+  await expect(sponsorsCard.locator('svg')).toBeVisible();
+  await sponsorsCard.click();
+
+  await rail.getByRole('button', { name: /Pages|Páginas/ }).click();
+  await expect(page.getByTestId('page-row')).toHaveCount(3);
+
+  const pageNames = (await page.getByTestId('page-row').allTextContents()).join(' | ');
+  expect(pageNames).toContain('README demo 600');
+  expect(pageNames).toContain('Sponsors table');
+
+  // The sponsors page (applied last) is the active one: its layers are the
+  // heading, the three logo rows and the banner with its link.
+  await rail.getByRole('button', { name: /Layers|Camadas|Capas/ }).click();
+  await expect(page.getByTestId('layer-row')).toHaveCount(12);
+  await expect(page.getByTestId('layer-row').filter({ hasText: 'Sponsor logo' })).toHaveCount(3);
+  await expect(page.getByTestId('layer-row').filter({ hasText: 'Sponsor banner' })).toHaveCount(1);
+  await expect(page.getByTestId('layer-row').filter({ hasText: 'Demo video' })).toHaveCount(0);
+
+  // Fit the page and sample a point inside the banner slot: the placeholder
+  // SVG must paint over the page fill — #f1f5f9 is the banner, #ffffff the
+  // page. The sample sits left of the banner's centered label.
+  await page.getByRole('button', { name: /Fit page|Ajustar à página|Ajustar a la página/ }).click();
+
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const canvas = document.querySelector('[data-testid="canvas-host"] canvas.lower-canvas');
+          if (!(canvas instanceof HTMLCanvasElement)) return null;
+          const context = canvas.getContext('2d');
+          if (!context) return null;
+
+          const pageWidth = 600;
+          const pageHeight = 438;
+          const fitPadding = 48;
+          const zoom = Math.min(
+            (canvas.clientWidth - fitPadding) / pageWidth,
+            (canvas.clientHeight - fitPadding) / pageHeight,
+          );
+          const originX = (canvas.clientWidth - pageWidth * zoom) / 2;
+          const originY = (canvas.clientHeight - pageHeight * zoom) / 2;
+          const dpr = canvas.width / canvas.clientWidth;
+          const { data } = context.getImageData(
+            Math.round((originX + 120 * zoom) * dpr),
+            Math.round((originY + 320 * zoom) * dpr),
+            1,
+            1,
+          );
+
+          return [data[0], data[1], data[2], data[3]];
+        }),
+      { timeout: 10000 },
+    )
+    .toEqual([241, 245, 249, 255]);
+});
+
+test('canvas editor applies the release, profile and illustrated title presets as their own pages', async ({
+  page,
+}) => {
+  test.slow();
+
+  await page.goto('/fremit/editor');
+  await expect(page.getByTestId('layer-row')).toHaveCount(3);
+
+  const rail = page.getByTestId('sidebar-rail');
+  await rail.getByRole('button', { name: /Templates|Plantillas/ }).click();
+  const templates = page.getByTestId('sidebar-panel-templates');
+  await expect(templates).toBeVisible();
+
+  // Release notes, then the profile family, then the illustrated title — the
+  // reading order of the batch, each family in its own collapsible section.
+  // Each card shows its own seed as a live SVG thumbnail.
+  await openTemplateSection(templates, 'release');
+  const releaseCard = templates.getByTestId('template-card-release-grade');
+  await expect(releaseCard.locator('svg')).toBeVisible();
+  // The release card carries no partial badge (checked while it is visible).
+  await expect(templates.getByTestId('template-partial-release-grade')).toHaveCount(0);
+  await releaseCard.click();
+
+  await openTemplateSection(templates, 'profile');
+  for (const id of ['profile-hero-640', 'profile-hero-400', 'profile-hero-fluid-100']) {
+    const card = templates.getByTestId(`template-card-${id}`);
+    await expect(card.locator('svg')).toBeVisible();
+    await card.click();
+  }
+  // Nor does the profile card (checked while the family is open).
+  await expect(templates.getByTestId('template-partial-profile-hero-640')).toHaveCount(0);
+
+  await openTemplateSection(templates, 'section-title');
+  const titleCard = templates.getByTestId('template-card-section-title-illustrated');
+  await expect(titleCard.locator('svg')).toBeVisible();
+  await titleCard.click();
+
+  // The partial marker shows on the illustrated title card, and only there.
+  await expect(templates.getByTestId('template-partial-section-title-illustrated')).toHaveText(
+    /Partial|Parcial/,
+  );
+
+  // Five seeds applied on top of the starter page, each keeping its own name.
+  await rail.getByRole('button', { name: /Pages|Páginas/ }).click();
+  await expect(page.getByTestId('page-row')).toHaveCount(6);
+
+  const pageNames = (await page.getByTestId('page-row').allTextContents()).join(' | ');
+  for (const name of [
+    'Release notes',
+    'Profile hero 640',
+    'Profile hero 400',
+    'Profile hero 100%',
+    'Section title',
+  ]) {
+    expect(pageNames).toContain(name);
+  }
+
+  // The release page is text-only: its fifteen layers are the title, the
+  // changelog, the attachments heading and the three name/size/SHA rows —
+  // never an image (no mocked screenshot on the latest).
+  await page.getByTestId('page-select').nth(1).click();
+  await rail.getByRole('button', { name: /Layers|Camadas|Capas/ }).click();
+  await expect(page.getByTestId('layer-row')).toHaveCount(15);
+  await expect(page.getByTestId('layer-row').filter({ hasText: 'Attachment name' })).toHaveCount(3);
+  await expect(page.getByTestId('layer-row').filter({ hasText: 'Attachment SHA' })).toHaveCount(3);
+  await expect(page.getByTestId('layer-row').filter({ hasText: 'Screenshot' })).toHaveCount(0);
+  await expect(page.getByTestId('layer-row').filter({ hasText: 'Hero image' })).toHaveCount(0);
+
+  // Back to the illustrated title (applied last): its three layers are the
+  // logo, the heading and the screenshot. Switching panels closed the Pages
+  // dock, so it is reopened before the page switch.
+  await rail.getByRole('button', { name: /Pages|Páginas/ }).click();
+  await page.getByTestId('page-select').nth(5).click();
+  await rail.getByRole('button', { name: /Layers|Camadas|Capas/ }).click();
+  await expect(page.getByTestId('layer-row')).toHaveCount(3);
+  await expect(page.getByTestId('layer-row').filter({ hasText: 'Section logo' })).toHaveCount(1);
+  await expect(page.getByTestId('layer-row').filter({ hasText: 'Screenshot' })).toHaveCount(1);
+
+  // Fit the page and sample a point inside the screenshot slot: the
+  // placeholder SVG must paint over the page fill — #1e293b is the slot,
+  // #ffffff is the page. The sample sits left of the centered label.
+  await page.getByRole('button', { name: /Fit page|Ajustar à página|Ajustar a la página/ }).click();
+
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const canvas = document.querySelector('[data-testid="canvas-host"] canvas.lower-canvas');
+          if (!(canvas instanceof HTMLCanvasElement)) return null;
+          const context = canvas.getContext('2d');
+          if (!context) return null;
+
+          const pageWidth = 600;
+          const pageHeight = 654;
+          const fitPadding = 48;
+          const zoom = Math.min(
+            (canvas.clientWidth - fitPadding) / pageWidth,
+            (canvas.clientHeight - fitPadding) / pageHeight,
+          );
+          const originX = (canvas.clientWidth - pageWidth * zoom) / 2;
+          const originY = (canvas.clientHeight - pageHeight * zoom) / 2;
+          const dpr = canvas.width / canvas.clientWidth;
+          const { data } = context.getImageData(
+            Math.round((originX + 60 * zoom) * dpr),
+            Math.round((originY + 300 * zoom) * dpr),
+            1,
+            1,
+          );
+
+          return [data[0], data[1], data[2], data[3]];
+        }),
+      { timeout: 10000 },
+    )
+    .toEqual([30, 41, 59, 255]);
+});
+
+test('canvas editor applies the animated README presets as their own pages', async ({ page }) => {
+  test.slow();
+
+  await page.goto('/fremit/editor');
+  await expect(page.getByTestId('layer-row')).toHaveCount(3);
+
+  const rail = page.getByTestId('sidebar-rail');
+  await rail.getByRole('button', { name: /Templates|Plantillas/ }).click();
+  const templates = page.getByTestId('sidebar-panel-templates');
+  await expect(templates).toBeVisible();
+
+  // The animated families (P-webp2/P-webp3): the hero band 760/800/100% and
+  // the demo percentages 23/80, each declaring its animated slot and the
+  // named static fallback. All five live in the animated family section.
+  // Each card shows its own seed as a live SVG thumbnail.
+  await openTemplateSection(templates, 'animated');
+
+  const seeds = [
+    'readme-hero-anim-760',
+    'readme-hero-anim-800',
+    'readme-hero-anim-fluid-100',
+    'readme-demo-anim-23',
+    'readme-demo-anim-80',
+  ];
+
+  for (const id of seeds) {
+    const card = templates.getByTestId(`template-card-${id}`);
+    await expect(card.locator('svg')).toBeVisible();
+    await card.click();
+  }
+
+  // Five seeds applied on top of the starter page, each keeping its own name.
+  await rail.getByRole('button', { name: /Pages|Páginas/ }).click();
+  await expect(page.getByTestId('page-row')).toHaveCount(6);
+
+  const pageNames = (await page.getByTestId('page-row').allTextContents()).join(' | ');
+  for (const name of [
+    'README hero anim 760',
+    'README hero anim 800',
+    'README hero anim 100%',
+    'README demo anim 23%',
+    'README demo anim 80%',
+  ]) {
+    expect(pageNames).toContain(name);
+  }
+
+  // The 760 hero (applied first): its five layers are the accent bar, the
+  // project name, the tagline, the animated slot and the named static
+  // fallback — the declared pair of P-webp2.
+  await page.getByTestId('page-select').nth(1).click();
+  await rail.getByRole('button', { name: /Layers|Camadas|Capas/ }).click();
+  await expect(page.getByTestId('layer-row')).toHaveCount(5);
+  await expect(page.getByTestId('layer-row').filter({ hasText: 'Hero anim' })).toHaveCount(1);
+  await expect(page.getByTestId('layer-row').filter({ hasText: 'Static fallback' })).toHaveCount(1);
+
+  // Fit the 760x660 page and sample a point inside its slot: the placeholder
+  // SVG must paint over the page fill — #27272a is the slot, #18181b the
+  // page. The sample sits left of the slot's centered label.
+  await page.getByRole('button', { name: /Fit page|Ajustar à página|Ajustar a la página/ }).click();
+
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const canvas = document.querySelector('[data-testid="canvas-host"] canvas.lower-canvas');
+          if (!(canvas instanceof HTMLCanvasElement)) return null;
+          const context = canvas.getContext('2d');
+          if (!context) return null;
+
+          const pageWidth = 760;
+          const pageHeight = 660;
+          const fitPadding = 48;
+          const zoom = Math.min(
+            (canvas.clientWidth - fitPadding) / pageWidth,
+            (canvas.clientHeight - fitPadding) / pageHeight,
+          );
+          const originX = (canvas.clientWidth - pageWidth * zoom) / 2;
+          const originY = (canvas.clientHeight - pageHeight * zoom) / 2;
+          const dpr = canvas.width / canvas.clientWidth;
+          const { data } = context.getImageData(
+            Math.round((originX + 100 * zoom) * dpr),
+            Math.round((originY + 300 * zoom) * dpr),
+            1,
+            1,
+          );
+
+          return [data[0], data[1], data[2], data[3]];
+        }),
+      { timeout: 10000 },
+    )
+    .toEqual([39, 39, 42, 255]);
+
+  // The 80% demo (applied last): the static hero band, the heading, the
+  // animated slot at its declared percentage width, the alt caption and the
+  // named static fallback.
+  await rail.getByRole('button', { name: /Pages|Páginas/ }).click();
+  await page.getByTestId('page-select').nth(5).click();
+  await rail.getByRole('button', { name: /Layers|Camadas|Capas/ }).click();
+  await expect(page.getByTestId('layer-row')).toHaveCount(5);
+  await expect(page.getByTestId('layer-row').filter({ hasText: 'Demo anim' })).toHaveCount(1);
+  await expect(page.getByTestId('layer-row').filter({ hasText: 'Hero image' })).toHaveCount(1);
+  await expect(page.getByTestId('layer-row').filter({ hasText: 'Static fallback' })).toHaveCount(1);
+
+  // Fit the 600x766 page and sample a point inside the 480px-wide slot (x
+  // 60..540, y 394..664): the slot fill paints over the white page.
+  await page.getByRole('button', { name: /Fit page|Ajustar à página|Ajustar a la página/ }).click();
+
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const canvas = document.querySelector('[data-testid="canvas-host"] canvas.lower-canvas');
+          if (!(canvas instanceof HTMLCanvasElement)) return null;
+          const context = canvas.getContext('2d');
+          if (!context) return null;
+
+          const pageWidth = 600;
+          const pageHeight = 766;
+          const fitPadding = 48;
+          const zoom = Math.min(
+            (canvas.clientWidth - fitPadding) / pageWidth,
+            (canvas.clientHeight - fitPadding) / pageHeight,
+          );
+          const originX = (canvas.clientWidth - pageWidth * zoom) / 2;
+          const originY = (canvas.clientHeight - pageHeight * zoom) / 2;
+          const dpr = canvas.width / canvas.clientWidth;
+          const { data } = context.getImageData(
+            Math.round((originX + 100 * zoom) * dpr),
+            Math.round((originY + 450 * zoom) * dpr),
+            1,
+            1,
+          );
+
+          return [data[0], data[1], data[2], data[3]];
+        }),
+      { timeout: 10000 },
+    )
+    .toEqual([30, 41, 59, 255]);
+});
+
+test('canvas editor inserts a duotone runeicon with custom colors', async ({ page }) => {
+  test.slow();
+
+  // Every artwork request is collected: the icons come from the app itself.
+  const svgRequests: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().includes('/runeicons/')) svgRequests.push(request.url());
+  });
+
+  await page.goto('/fremit/editor');
+  await expect(page.getByTestId('layer-row')).toHaveCount(3);
+
+  const rail = page.getByTestId('sidebar-rail');
+  await rail.getByRole('button', { name: /Icons|Ícones|Iconos/ }).click();
+  const panel = page.getByTestId('sidebar-panel-icons');
+  await expect(panel).toBeVisible();
+
+  // Workspace switch at the top of the panel: the shortcut opens straight on
+  // the icons workspace (first tab), not on the sticker pack (second).
+  await expect(panel.getByTestId('icons-tab-icons')).toHaveAttribute('aria-selected', 'true');
+  await expect(panel.getByTestId('icons-tab-stickers')).toHaveAttribute('aria-selected', 'false');
+  await expect(panel.getByTestId('icon-search')).toBeVisible();
+
+  // Search over the local manifest; the style filter narrows to duotone.
+  await panel.getByTestId('icon-search').fill('arrow down left');
+  await panel.getByTestId('icon-style').selectOption('duotone');
+  const card = panel.getByTestId('icon-card-arrows-arrow-down-left');
+  await expect(card.locator('svg')).toBeVisible();
+  await card.click();
+
+  // Properties: the two duotone slots get custom colors before insertion.
+  const inspector = panel.getByTestId('icon-properties');
+  await expect(inspector).toBeVisible();
+  await expect(inspector.getByTestId('icon-selected-name')).toHaveText('Arrow Down Left');
+  await inspector.getByTestId('icon-color-primary-hex').fill('#ff0000');
+  await inspector.getByTestId('icon-color-secondary-hex').fill('#0000ff');
+  await inspector.getByTestId('icon-insert').click();
+
+  // The icon lands as a normal image layer of the document.
+  await rail.getByRole('button', { name: /Layers|Camadas|Capas/ }).click();
+  await expect(page.getByTestId('layer-row')).toHaveCount(4);
+  await expect(page.getByTestId('layer-row').filter({ hasText: 'Arrow Down Left' })).toHaveCount(1);
+
+  // Both chosen slots paint on the canvas.
+  const painted = await page.evaluate(() => {
+    const canvas = document.querySelector('[data-testid="canvas-host"] canvas.lower-canvas');
+    if (!(canvas instanceof HTMLCanvasElement)) return null;
+    const context = canvas.getContext('2d');
+    if (!context) return null;
+    const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+    let red = 0;
+    let blue = 0;
+    for (let index = 0; index < data.length; index += 4) {
+      const r = data[index];
+      const g = data[index + 1];
+      const b = data[index + 2];
+      if (data[index + 3] < 200) continue;
+      if (r > 180 && g < 90 && b < 90) red += 1;
+      if (b > 180 && r < 90 && g < 90) blue += 1;
+    }
+    return { red, blue };
+  });
+  expect(painted?.red ?? 0).toBeGreaterThan(20);
+  expect(painted?.blue ?? 0).toBeGreaterThan(20);
+
+  // Every artwork fetch is same-origin (static files of the app, no CDN).
+  expect(svgRequests.length).toBeGreaterThan(0);
+  for (const url of svgRequests) {
+    expect(new URL(url).origin).toBe('http://127.0.0.1:4275');
+  }
+});
+
+test('canvas editor fills the GitHub template from the public API', async ({ page }) => {
+  const requests: string[] = [];
+
+  // The real `GET /repos/mafhper/aurawall` payload (fetched 2026-10-18): the
+  // non-zero star count catches a mapping that swaps the real value for the
+  // placeholder.
+  await page.route('https://api.github.com/repos/mafhper/aurawall', (route) => {
+    requests.push(route.request().url());
+    return route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        full_name: 'mafhper/aurawall',
+        description: 'Procedural Vector Wallpaper Generator',
+        language: 'TypeScript',
+        stargazers_count: 2,
+        forks_count: 0,
+      }),
+    });
+  });
+
+  await page.goto('/fremit/editor');
+  await expect(page.getByTestId('layer-row')).toHaveCount(3);
+
+  const rail = page.getByTestId('sidebar-rail');
+  await rail.getByRole('button', { name: /Templates|Plantillas/ }).click();
+  const templates = page.getByTestId('sidebar-panel-templates');
+  await expect(templates).toBeVisible();
+
+  // The repo fill controls live in the GitHub family, collapsed by default.
+  await openTemplateSection(templates, 'github');
+
+  await templates.getByTestId('template-github-repo').fill('mafhper/aurawall');
+  await templates.getByTestId('template-github-fill').click();
+
+  await expect(templates.getByTestId('template-github-status')).toHaveText(
+    /Repository loaded|Repositório carregado|Repositorio cargado/i,
+  );
+  expect(requests).toHaveLength(1);
+
+  // The gallery card reflects the loaded repo — the template updates with the
+  // provided data, thumbnail and label alike.
+  const card = templates.getByTestId('template-card-github-project');
+  await expect(card).toContainText('mafhper/aurawall');
+  await expect(card).toContainText('Procedural Vector Wallpaper Generator');
+  await expect(card).toContainText('TypeScript');
+  await expect(card).toContainText('★ 2 · 0 forks');
+
+  // The seed lands as the active page with its seven slot objects.
+  await rail.getByRole('button', { name: /Layers|Camadas|Capas/ }).click();
+  await expect(page.getByTestId('layer-row')).toHaveCount(7);
+  await expect(page.getByTestId('layer-row').filter({ hasText: 'Repository name' })).toHaveCount(1);
+  await expect(page.getByTestId('layer-row').filter({ hasText: 'Language dot' })).toHaveCount(1);
+  await expect(page.getByTestId('layer-row').filter({ hasText: 'Repository stats' })).toHaveCount(1);
+
+  // The applied page carries the loaded values (read back through the export).
+  const appliedSvg = await exportActivePageAsSvg(page);
+  expect(appliedSvg).toContain('mafhper/aurawall');
+  expect(appliedSvg).toContain('Procedural Vector Wallpaper Generator');
+  expect(appliedSvg).toContain('★ 2 · 0 forks');
+
+  // The loaded repo persists across panels: applying the card again keeps the
+  // provided data instead of falling back to the placeholders.
+  await rail.getByRole('button', { name: /Templates|Plantillas/ }).click();
+  // The panel remounts on the switch, so the GitHub family opens collapsed.
+  await openTemplateSection(templates, 'github');
+  await expect(card).toContainText('★ 2 · 0 forks');
+  await card.click();
+  await rail.getByRole('button', { name: /Layers|Camadas|Capas/ }).click();
+  await expect(page.getByTestId('layer-row')).toHaveCount(7);
+  const reappliedSvg = await exportActivePageAsSvg(page);
+  expect(reappliedSvg).toContain('mafhper/aurawall');
+  expect(reappliedSvg).toContain('★ 2 · 0 forks');
+
+  // Clearing the repo input returns the card to the placeholders.
+  await rail.getByRole('button', { name: /Templates|Plantillas/ }).click();
+  await openTemplateSection(templates, 'github');
+  await templates.getByTestId('template-github-repo').fill('');
+  await expect(card).toContainText('owner/repo');
+  await expect(card).toContainText('★ 128 · 12 forks');
+});
+
+test('canvas editor keeps the GitHub template usable offline', async ({ page }) => {
+  await page.route('https://api.github.com/**', (route) => route.abort());
+
+  await page.goto('/fremit/editor');
+  await expect(page.getByTestId('layer-row')).toHaveCount(3);
+
+  const rail = page.getByTestId('sidebar-rail');
+  await rail.getByRole('button', { name: /Templates|Plantillas/ }).click();
+  const templates = page.getByTestId('sidebar-panel-templates');
+  await expect(templates).toBeVisible();
+
+  // The repo fill controls live in the GitHub family, collapsed by default.
+  await openTemplateSection(templates, 'github');
+
+  await templates.getByTestId('template-github-repo').fill('mafhper/fremit');
+  await templates.getByTestId('template-github-fill').click();
+
+  await expect(templates.getByTestId('template-github-status')).toHaveText(
+    /unreachable|inacessível|no disponible/i,
+  );
+
+  // The card keeps the placeholders and the seed still lands with them.
+  const card = templates.getByTestId('template-card-github-project');
+  await expect(card).toContainText('owner/repo');
+  await expect(card).toContainText('★ 128 · 12 forks');
+
+  await rail.getByRole('button', { name: /Layers|Camadas|Capas/ }).click();
+  await expect(page.getByTestId('layer-row')).toHaveCount(7);
+  await expect(page.getByTestId('layer-row').filter({ hasText: 'Repository name' })).toHaveCount(1);
+});
+
 test('canvas editor selects, nudges, locks and reorders layers from the panel', async ({ page }) => {
   await page.goto('/fremit/editor');
   await expect(page.getByTestId('layer-row')).toHaveCount(3);
@@ -425,6 +1387,30 @@ test('canvas editor adds text, shape and image from the toolbar', async ({ page 
     .setInputFiles({ name: 'sticker.png', mimeType: 'image/png', buffer: png });
   await expect(page.getByTestId('layer-row')).toHaveCount(6);
   await expect(page.getByTestId('layer-row').filter({ hasText: 'sticker.png' })).toHaveCount(1);
+test('canvas editor inspector switches the image fit live', async ({ page }) => {
+  await page.goto('/fremit/editor');
+  await expect(page.getByTestId('layer-row')).toHaveCount(3);
+
+  await page
+    .getByTestId('layer-row')
+    .filter({ hasText: 'Cover image' })
+    .getByTestId('layer-select')
+    .click();
+  const inspector = page.getByTestId('inspector');
+  await expect(inspector.getByTestId('inspector-fit')).toBeVisible();
+
+  // A squarer box makes the two fits visually different. The starter image is
+  // cover, so the switch goes to contain ("show entire image").
+  await inspector.getByTestId('inspector-width').fill('400');
+
+  const covered = await canvasHash(page);
+  await inspector.getByTestId('inspector-fit').click();
+  await page
+    .getByRole('option', { name: /Show entire image|Mostrar imagem inteira|Mostrar imagen completa/i })
+    .click();
+  await expect.poll(() => canvasHash(page)).not.toBe(covered);
+});
+
 });
 
 test('canvas editor edits text in place and keeps it through a page round-trip', async ({ page }) => {
@@ -476,13 +1462,211 @@ test('canvas editor edits text in place and keeps it through a page round-trip',
   expect(edited).not.toBe(original);
 
   // The store holds the edited text: switching pages and back re-renders it.
+  // Pages live in the rail dock; layers come back when the tool returns.
+  await page.getByTestId('sidebar-rail').getByRole('button', { name: /Pages|Páginas/ }).click();
+  await expect(page.getByTestId('sidebar-panel-pages')).toBeVisible();
   await page.getByTestId('page-add').click();
-  await expect(page.getByTestId('layer-row')).toHaveCount(0);
+  await expect(page.getByTestId('page-row')).toHaveCount(2);
   await page.getByTestId('page-row').first().getByTestId('page-select').click();
+  await page.getByTestId('sidebar-rail').getByRole('button', { name: /Layers|Camadas|Capas/ }).click();
+  await expect(page.getByTestId('sidebar-panel-layers')).toBeVisible();
   await expect(page.getByTestId('layer-row')).toHaveCount(3);
   await page.waitForTimeout(300);
 
   await expect.poll(canvasHash).toBe(edited);
+});
+
+/** Document box of the current selection, read from the layers panel. */
+async function readSelectionBox(page: Page) {
+  return {
+    x: Number(await page.getByTestId('selection-x').textContent()),
+    y: Number(await page.getByTestId('selection-y').textContent()),
+    width: Number(await page.getByTestId('selection-width').textContent()),
+    height: Number(await page.getByTestId('selection-height').textContent()),
+  };
+}
+
+/** Inserts one curved preset on a fresh page and returns its document box. */
+async function insertArcPreset(page: Page, direction: 'up' | 'down') {
+  const rail = page.getByTestId('sidebar-rail');
+  const name = direction === 'up' ? 'Arc up' : 'Arc down';
+
+  // A fresh empty page keeps the ink sample free of the starter artwork.
+  await rail.getByRole('button', { name: /Pages|Páginas/ }).click();
+  await page.getByTestId('page-add').click();
+  await expect(page.getByTestId('page-row')).toHaveCount(2);
+
+  await rail.getByRole('button', { name: /Text|Texto/ }).click();
+  const textPanel = page.getByTestId('sidebar-panel-text');
+  await expect(textPanel).toBeVisible();
+  await textPanel.getByTestId(`text-preset-arc-${direction}`).click();
+
+  // The insertion is selected and named, and the layer lands on top.
+  await expect(page.getByTestId('inspector-name')).toHaveValue(name);
+  await rail.getByRole('button', { name: /Layers|Camadas|Capas/ }).click();
+  await expect(page.getByTestId('layer-row')).toHaveCount(1);
+  await expect(page.getByTestId('layer-row').filter({ hasText: name })).toHaveCount(1);
+
+  // The stored box is the arc's own bounding box, so the samples below read
+  // it from the selection; the fonts must be settled before painting.
+  await page.evaluate(() => document.fonts.ready);
+
+  return readSelectionBox(page);
+}
+
+test('canvas editor inserts curved text and the arc paints as a curve', async ({ page }) => {
+  await page.goto('/fremit/editor');
+  await expect(page.getByTestId('layer-row')).toHaveCount(3);
+
+  const box = await insertArcPreset(page, 'up');
+
+  // Curvature on the live canvas: the stored box is the arc's own bounding
+  // box, so the middle glyphs rise above its top edge while the ends sit
+  // lower on the curve — a straight run would paint both tops at the same
+  // height.
+  const up = await arcInkRows(page, box, 'top');
+  expect(up.middle).not.toBeNull();
+  expect(up.end).not.toBeNull();
+  // The middle glyphs are the highest point of the arch; the first glyph of
+  // the run sits well below (roughly the sagitta of the curve).
+  const upDelta = (up.end as number) - (up.middle as number);
+  expect(upDelta).toBeGreaterThan(20);
+
+  // The amount control deepens the same arch: a stronger curvature lifts the
+  // middle further from the ends and re-flows the box with it.
+  await page.getByTestId('inspector-arc-amount').fill('1');
+  await expect(page.getByTestId('inspector-arc-amount')).toHaveValue('1');
+
+  await expect
+    .poll(async () => {
+      const rows = await arcInkRows(page, await readSelectionBox(page), 'top');
+      if (rows.middle === null || rows.end === null) return -999;
+
+      return Math.round((rows.end as number) - (rows.middle as number));
+    })
+    .toBeGreaterThan(upDelta + 10);
+
+  // The direction control flips the arch into a valley.
+  await page.getByTestId('inspector-arc-direction').click();
+  await page.getByRole('option', { name: /Arc down|Arco para baixo|Arco hacia abajo/ }).click();
+
+  await expect
+    .poll(async () => {
+      const rows = await arcInkRows(page, await readSelectionBox(page), 'bottom');
+      if (rows.middle === null || rows.end === null) return -999;
+
+      return Math.round((rows.middle as number) - (rows.end as number));
+    })
+    .toBeGreaterThan(20);
+
+  // Straighten collapses the arc controls to the button and repaints the
+  // object as boxed text; re-curving is one click away.
+  const curvedHash = await canvasHash(page);
+  await page.getByTestId('inspector-arc-straighten').click();
+  await expect(page.getByTestId('inspector-arc-add')).toBeVisible();
+  await expect(page.getByTestId('inspector-arc-direction')).toHaveCount(0);
+  await expect.poll(() => canvasHash(page)).not.toBe(curvedHash);
+
+  await page.getByTestId('inspector-arc-add').click();
+  await expect(page.getByTestId('inspector-arc-direction')).toBeVisible();
+});
+
+test('canvas editor inserts the down arc preset as a valley', async ({ page }) => {
+  await page.goto('/fremit/editor');
+  await expect(page.getByTestId('layer-row')).toHaveCount(3);
+
+  const box = await insertArcPreset(page, 'down');
+
+  // Valley: the middle glyphs are the lowest point of the run; the first
+  // glyph sits well above them (roughly the sagitta of the curve).
+  const down = await arcInkRows(page, box, 'bottom');
+  expect(down.middle).not.toBeNull();
+  expect(down.end).not.toBeNull();
+  expect((down.middle as number) - (down.end as number)).toBeGreaterThan(20);
+});
+
+test('canvas editor applies a local brand kit to the selection', async ({ page }) => {
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+    'base64',
+  );
+
+  await page.goto('/fremit/editor');
+  await expect(page.getByTestId('layer-row')).toHaveCount(3);
+
+  // The layers tool is open by default: select the shape while it is visible.
+  await page
+    .getByTestId('layer-row')
+    .filter({ hasText: 'Accent bar' })
+    .getByTestId('layer-select')
+    .click();
+
+  const rail = page.getByTestId('sidebar-rail');
+  await rail.getByRole('button', { name: /Brand|Marca/ }).click();
+  const panel = page.getByTestId('sidebar-panel-brand');
+  await expect(panel).toBeVisible();
+
+  // A palette color fills the selected shape.
+  await panel.locator('[data-testid="brand-swatch"][data-color="#111111"]').click();
+  await expect(page.getByTestId('inspector-fill').locator('input[type="text"]')).toHaveValue(
+    '#111111',
+  );
+
+  // Removing a palette color takes the swatch out of the kit.
+  await panel.locator('[data-testid="brand-remove-color"][data-color="#111111"]').click();
+  await expect(panel.locator('[data-testid="brand-swatch"][data-color="#111111"]')).toHaveCount(0);
+
+  // A file that is not an image reports the error and leaves the kit alone.
+  await panel.getByTestId('brand-logo-file').setInputFiles({
+    name: 'notes.txt',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('not an image'),
+  });
+  await expect(panel.getByTestId('brand-error')).toBeVisible();
+  await expect(panel.getByTestId('brand-logo-preview')).toHaveCount(0);
+
+  // A kit font applies to the selected text: select it from the layers tool,
+  // then come back to the brand panel.
+  await rail.getByRole('button', { name: /Layers|Camadas|Capas/ }).click();
+  await page
+    .getByTestId('layer-row')
+    .filter({ hasText: 'Headline' })
+    .getByTestId('layer-select')
+    .click();
+  await rail.getByRole('button', { name: /Brand|Marca/ }).click();
+  await panel.getByTestId('brand-font-heading').click();
+  await page.getByRole('option', { name: 'Georgia' }).click();
+  await panel.getByTestId('brand-apply-heading').click();
+  await expect(page.getByTestId('inspector-font-family')).toHaveText(/Georgia/);
+
+  // The body font applies the same way, from its own control.
+  await panel.getByTestId('brand-font-body').click();
+  await page.getByRole('option', { name: 'Trebuchet' }).click();
+  await panel.getByTestId('brand-apply-body').click();
+  await expect(page.getByTestId('inspector-font-family')).toHaveText(/Trebuchet/);
+
+  // The logo uploads into the kit and inserts as a normal image layer.
+  await panel.getByTestId('brand-logo-file').setInputFiles({
+    name: 'logo.png',
+    mimeType: 'image/png',
+    buffer: png,
+  });
+  await expect(panel.getByTestId('brand-logo-preview')).toBeVisible();
+  await panel.getByTestId('brand-logo-insert').click();
+
+  await rail.getByRole('button', { name: /Layers|Camadas|Capas/ }).click();
+  await expect(page.getByTestId('layer-row')).toHaveCount(4);
+  await expect(page.getByTestId('layer-row').filter({ hasText: 'Logo' })).toHaveCount(1);
+
+  // The kit is local and survives a reload; the document does not.
+  await page.reload();
+  await rail.getByRole('button', { name: /Brand|Marca/ }).click();
+  await expect(panel.getByTestId('brand-logo-preview')).toBeVisible();
+
+  // Removing the logo empties the kit's logo and disables inserting it.
+  await panel.getByTestId('brand-logo-remove').click();
+  await expect(panel.getByTestId('brand-logo-preview')).toHaveCount(0);
+  await expect(panel.getByTestId('brand-logo-insert')).toBeDisabled();
 });
 
 test('capture flow lands on the canvas with the source as an image layer', async ({ page }) => {
@@ -517,3 +1701,170 @@ test('capture flow lands on the canvas with the source as an image layer', async
   await expect(page.getByTestId('layer-row')).toHaveCount(4);
   await expect(page.getByTestId('layer-row').filter({ hasText: 'Dinopad — Atlas' })).toHaveCount(1);
 });
+
+// The schema preset ids, in catalog order; the loops below prove that every
+// one of them applies to the document and previews on the canvas.
+const ELEMENT_ANIMATION_IDS = [
+  'fade',
+  'rise',
+  'pop',
+  'slide',
+  'words',
+  'typewriter',
+  'wipe',
+  'focus',
+] as const;
+const PAGE_TRANSITION_IDS = [
+  'fade',
+  'dip',
+  'dissolve',
+  'blur',
+  'slide',
+  'push',
+  'cover',
+  'uncover',
+  'zoom',
+  'wipe',
+  'circle',
+  'flip',
+  'spin',
+  'blinds',
+] as const;
+
+test('canvas editor applies and previews every element animation', async ({ page }) => {
+  // Eight applies + eight previews, each with a real timeline: slow by design.
+  test.slow();
+  await page.goto('/fremit/editor');
+  await expect(page.getByTestId('layer-row')).toHaveCount(3);
+
+  const rail = page.getByTestId('sidebar-rail');
+
+  // The layers tool is open by default: select the solid bar first, for the
+  // pixel proof below.
+  await page
+    .getByTestId('layer-row')
+    .filter({ hasText: 'Accent bar' })
+    .getByTestId('layer-select')
+    .click();
+
+  await rail.getByRole('button', { name: /Animate|Animar/ }).click();
+  const panel = page.getByTestId('sidebar-panel-animate');
+  await expect(panel).toBeVisible();
+  const host = page.getByTestId('canvas-host');
+
+  // A slow, linear fade on the bar proves the preview paints on the live
+  // object: while it runs the bar is nearly transparent, and when it ends the
+  // ink is back exactly as the document stores it.
+  await panel.getByTestId('animate-preset-fade').click();
+  await panel.getByTestId('animate-duration').fill('3000');
+  await panel.getByTestId('animate-easing').click();
+  await page.getByRole('option', { name: /Linear|Lineal/ }).click();
+
+  const hostBox = (await host.boundingBox())!;
+  // (150, 743) is the clean sample point the drag tests use: at low zoom the
+  // bar's mid-edge controls cover the middle of the 420px-wide bar.
+  const barSample = pageToScreen(hostBox, 1080, 150, 743);
+
+  await panel.getByTestId('animate-preview').click();
+  await expect(host).toHaveAttribute('data-previewing', 'fade');
+
+  // The fade paints on the live object: the bar goes (near) transparent while
+  // the timeline runs, and the end of the playback restores exactly the ink
+  // the document stores.
+  await expect
+    .poll(async () => (await readCanvasPixel(page, barSample))?.[0] ?? 255)
+    .toBeGreaterThan(150);
+
+  await expect(host).not.toHaveAttribute('data-previewing');
+  expect((await readCanvasPixel(page, barSample))?.slice(0, 3)).toEqual([31, 111, 235]);
+
+  // The selection moves to the text object: words/typewriter need real text.
+  await rail.getByRole('button', { name: /Layers|Camadas|Capas/ }).click();
+  await page
+    .getByTestId('layer-row')
+    .filter({ hasText: 'Headline' })
+    .getByTestId('layer-select')
+    .click();
+  await rail.getByRole('button', { name: /Animate|Animar/ }).click();
+
+  for (const preset of ELEMENT_ANIMATION_IDS) {
+    const button = panel.getByTestId(`animate-preset-${preset}`);
+    await button.click();
+    await expect(button).toHaveAttribute('aria-pressed', 'true');
+
+    // A short timeline keeps the loop fast; the preview plays the stored
+    // animation and reports itself on the canvas host while it runs. The
+    // duration stays well above the polling cadence so a loaded machine
+    // cannot miss the transient `data-previewing` window between polls.
+    await panel.getByTestId('animate-duration').fill('1000');
+    await panel.getByTestId('animate-preview').click();
+    await expect(host).toHaveAttribute('data-previewing', preset);
+    await expect(host).not.toHaveAttribute('data-previewing');
+  }
+
+  // The layer carries the badge of the last preset; removing clears it.
+  await rail.getByRole('button', { name: /Layers|Camadas|Capas/ }).click();
+  const headlineRow = page.getByTestId('layer-row').filter({ hasText: 'Headline' });
+  await expect(headlineRow.getByTestId('layer-animation')).toHaveAttribute(
+    'data-animation',
+    'focus',
+  );
+
+  await rail.getByRole('button', { name: /Animate|Animar/ }).click();
+  await panel.getByTestId('animate-clear').click();
+  await expect(panel.getByTestId('animate-preset-focus')).toHaveAttribute('aria-pressed', 'false');
+
+  await rail.getByRole('button', { name: /Layers|Camadas|Capas/ }).click();
+  await expect(headlineRow.getByTestId('layer-animation')).toHaveCount(0);
+});
+
+test('canvas editor applies and previews every page transition', async ({ page }) => {
+  test.slow();
+  await page.goto('/fremit/editor');
+  await expect(page.getByTestId('canvas-host')).toBeVisible({ timeout: 15000 });
+
+  const rail = page.getByTestId('sidebar-rail');
+  await rail.getByRole('button', { name: /Animate|Animar/ }).click();
+  const panel = page.getByTestId('sidebar-panel-animate');
+  await expect(panel).toBeVisible();
+
+  // "None" is the starting state; every preset applies and stays pressed.
+  await expect(panel.getByTestId('animate-transition-none')).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+
+  for (const preset of PAGE_TRANSITION_IDS) {
+    const button = panel.getByTestId(`animate-transition-${preset}`);
+    await button.click();
+    await expect(button).toHaveAttribute('aria-pressed', 'true');
+    await panel.getByTestId('animate-transition-duration').fill('400');
+  }
+
+  // The page preview plays the transition on the canvas surface: while the
+  // last preset (blinds) runs, its mask is on the canvas element, and the
+  // cleanup removes it when the playback ends.
+  const host = page.getByTestId('canvas-host');
+  await panel.getByTestId('animate-transition-duration').fill('1500');
+  await panel.getByTestId('animate-preview-page').click();
+  await expect(host).toHaveAttribute('data-previewing', 'page');
+
+  const surfaceStyle = () =>
+    page.evaluate(() => {
+      const canvas = document.querySelector('[data-testid="canvas-host"] canvas.lower-canvas');
+      return canvas instanceof HTMLCanvasElement ? canvas.getAttribute('style') ?? '' : '';
+    });
+
+  await expect.poll(surfaceStyle).toContain('mask-image');
+
+  await expect(host).not.toHaveAttribute('data-previewing');
+  await expect.poll(surfaceStyle).not.toContain('mask-image');
+
+  // Back to "None": the page carries no transition again.
+  await panel.getByTestId('animate-transition-none').click();
+  await expect(panel.getByTestId('animate-transition-none')).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+});
+

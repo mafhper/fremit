@@ -18,11 +18,197 @@
  * Written from scratch for Fremit; no code copied from any reference editor.
  */
 
-export const DOCUMENT_SCHEMA_VERSION = 1;
+import { DEFAULT_PAGE_COLOR, parsePageBackground } from '@/lib/pageBackground';
+import { isRecord } from '@/lib/guards';
+
+export const DOCUMENT_SCHEMA_VERSION = 2;
+
+/** Schema versions `parseDocument` understands; older ones are migrated on load. */
+export const SUPPORTED_SCHEMA_VERSIONS: readonly number[] = [1, DOCUMENT_SCHEMA_VERSION];
 
 export type TextAlign = 'left' | 'center' | 'right';
-export type ShapeKind = 'rect' | 'ellipse';
+export type ShapeKind = 'rect' | 'ellipse' | 'triangle' | 'line' | 'star' | 'polygon';
 export type ImageFit = 'contain' | 'cover';
+
+/**
+ * Clip presets of an image object. The contract stores the preset id, never a
+ * radius: the radius is a ratio of the shorter side (see `src/lib/imageMask`),
+ * so scaling the object can never rewrite the mask.
+ */
+export const IMAGE_MASK_PRESETS = ['rounded'] as const;
+
+export type ImageMaskPreset = (typeof IMAGE_MASK_PRESETS)[number];
+
+/**
+ * Canonical shape kinds; the parser validates against this exact list. The
+ * geometry of each kind lives in `src/lib/shapeGeometry` (canvas, export and
+ * thumbnails all measure from there).
+ */
+export const SHAPE_KINDS: readonly ShapeKind[] = [
+  'rect',
+  'ellipse',
+  'triangle',
+  'line',
+  'star',
+  'polygon',
+];
+
+/** Bounds of `sides` (star points / polygon sides) the schema accepts. */
+export const SHAPE_SIDES_MIN = 3;
+export const SHAPE_SIDES_MAX = 16;
+/** Bounds of `innerRadius` (a ratio of the star's outer radius). */
+export const SHAPE_INNER_RADIUS_MIN = 0;
+export const SHAPE_INNER_RADIUS_MAX = 1;
+/**
+ * Fallbacks for a v2 writer that omits the star/polygon parameters — the same
+ * tolerance `arc` and `animation` get. The defaults are inert on the kinds
+ * that do not use them.
+ */
+export const DEFAULT_SHAPE_SIDES = 5;
+export const DEFAULT_SHAPE_INNER_RADIUS = 0.5;
+
+export type ArcDirection = 'up' | 'down';
+
+/** Where an entrance effect comes from (slide/wipe origin, flip hinge side). */
+export type AnimationDirection = 'up' | 'down' | 'left' | 'right';
+
+/** Easing of an animation timeline; `backOut` is the overshoot of `pop`/`spin`. */
+export type AnimationEasing = 'linear' | 'easeOut' | 'easeInOut' | 'backOut';
+
+/**
+ * Entrance presets for one object (the Element section of the animate panel).
+ * `words` and `typewriter` reveal stepped by word/character; the rest are
+ * continuous.
+ */
+export type ElementAnimationPreset =
+  | 'fade'
+  | 'rise'
+  | 'pop'
+  | 'slide'
+  | 'words'
+  | 'typewriter'
+  | 'wipe'
+  | 'focus';
+
+/**
+ * Page transitions of the schema (the Page section). "None" is `transition:
+ * null`, not a preset id — a page without a transition carries no object.
+ */
+export type PageTransitionPreset =
+  | 'fade'
+  | 'dip'
+  | 'dissolve'
+  | 'blur'
+  | 'slide'
+  | 'push'
+  | 'cover'
+  | 'uncover'
+  | 'zoom'
+  | 'wipe'
+  | 'circle'
+  | 'flip'
+  | 'spin'
+  | 'blinds';
+
+/** Canonical preset ids; the parser validates against these exact lists. */
+export const ELEMENT_ANIMATION_PRESETS: readonly ElementAnimationPreset[] = [
+  'fade',
+  'rise',
+  'pop',
+  'slide',
+  'words',
+  'typewriter',
+  'wipe',
+  'focus',
+];
+
+export const PAGE_TRANSITION_PRESETS: readonly PageTransitionPreset[] = [
+  'fade',
+  'dip',
+  'dissolve',
+  'blur',
+  'slide',
+  'push',
+  'cover',
+  'uncover',
+  'zoom',
+  'wipe',
+  'circle',
+  'flip',
+  'spin',
+  'blinds',
+];
+
+export const ANIMATION_EASINGS: readonly AnimationEasing[] = [
+  'linear',
+  'easeOut',
+  'easeInOut',
+  'backOut',
+];
+
+export const ANIMATION_DIRECTIONS: readonly AnimationDirection[] = ['up', 'down', 'left', 'right'];
+
+/** Timeline bounds of the schema, in milliseconds. */
+export const MIN_ANIMATION_DURATION_MS = 100;
+export const MAX_ANIMATION_DURATION_MS = 10000;
+/** Fallback for controls without a stored animation yet. */
+export const DEFAULT_ANIMATION_DURATION_MS = 600;
+
+/**
+ * Per-object entrance animation (schema v2). The player lives behind a lazy
+ * chunk; a build without it still reads and writes the field — it simply does
+ * not play it.
+ */
+export interface ObjectAnimation {
+  preset: ElementAnimationPreset;
+  durationMs: number;
+  easing: AnimationEasing;
+  direction: AnimationDirection;
+}
+
+/** Per-page transition (schema v2). `null` on the page means "None". */
+export interface PageTransition {
+  preset: PageTransitionPreset;
+  durationMs: number;
+  easing: AnimationEasing;
+  direction: AnimationDirection;
+}
+
+/**
+ * Curved text (schema v2): the text follows a circular arc instead of a
+ * straight baseline. `amount` is the curvature in 0..1 — the editor clamps it
+ * to a usable minimum, and 1 is the maximum sweep it allows. The arc path is
+ * derived from the text, the font and this pair at render time, so the curve
+ * stays a property of the text.
+ */
+export interface TextArc {
+  direction: ArcDirection;
+  amount: number;
+}
+
+export interface SolidPageBackground {
+  kind: 'solid';
+  color: string;
+}
+
+/** Linear gradient; `angle` follows the CSS convention (0deg points up). */
+export interface GradientPageBackground {
+  kind: 'gradient';
+  from: string;
+  to: string;
+  angle: number;
+}
+
+/** Image page fill, always rendered with cover semantics. */
+export interface ImagePageBackground {
+  kind: 'image';
+  src: string;
+}
+
+export type PageBackground =
+  | SolidPageBackground
+  | GradientPageBackground
+  | ImagePageBackground;
 
 export interface DocumentObjectBase {
   id: string;
@@ -39,6 +225,8 @@ export interface DocumentObjectBase {
   opacity: number;
   visible: boolean;
   locked: boolean;
+  /** Entrance animation (schema v2); `null` is a static object. */
+  animation: ObjectAnimation | null;
 }
 
 export interface TextObject extends DocumentObjectBase {
@@ -49,6 +237,8 @@ export interface TextObject extends DocumentObjectBase {
   fontWeight: number;
   fill: string;
   align: TextAlign;
+  /** Curved baseline (schema v2); `null` is the straight text of v1. */
+  arc: TextArc | null;
 }
 
 export interface ShapeObject extends DocumentObjectBase {
@@ -78,8 +268,10 @@ export interface DocumentPage {
   name: string;
   width: number;
   height: number;
-  /** CSS color. */
-  background: string;
+  /** Solid color, linear gradient or image (schema v2). */
+  background: PageBackground;
+  /** Page transition (schema v2); `null` is "None". */
+  transition: PageTransition | null;
   /** Z-order: index 0 is the bottom layer. */
   objects: DocumentObject[];
 }
@@ -115,7 +307,8 @@ export function createPage(overrides: Partial<Omit<DocumentPage, 'objects'>> = {
     name: 'Page 1',
     width: 1080,
     height: 1080,
-    background: '#ffffff',
+    background: { kind: 'solid', color: DEFAULT_PAGE_COLOR },
+    transition: null,
     objects: [],
     ...overrides,
   };
@@ -150,6 +343,8 @@ export function createTextObject(
     fontWeight: 600,
     fill: '#111111',
     align: 'left',
+    arc: null,
+    animation: null,
     ...overrides,
   };
 }
@@ -213,10 +408,6 @@ function throwParseError(message: string, code: DocumentParseErrorCode = 'invali
   throw new DocumentParseError(code, message);
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 function readString(source: Record<string, unknown>, key: string, where: string): string {
   const value = source[key];
   if (typeof value !== 'string') {
@@ -252,7 +443,10 @@ function readBoolean(source: Record<string, unknown>, key: string, where: string
   return value;
 }
 
-function readObjectBase(source: Record<string, unknown>, where: string): DocumentObjectBase {
+function readObjectBase(
+  source: Record<string, unknown>,
+  where: string,
+): Omit<DocumentObjectBase, 'animation'> {
   return {
     id: readString(source, 'id', where),
     name: readString(source, 'name', where),
@@ -267,7 +461,110 @@ function readObjectBase(source: Record<string, unknown>, where: string): Documen
   };
 }
 
-function parseObject(value: unknown, where: string): DocumentObject {
+function parseArc(value: unknown, where: string): TextArc | null {
+  if (value === null) return null;
+
+  if (!isRecord(value)) {
+    throwParseError(`${where}.arc must be an object or null`);
+  }
+
+  const direction = value.direction;
+  if (direction !== 'up' && direction !== 'down') {
+    throwParseError(`${where}.arc.direction must be up or down`);
+  }
+
+  return {
+    direction,
+    amount: readNumber(value, 'amount', `${where}.arc`, { min: 0, max: 1 }),
+  };
+}
+
+function isElementAnimationPreset(value: unknown): value is ElementAnimationPreset {
+  return typeof value === 'string' && (ELEMENT_ANIMATION_PRESETS as readonly string[]).includes(value);
+}
+
+function isPageTransitionPreset(value: unknown): value is PageTransitionPreset {
+  return typeof value === 'string' && (PAGE_TRANSITION_PRESETS as readonly string[]).includes(value);
+}
+
+function parseAnimationEasing(value: unknown, where: string): AnimationEasing {
+  if (typeof value !== 'string' || !(ANIMATION_EASINGS as readonly string[]).includes(value)) {
+    throwParseError(`${where}.easing must be linear, easeOut, easeInOut or backOut`);
+  }
+
+  return value as AnimationEasing;
+}
+
+function parseAnimationDirection(value: unknown, where: string): AnimationDirection {
+  if (typeof value !== 'string' || !(ANIMATION_DIRECTIONS as readonly string[]).includes(value)) {
+    throwParseError(`${where}.direction must be up, down, left or right`);
+  }
+
+  return value as AnimationDirection;
+}
+
+function parseObjectAnimation(value: unknown, where: string): ObjectAnimation | null {
+  if (value === null) return null;
+
+  if (!isRecord(value)) {
+    throwParseError(`${where}.animation must be an object or null`);
+  }
+
+  const preset = value.preset;
+  if (!isElementAnimationPreset(preset)) {
+    throwParseError(`${where}.animation.preset is not a known preset: ${String(preset)}`);
+  }
+
+  return {
+    preset,
+    durationMs: readNumber(value, 'durationMs', `${where}.animation`, {
+      min: MIN_ANIMATION_DURATION_MS,
+      max: MAX_ANIMATION_DURATION_MS,
+    }),
+    easing: parseAnimationEasing(value.easing, `${where}.animation`),
+    direction: parseAnimationDirection(value.direction, `${where}.animation`),
+  };
+}
+
+function parsePageTransition(value: unknown, where: string): PageTransition | null {
+  if (value === null) return null;
+
+  if (!isRecord(value)) {
+    throwParseError(`${where}.transition must be an object or null`);
+  }
+
+  const preset = value.preset;
+  if (!isPageTransitionPreset(preset)) {
+    throwParseError(`${where}.transition.preset is not a known preset: ${String(preset)}`);
+  }
+
+  return {
+    preset,
+    durationMs: readNumber(value, 'durationMs', `${where}.transition`, {
+      min: MIN_ANIMATION_DURATION_MS,
+      max: MAX_ANIMATION_DURATION_MS,
+    }),
+    easing: parseAnimationEasing(value.easing, `${where}.transition`),
+    direction: parseAnimationDirection(value.direction, `${where}.transition`),
+  };
+}
+
+/**
+ * Mask of an image object. A document written before the field existed (and a
+ * v2 writer that omits it) reads as unmasked — the same tolerance `arc` and
+ * `animation` get — while a present value must be a known preset.
+ */
+function parseImageMask(value: unknown, where: string): ImageMaskPreset | null {
+  if (value === null || value === undefined) return null;
+
+  if (typeof value === 'string' && (IMAGE_MASK_PRESETS as readonly string[]).includes(value)) {
+    return value as ImageMaskPreset;
+  }
+
+  throwParseError(`${where}.mask is not a known mask preset: ${String(value)}`);
+}
+
+function parseObject(value: unknown, where: string, version: number): DocumentObject {
   if (!isRecord(value)) {
     throwParseError(`${where} must be an object`);
   }
@@ -277,7 +574,15 @@ function parseObject(value: unknown, where: string): DocumentObject {
     throwParseError(`${where}.type is not a known object type: ${String(type)}`, 'unknown-object-type');
   }
 
-  const base = readObjectBase(value, where);
+  const base: DocumentObjectBase = {
+    ...readObjectBase(value, where),
+    // v1 has no animation, and a v2 writer that omits the field gets a static
+    // object instead of a hard rejection — the same treatment as `arc`.
+    animation:
+      version === 1 || value.animation === undefined
+        ? null
+        : parseObjectAnimation(value.animation, where),
+  };
 
   if (type === 'text') {
     const align = value.align;
@@ -358,6 +663,11 @@ function parsePage(value: unknown, where: string): DocumentPage {
  * Unknown fields are ignored (the result is a validated copy of the known
  * contract); anything that does not match the schema throws
  * `DocumentParseError` with a machine-readable `code`.
+ *
+ * The parse is tolerant to older schema versions: a v1 document is migrated
+ * on load (page color becomes a solid background, text gains `arc: null`) and
+ * always comes back as a v2 document. The migration is one-way — v2 has no
+ * path back to v1.
  */
 export function parseDocument(input: string): FremitDocument {
   let parsed: unknown;
@@ -371,8 +681,9 @@ export function parseDocument(input: string): FremitDocument {
     throwParseError('document must be a JSON object');
   }
 
-  if (parsed.schemaVersion !== DOCUMENT_SCHEMA_VERSION) {
-    throwParseError(`unsupported schemaVersion: ${String(parsed.schemaVersion)}`, 'unsupported-version');
+  const version = parsed.schemaVersion;
+  if (typeof version !== 'number' || !SUPPORTED_SCHEMA_VERSIONS.includes(version)) {
+    throwParseError(`unsupported schemaVersion: ${String(version)}`, 'unsupported-version');
   }
 
   const pages = parsed.pages;
