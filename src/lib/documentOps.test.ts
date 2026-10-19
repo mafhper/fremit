@@ -606,6 +606,47 @@ describe('page resize', () => {
     expect(text?.fontSize).toBeCloseTo(20, 6);
   });
 
+  it('scales the parameterized shapes without touching sides or inner radius', () => {
+    const resized = resizePageToFormat(buildParameterizedPage(), 'banner');
+    const star = resized.objects[0] as ShapeObject;
+    const polygon = resized.objects[1] as ShapeObject;
+
+    // 1000x1000 -> 1500x500: uniform 0.5 scale.
+    expect(star.width).toBeCloseTo(150, 6);
+    expect(star.height).toBeCloseTo(150, 6);
+    expect(polygon.width).toBeCloseTo(100, 6);
+
+    // A parameter is content, not length: it must not follow the page scale.
+    expect(star.sides).toBe(9);
+    expect(star.innerRadius).toBe(0.42);
+    expect(polygon.sides).toBe(6);
+    expect(polygon.innerRadius).toBe(0.5);
+  });
+
+  it('keeps the image mask when the page is resized, and never rewrites it', () => {
+    const page: DocumentPage = {
+      ...buildPage(),
+      objects: [
+        createImageObject(onePixelPng, {
+          id: 'image-1',
+          x: 100,
+          y: 100,
+          width: 400,
+          height: 300,
+          mask: 'rounded',
+        }),
+      ],
+    };
+
+    const resized = resizePageToFormat(page, 'banner');
+    const image = resized.objects[0];
+
+    expect(image.type === 'image' && image.mask).toBe('rounded');
+    // 1000x1000 -> 1500x500: the geometry scales, the preset does not change.
+    expect(image.width).toBeCloseTo(200, 6);
+    expect(image.height).toBeCloseTo(150, 6);
+  });
+
   it('scales stroke and corner radius with the page', () => {
     const page = buildPage();
     const shapePage: DocumentPage = {

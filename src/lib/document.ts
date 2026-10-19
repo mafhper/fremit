@@ -270,6 +270,13 @@ export interface ImageObject extends DocumentObjectBase {
    */
   src: string;
   fit: ImageFit;
+  /**
+   * Clip of the object box (schema v2); `null` is the untouched box. The
+   * preset is applied by the canvas menu and cleared back to `null`, and it is
+   * a document field — duplicating an object or a page carries it, and the
+   * canvas resize never writes it.
+   */
+  mask: ImageMaskPreset | null;
 }
 
 export type DocumentObject = TextObject | ShapeObject | ImageObject;
@@ -406,6 +413,8 @@ export function createImageObject(
     locked: false,
     src,
     fit: 'contain',
+    mask: null,
+    animation: null,
     ...overrides,
   };
 }
@@ -673,10 +682,11 @@ function parseObject(value: unknown, where: string, version: number): DocumentOb
     type,
     src: readString(value, 'src', where),
     fit,
+    mask: parseImageMask(value.mask, where),
   };
 }
 
-function parsePage(value: unknown, where: string): DocumentPage {
+function parsePage(value: unknown, where: string, version: number): DocumentPage {
   if (!isRecord(value)) {
     throwParseError(`${where} must be an object`);
   }
