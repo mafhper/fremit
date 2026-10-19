@@ -17,4 +17,51 @@ Doory
   any future code: if Doory code is ever introduced here, the AAL credit
   becomes mandatory and must be added at the same time.
 
-  Recorded on 2026-10-17, when the editor document schema was introduced.
+  Recorded on 2026-10-17, when the editor document schema was introduced;
+  reaffirmed the same day, when the JSON-based export (PNG/JPG/SVG) was added;
+  reaffirmed again the same day, when the sidebar shell (tool rail, docked
+  panels, inspector) was written from scratch.
+
+Apache License 2.0 components
+----------------------------
+
+Rune Icons (Runeicons) — vendored icon artwork
+  Source: https://github.com/Runeicons/runeicons
+  License: Apache License 2.0 — "the Icons", Part 1 of the upstream LICENSE
+  (no additional conditions; the credit here is voluntary)
+  License text: LICENSES/Apache-2.0.txt
+
+  Redistributed: 23 icons of the `normal` (outline) style — 19 editor UI icons
+  plus the 4 chrome icons (menu, moon, sun, globe) — vendored 1:1 into
+  src/components/icons/rune/ from public/normal/** @ commit 2f2a86a
+  (2026-10-11); only the stroke color was normalized (`black` → `currentColor`,
+  inherited from the shared frame in src/components/icons/RuneIcon.tsx).
+
+  Ids: arrows-chevron-down, arrows-chevron-up, code-copy, code-link-2,
+  documents-clipboard, identity-lock, identity-lock-open, indicators-check,
+  indicators-plus, indicators-x, layouts-layers-2, layouts-layout-grid,
+  layouts-menu, nature-cloud-upload, nature-moon, nature-sun, other-globe,
+  playback-image, playback-images, senses-eye, senses-eye-off, tools-sparkles,
+  tools-trash-2.
+
+  Redistributed: the whole icon set of the five styles — 919 SVG files
+  (normal 221, duotone 218, fill 129, pixelated 215, glass-icons 136) — copied
+  1:1 into public/runeicons/** @ the same commit 2f2a86a, plus the generated
+  metadata catalog (id, name, category, tags, style availability) in
+  src/lib/runeicons/manifest.ts, produced by scripts/vendor-runeicons.mjs. The
+  files on disk are unmodified; the Icons panel fetches them as static assets
+  at runtime and rewrites the paint of the fetched markup in memory when the
+  user picks colors.
+
+  NOT REDISTRIBUTED: the upstream "Site Software" (Part 2 — pages, UI
+  components, animations; carries an attribution requirement plus the Commons
+  Clause) and the third-party brand logos (Part 3 — not covered by the
+  upstream license at all) did not enter this repository, in whole or in part.
+  The app's own GitHub mark remains an original icon (src/components/icons/
+  AppIcons.tsx), not the upstream brand-logo file.
+
+  Recorded on 2026-10-18, when the editor UI icons were swapped 1:1 to the
+  vendored normal set, and again the same day, when the full Part 1 data
+  (artwork + catalog) landed for the Icons workspace of the content panel, and
+  once more the same day, when the rail shortcut for the Icons panel adopted
+  `layouts-layout-grid`.

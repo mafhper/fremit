@@ -1,5 +1,5 @@
 import * as Popover from '@radix-ui/react-popover';
-import { GlobePanelIcon } from '@/components/icons/AppIcons';
+import { RuneGlobeIcon } from '@/components/icons/rune/Globe';
 import { Button } from '@/components/ui';
 import { useI18n } from '@/i18n/useI18n';
 
@@ -17,7 +17,7 @@ export function LocaleSelector() {
           aria-label={copy.footer.language}
           title={copy.footer.language}
         >
-          <GlobePanelIcon className="h-4 w-4" />
+          <RuneGlobeIcon className="h-4 w-4" />
         </Button>
       </Popover.Trigger>
       <Popover.Portal>

@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui';
-import { ThemeDarkIcon, ThemeLightIcon } from '@/components/icons/AppIcons';
+import { RuneMoonIcon } from '@/components/icons/rune/Moon';
+import { RuneSunIcon } from '@/components/icons/rune/Sun';
 import { useI18n } from '@/i18n/useI18n';
 import { useStore } from '@/store/useStore';
 
@@ -8,7 +9,7 @@ export function ThemeSelector() {
   const themePreference = useStore((state) => state.appShell.themePreference);
   const setThemePreference = useStore((state) => state.setThemePreference);
   const isDark = themePreference === 'dark';
-  const ActiveIcon = isDark ? ThemeDarkIcon : ThemeLightIcon;
+  const ActiveIcon = isDark ? RuneMoonIcon : RuneSunIcon;
   const nextTheme = isDark ? 'light' : 'dark';
   const currentLabel = isDark ? copy.theme.dark : copy.theme.light;
   const actionLabel = isDark ? copy.theme.toggleToLight : copy.theme.toggleToDark;

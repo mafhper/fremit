@@ -1,30 +1,37 @@
 /**
  * Layers panel: lists the objects of the active page in z-order (top layer
- * first), selects, toggles visibility and lock, reorders and deletes. Every
- * action goes through the store, so the canvas and the panel never disagree.
+ * first), adds, duplicates, selects, toggles visibility and lock, reorders and
+ * deletes. Every action goes through the store, so the canvas and the panel
+ * never disagree. The add affordance inserts the shared default shape — the
+ * same one the shapes drawer inserts — so the panel is never a dead end.
+ * The docked section already labels the region, so this body is not a second
+ * landmark with the same name.
  */
 
-import {
-  ChevronDown,
-  ChevronUp,
-  Eye,
-  EyeOff,
-  Image as ImageIcon,
-  Lock,
-  LockOpen,
-  Square,
-  Trash2,
-  Type,
-} from 'lucide-react';
+import { Square, Type } from 'lucide-react';
+import { RuneChevronDownIcon } from '@/components/icons/rune/ChevronDown';
+import { RuneChevronUpIcon } from '@/components/icons/rune/ChevronUp';
+import { RuneCopyIcon } from '@/components/icons/rune/Copy';
+import { RuneEyeIcon } from '@/components/icons/rune/Eye';
+import { RuneEyeOffIcon } from '@/components/icons/rune/EyeOff';
+import { RuneImageIcon } from '@/components/icons/rune/Image';
+import { RuneLockIcon } from '@/components/icons/rune/Lock';
+import { RuneLockOpenIcon } from '@/components/icons/rune/LockOpen';
+import { RunePlusIcon } from '@/components/icons/rune/Plus';
+import { RuneSparklesIcon } from '@/components/icons/rune/Sparkles';
+import { RuneTrash2Icon } from '@/components/icons/rune/Trash2';
 import { useI18n } from '@/i18n/useI18n';
+import { objectPatch } from '@/lib/documentOps';
+import { createShapePreset } from '@/lib/shapePresets';
 import { cn } from '@/lib/utils';
 import { useStore } from '@/store/useStore';
 import type { DocumentObject } from '@/lib/document';
 import { IconButton } from './IconButton';
 
 function ObjectIcon({ type }: { type: DocumentObject['type'] }) {
+  // Square/Type stay lucide on purpose: the vendored normal set has no 1:1 counterpart (panels/registry.ts).
   if (type === 'text') return <Type className="h-4 w-4 shrink-0" />;
-  if (type === 'image') return <ImageIcon className="h-4 w-4 shrink-0" />;
+  if (type === 'image') return <RuneImageIcon className="h-4 w-4 shrink-0" />;
 
   return <Square className="h-4 w-4 shrink-0" />;
 }
