@@ -111,13 +111,20 @@ function applyFlags(object: FabricObject, docObject: DocumentObject): void {
 }
 
 /**
- * Applies the document z-order: index 0 is the page background, then the
- * objects in document order (the last object on top).
+ * Applies the document z-order: index 0 is the page background rect, the
+ * optional background image sits right above it, and then the objects in
+ * document order (the last object on top). `offset` is the number of
+ * background layers below the objects.
  */
-function applyOrder(canvas: Canvas, page: DocumentPage, objects: Map<string, FabricObject>): void {
+function applyOrder(
+  canvas: Canvas,
+  page: DocumentPage,
+  objects: Map<string, FabricObject>,
+  offset: number,
+): void {
   page.objects.forEach((docObject, index) => {
     const object = objects.get(docObject.id);
-    if (object) canvas.moveObjectTo(object, index + 1);
+    if (object) canvas.moveObjectTo(object, index + offset);
   });
 }
 
@@ -576,7 +583,11 @@ export function CanvasStage({ viewport, onViewportChange, snapEnabled }: CanvasS
       naturalSizesRef.current = new WeakMap();
       loadingImages.clear();
       failedImages.clear();
+      loadedImageSrc.clear();
       pageBackgroundRef.current = null;
+      backgroundImageRef.current = null;
+      backgroundNaturalRef.current = null;
+      backgroundImageSrcRef.current = null;
       guidesRef.current = [];
       interactingRef.current = false;
       fabricRef.current = null;
@@ -756,14 +767,9 @@ export function CanvasStage({ viewport, onViewportChange, snapEnabled }: CanvasS
 
     let pageBackground = pageBackgroundRef.current;
     if (!pageBackground) {
-      pageBackground = new Rect({
-        selectable: false,
-        evented: false,
-        hasControls: false,
-        hasBorders: false,
-        hoverCursor: 'default',
-        excludeFromExport: true,
-      });
+      // The live page fill is never part of a serialized canvas: the document
+      // is the only source of truth for it.
+      pageBackground = createPageBackgroundRect(page, { excludeFromExport: true });
       pageBackgroundRef.current = pageBackground;
       canvas.add(pageBackground);
     }
@@ -772,10 +778,80 @@ export function CanvasStage({ viewport, onViewportChange, snapEnabled }: CanvasS
       top: 0,
       width: page.width,
       height: page.height,
-      fill: page.background,
+      fill:
+        pageBackgroundFill(page.background, { width: page.width, height: page.height }) ?? undefined,
       originX: 'left',
       originY: 'top',
     });
+
+    // Image page fill: an unselectable image right above the rect. It loads
+    // asynchronously like an image object; while it is in flight (or when the
+    // source failed) the page keeps the plain rect.
+    let objectOffset = 1;
+    const surface = imageBackgroundSurface(page);
+
+    if (surface) {
+      objectOffset = 2;
+      const loaded = backgroundImageRef.current;
+
+      if (loaded && backgroundImageSrcRef.current === surface.src) {
+        fitImageCover(
+          loaded,
+          surface,
+          backgroundNaturalRef.current ?? { width: page.width, height: page.height },
+        );
+        canvas.moveObjectTo(loaded, 1);
+      } else if (backgroundImageSrcRef.current !== surface.src) {
+        const requestedSrc = surface.src;
+        backgroundImageSrcRef.current = requestedSrc;
+
+        void FabricImage.fromURL(requestedSrc, { crossOrigin: 'anonymous' })
+          .then((image) => {
+            const activeCanvas = fabricRef.current;
+            const documentPage = activePageFromStore();
+
+            if (!activeCanvas || !documentPage) {
+              return;
+            }
+
+            const currentSurface = imageBackgroundSurface(documentPage);
+
+            if (!currentSurface || currentSurface.src !== requestedSrc) {
+              return;
+            }
+
+            const previous = backgroundImageRef.current;
+            if (previous) activeCanvas.remove(previous);
+
+            const natural = { width: image.width, height: image.height };
+            backgroundNaturalRef.current = natural;
+            image.set({
+              selectable: false,
+              evented: false,
+              hasControls: false,
+              hasBorders: false,
+              hoverCursor: 'default',
+              excludeFromExport: true,
+            });
+            fitImageCover(image, currentSurface, natural);
+            backgroundImageRef.current = image;
+            activeCanvas.add(image);
+            activeCanvas.moveObjectTo(image, 1);
+            applyOrder(activeCanvas, documentPage, objectsRef.current, 2);
+            activeCanvas.requestRenderAll();
+          })
+          .catch(() => {
+            // A failed source leaves the rect as the page; the next document
+            // change with a different source tries again.
+          });
+      }
+    } else if (backgroundImageRef.current || backgroundImageSrcRef.current !== null) {
+      if (backgroundImageRef.current) canvas.remove(backgroundImageRef.current);
+
+      backgroundImageRef.current = null;
+      backgroundNaturalRef.current = null;
+      backgroundImageSrcRef.current = null;
+    }
 
     const seen = new Set<string>();
 
@@ -783,7 +859,72 @@ export function CanvasStage({ viewport, onViewportChange, snapEnabled }: CanvasS
       seen.add(docObject.id);
       const existing = objects.get(docObject.id);
 
-      if (existing) {
+      // A text object flips between the boxed (straight) and the path (curved)
+      // Fabric class when its arc appears or disappears. Mutating the wrong
+      // class would keep painting the old shape, so the object is rebuilt —
+      // unless the canvas is mid-edit, where a swap would drop the session.
+      const editing = existing instanceof Textbox && existing.isEditing;
+      const textClassMismatch =
+        docObject.type === 'text' &&
+        !!existing &&
+        !editing &&
+        (docObject.arc !== null) === (existing instanceof Textbox);
+
+      // An image whose stored source changed swaps its bitmap in place. The
+      // object is not rebuilt: removing it would drop the selection Fabric
+      // holds for it, and the codec applies geometry, never the picture — so
+      // without this the old bitmap would stay after a replacement.
+      if (existing && docObject.type === 'image' && !textClassMismatch) {
+        const requestedSrc = docObject.src;
+        const loadedSrc = loadedImageSrcRef.current.get(docObject.id);
+
+        // A source that already failed keeps the previous bitmap and lets the
+        // regular geometry pass run; anything else waits for the swap.
+        const swapFailed = failedImageSrcRef.current.get(docObject.id) === requestedSrc;
+
+        if (loadedSrc !== requestedSrc && !swapFailed) {
+          if (loadingImageSrcRef.current.get(docObject.id) !== requestedSrc) {
+            const image = existing as FabricImage;
+            loadingImageSrcRef.current.set(docObject.id, requestedSrc);
+
+            void image
+              .setSrc(requestedSrc, { crossOrigin: 'anonymous' })
+              .then(() => {
+                if (loadingImageSrcRef.current.get(docObject.id) === requestedSrc) {
+                  loadingImageSrcRef.current.delete(docObject.id);
+                }
+
+                const current = activePageFromStore()?.objects.find(
+                  (candidate) => candidate.id === docObject.id,
+                );
+                // A newer source took over while this one loaded: it lands
+                // nothing, and its own load repaints.
+                if (current?.type !== 'image' || current.src !== requestedSrc) return;
+
+                failedImageSrcRef.current.delete(docObject.id);
+                loadedImageSrcRef.current.set(docObject.id, requestedSrc);
+                const natural = { width: image.width, height: image.height };
+                naturalSizesRef.current.set(image, natural);
+                applyFlags(image, current);
+                CANVAS_CODECS.image.applyGeometry(image, current, natural);
+                image.setCoords();
+                fabricRef.current?.requestRenderAll();
+              })
+              .catch(() => {
+                if (loadingImageSrcRef.current.get(docObject.id) === requestedSrc) {
+                  loadingImageSrcRef.current.delete(docObject.id);
+                }
+
+                failedImageSrcRef.current.set(docObject.id, requestedSrc);
+              });
+          }
+
+          // The swap repaints and re-applies geometry when it resolves.
+          continue;
+        }
+      }
+
+      if (existing && !textClassMismatch) {
         // Do not fight an in-progress text editing session or a canvas drag.
         if (!(existing instanceof Textbox && existing.isEditing)) {
           applyFlags(existing, docObject);

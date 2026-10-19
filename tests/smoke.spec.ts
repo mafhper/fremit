@@ -2135,6 +2135,139 @@ test('canvas editor inserts the down arc preset as a valley', async ({ page }) =
   expect((down.middle as number) - (down.end as number)).toBeGreaterThan(20);
 });
 
+test('canvas editor applies gradient and image page fills', async ({ page }) => {
+  // The 1x1 PNG used across the suite is one opaque black pixel.
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+    'base64',
+  );
+
+  await page.goto('/fremit/editor');
+  await expect(page.getByTestId('canvas-host')).toBeVisible({ timeout: 15000 });
+  await page.evaluate(() => document.fonts.ready);
+
+  const host = (await page.getByTestId('canvas-host').boundingBox())!;
+  const rail = page.getByTestId('sidebar-rail');
+  await rail.getByRole('button', { name: /Background|Fundo|Fondo/ }).click();
+  const panel = page.getByTestId('sidebar-panel-background');
+  await expect(panel).toBeVisible();
+
+  // The stored kind is the source of truth for the tab.
+  await expect(panel.getByTestId('background-kind-solid')).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+
+  // Gradient: red to blue at 90deg — the page runs left (red) to right (blue).
+  await panel.getByTestId('background-kind-gradient').click();
+  const from = panel.getByTestId('background-from').locator('input[type="text"]');
+  const to = panel.getByTestId('background-to').locator('input[type="text"]');
+  await from.fill('#ff0000');
+  await from.press('Enter');
+  await to.fill('#0000ff');
+  await to.press('Enter');
+  await panel.getByTestId('background-angle').fill('90');
+
+  // Opening the drawer resizes the stage; fit the page again so the sampling
+  // math below matches the live viewport.
+  await page.getByRole('button', { name: /Fit page|Ajustar/ }).click();
+
+  const left = await readCanvasPixel(page, pageToScreen(host, 1080, 4, 4));
+  const right = await readCanvasPixel(page, pageToScreen(host, 1080, 1076, 4));
+
+  expect(left?.[0]).toBeGreaterThan(200);
+  expect(left?.[2]).toBeLessThan(60);
+  expect(right?.[2]).toBeGreaterThan(200);
+  expect(right?.[0]).toBeLessThan(60);
+
+  // Image: the uploaded pixel covers the whole page.
+  await panel.getByTestId('background-kind-image').click();
+  await panel.getByTestId('background-image-file').setInputFiles({
+    name: 'fill.png',
+    mimeType: 'image/png',
+    buffer: png,
+  });
+
+  await page.getByRole('button', { name: /Fit page|Ajustar/ }).click();
+  await expect
+    .poll(async () => (await readCanvasPixel(page, pageToScreen(host, 1080, 4, 4)))?.[0])
+    .toBeLessThan(10);
+  await expect(panel.getByTestId('background-error')).toHaveCount(0);
+
+  // Swapping the source is an update: the canvas follows the new reference,
+  // and the fill to restore on removal is still the first one.
+  const whitePng = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64',
+  );
+  await panel.getByTestId('background-image-file').setInputFiles({
+    name: 'fill-2.png',
+    mimeType: 'image/png',
+    buffer: whitePng,
+  });
+  await page.getByRole('button', { name: /Fit page|Ajustar/ }).click();
+  await expect
+    .poll(async () => (await readCanvasPixel(page, pageToScreen(host, 1080, 4, 4)))?.[0])
+    .toBeGreaterThan(245);
+
+  // The applied fill has a preview around the stored source, framed at the
+  // page format (poster is square).
+  const preview = panel.getByTestId('background-image-preview');
+  await expect(preview).toBeVisible();
+  await expect
+    .poll(async () => {
+      const box = await preview.boundingBox();
+      return box ? Math.round(box.width / box.height) : 0;
+    })
+    .toBe(1);
+
+  // A source that cannot resolve reports the error instead of writing a fill.
+  await panel.getByTestId('background-image-url').fill('not-a-url');
+  await panel.getByTestId('background-image-add-url').click();
+  await expect(panel.getByTestId('background-error')).toBeVisible();
+
+  // Changing the anchor format reflows the preview to the new format (banner
+  // is 3:1) without recreating the stored image fill.
+  const formatSelect = page
+    .getByTestId('inspector')
+    .getByRole('combobox', { name: /^Format(o)?$/ });
+  await formatSelect.click();
+  await page.getByRole('option', { name: /Banner/ }).click();
+  await expect
+    .poll(async () => {
+      const box = await preview.boundingBox();
+      return box ? Math.round(box.width / box.height) : 0;
+    })
+    .toBe(3);
+
+  // The solid fill the page showed before the gradient comes back — the page
+  // remembers its last solid instead of resetting to white.
+  await panel.getByTestId('background-kind-solid').click();
+  await expect(panel.getByTestId('background-color').locator('input[type="text"]')).toHaveValue(
+    '#f5f0e8',
+  );
+  await expect(panel.getByTestId('background-image-preview')).toHaveCount(0);
+
+  // Applying an image over that solid and removing it returns exactly to the
+  // same solid: no preview is left and no image reference survives.
+  await panel.getByTestId('background-kind-image').click();
+  await panel.getByTestId('background-image-file').setInputFiles({
+    name: 'fill-3.png',
+    mimeType: 'image/png',
+    buffer: png,
+  });
+  await expect(panel.getByTestId('background-image-preview')).toBeVisible();
+  await panel.getByTestId('background-image-remove').click();
+  await expect(panel.getByTestId('background-kind-solid')).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(panel.getByTestId('background-color').locator('input[type="text"]')).toHaveValue(
+    '#f5f0e8',
+  );
+  await expect(panel.getByTestId('background-image-preview')).toHaveCount(0);
+});
+
 test('canvas editor applies a local brand kit to the selection', async ({ page }) => {
   const png = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',

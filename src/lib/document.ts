@@ -696,13 +696,28 @@ function parsePage(value: unknown, where: string, version: number): DocumentPage
     throwParseError(`${where}.objects must be an array`);
   }
 
+  // v1 stored one CSS color; the migration wraps it as a solid fill.
+  const background =
+    version === 1
+      ? { kind: 'solid', color: readString(value, 'background', where) } satisfies PageBackground
+      : parsePageBackground(value.background);
+
+  if (!background) {
+    throwParseError(`${where}.background is not a solid, gradient or image background`);
+  }
+
   return {
     id: readString(value, 'id', where),
     name: readString(value, 'name', where),
     width: readNumber(value, 'width', where, { min: 1 }),
     height: readNumber(value, 'height', where, { min: 1 }),
-    background: readString(value, 'background', where),
-    objects: objects.map((object, index) => parseObject(object, `${where}.objects[${index}]`)),
+    background,
+    // v1 has no page transition; a v2 writer that omits the field gets "None".
+    transition:
+      version === 1 || value.transition === undefined
+        ? null
+        : parsePageTransition(value.transition, where),
+    objects: objects.map((object, index) => parseObject(object, `${where}.objects[${index}]`, version)),
   };
 }
 
@@ -742,6 +757,6 @@ export function parseDocument(input: string): FremitDocument {
 
   return {
     schemaVersion: DOCUMENT_SCHEMA_VERSION,
-    pages: pages.map((page, index) => parsePage(page, `pages[${index}]`)),
+    pages: pages.map((page, index) => parsePage(page, `pages[${index}]`, version)),
   };
 }

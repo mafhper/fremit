@@ -434,3 +434,39 @@ describe('canvas codec: image mask', () => {
     expect(patch.width).toBeCloseTo(1350, 5);
   });
 });
+
+describe('canvas codec: page background', () => {
+  const size = { width: 100, height: 100 };
+
+  it('sanitizes the page paint at the render boundary', () => {
+    // A stored value that is not a complete hex never reaches the canvas (or,
+    // through it, the exported markup): the default page color paints instead.
+    expect(pageBackgroundFill({ kind: 'solid', color: 'red' }, size)).toBe(DEFAULT_PAGE_COLOR);
+    expect(pageBackgroundFill({ kind: 'solid', color: '#ABCDEF' }, size)).toBe('#abcdef');
+
+    const gradient = pageBackgroundFill(
+      { kind: 'gradient', from: 'red', to: '#000', angle: 0 },
+      size,
+    );
+
+    if (!(gradient instanceof Gradient)) throw new Error('a gradient fill must build a Gradient');
+
+    expect(gradient.colorStops).toEqual([
+      { offset: 0, color: DEFAULT_PAGE_COLOR },
+      { offset: 1, color: '#000' },
+    ]);
+
+    expect(pageBackgroundFill({ kind: 'image', src: 'x' }, size)).toBeNull();
+  });
+
+  it('takes the export flag from the caller instead of setting it outside', () => {
+    const page = createPage();
+
+    expect(createPageBackgroundRect(page, { excludeFromExport: true }).excludeFromExport).toBe(
+      true,
+    );
+    expect(createPageBackgroundRect(page, { excludeFromExport: false }).excludeFromExport).toBe(
+      false,
+    );
+  });
+});

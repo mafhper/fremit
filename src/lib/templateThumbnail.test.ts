@@ -262,3 +262,83 @@ describe('pageToSvg', () => {
     expect(svg).not.toContain('<line');
     expect(svg).toContain('</svg>');
   });
+
+  it('draws gradient and image page fills', () => {
+    const gradient: DocumentPage = {
+      ...createPage({
+        width: 400,
+        height: 200,
+        background: { kind: 'gradient', from: '#ff0000', to: '#0000ff', angle: 90 },
+      }),
+    };
+
+    const svg = pageToSvg(gradient);
+
+    // 90deg points right: the line runs edge to edge through the middle.
+    expect(svg).toContain('<linearGradient');
+    expect(svg).toContain('gradientUnits="userSpaceOnUse"');
+    expect(svg).toContain('x1="0" y1="100" x2="400" y2="100"');
+    expect(svg).toContain('stop-color="#ff0000"');
+    expect(svg).toContain('stop-color="#0000ff"');
+
+    // The page rect references the id of the defs block, not some other id.
+    const gradientId = /<linearGradient id="([^"]+)"/.exec(svg)?.[1];
+
+    expect(gradientId).toBeTruthy();
+    expect(svg).toContain(`fill="url(#${gradientId})"`);
+
+    const image: DocumentPage = {
+      ...createPage({
+        width: 400,
+        height: 200,
+        background: { kind: 'image', src: 'data:image/png;base64,x' },
+      }),
+    };
+
+    const imageSvg = pageToSvg(image);
+
+    expect(imageSvg).toContain('<image href="data:image/png;base64,x"');
+    expect(imageSvg).toContain('preserveAspectRatio="xMidYMid slice"');
+  });
+
+  it('derives the gradient id from the page, so two calls over it match', () => {
+    const page: DocumentPage = {
+      ...createPage({
+        width: 400,
+        height: 200,
+        background: { kind: 'gradient', from: '#ff0000', to: '#0000ff', angle: 90 },
+      }),
+    };
+
+    const first = pageToSvg(page);
+    const id = /<linearGradient id="([^"]+)"/.exec(first)?.[1];
+
+    expect(id).toBeTruthy();
+    // Same page, same markup: the id no longer depends on call order.
+    expect(pageToSvg(page)).toBe(first);
+
+    // A different gradient cannot borrow the defs of the first one.
+    const other: DocumentPage = {
+      ...createPage({
+        width: 400,
+        height: 200,
+        background: { kind: 'gradient', from: '#00ff00', to: '#0000ff', angle: 90 },
+      }),
+    };
+    const otherId = /<linearGradient id="([^"]+)"/.exec(pageToSvg(other))?.[1];
+
+    expect(otherId).toBeTruthy();
+    expect(otherId).not.toBe(id);
+  });
+
+  it('stays decorative: aria-hidden without a role exposing it again', () => {
+    const svg = pageToSvg(createPage({ width: 10, height: 10 }));
+
+    expect(svg).toContain('aria-hidden="true"');
+    expect(svg).not.toContain('role="img"');
+  });
+
+  it('keeps the escape helper total for every XML special character', () => {
+    expect(escapeXml(`&<>"'`)).toBe('&amp;&lt;&gt;&quot;&apos;');
+  });
+});

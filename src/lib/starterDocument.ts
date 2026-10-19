@@ -24,7 +24,7 @@ export function createStarterDocument(): FremitDocument {
     name: 'Poster',
     width: 1080,
     height: 1080,
-    background: '#f5f0e8',
+    background: { kind: 'solid', color: '#f5f0e8' },
   });
 
   page.objects.push(

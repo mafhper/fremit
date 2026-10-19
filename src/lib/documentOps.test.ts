@@ -28,6 +28,8 @@ import {
   createPage,
   createShapeObject,
   createTextObject,
+  parseDocument,
+  serializeDocument,
   type DocumentPage,
   type FremitDocument,
   type ShapeObject,
@@ -565,6 +567,55 @@ describe('page operations', () => {
 
     const renamed = renamePage(moved, secondId, 'Hero');
     expect(findPage(renamed, secondId)?.name).toBe('Hero');
+  });
+
+  it('replaces the page background and keeps geometry and objects untouched', () => {
+    const page = buildPage();
+    const recolored = setPageBackgroundInPage(page, { kind: 'solid', color: '#123456' });
+
+    expect(recolored.background).toEqual({ kind: 'solid', color: '#123456' });
+    expect(recolored.objects).toEqual(page.objects);
+    expect({ ...recolored, background: page.background }).toEqual(page);
+  });
+
+  it('writes every background kind and normalizes its colors', () => {
+    const page = buildPage();
+
+    const gradient = setPageBackgroundInPage(page, {
+      kind: 'gradient',
+      from: '  #ABCDEF  ',
+      to: '#123456',
+      angle: 495,
+    });
+    expect(gradient.background).toEqual({
+      kind: 'gradient',
+      from: '#abcdef',
+      to: '#123456',
+      angle: 135,
+    });
+
+    const image = setPageBackgroundInPage(gradient, { kind: 'image', src: onePixelPng });
+    expect(image.background).toEqual({ kind: 'image', src: onePixelPng });
+    expect(image).not.toBe(gradient);
+  });
+
+  it('only accepts a complete hex color and rejects an empty image source', () => {
+    const page = buildPage();
+
+    // Anything the document must not store leaves the page untouched.
+    expect(setPageBackgroundInPage(page, { kind: 'solid', color: 'red' })).toBe(page);
+    expect(setPageBackgroundInPage(page, { kind: 'solid', color: '#12' })).toBe(page);
+    expect(
+      setPageBackgroundInPage(page, { kind: 'gradient', from: '#ffffff', to: 'url(evil)', angle: 0 }),
+    ).toBe(page);
+    expect(setPageBackgroundInPage(page, { kind: 'image', src: '   ' })).toBe(page);
+
+    const recolored = setPageBackgroundInPage(page, { kind: 'solid', color: '  #ABCDEF  ' });
+    expect(recolored.background).toEqual({ kind: 'solid', color: '#abcdef' });
+    expect(recolored).not.toBe(page);
+
+    // The same color again is not a write either.
+    expect(setPageBackgroundInPage(recolored, { kind: 'solid', color: '#abcdef' })).toBe(recolored);
   });
 
   it('replaces a page without touching its neighbours', () => {

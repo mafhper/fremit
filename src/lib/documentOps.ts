@@ -9,7 +9,8 @@
  * Written from scratch for Fremit; no code copied from any reference editor.
  */
 
-import { createPage, type DocumentObject, type DocumentPage, type FremitDocument, type ImageObject, type ShapeObject, type TextObject } from '@/lib/document';
+import { pageBackgroundsEqual, sanitizePageBackground } from '@/lib/pageBackground';
+import { createPage, type DocumentObject, type DocumentObjectBase, type DocumentPage, type FremitDocument, type ImageObject, type PageBackground, type PageTransition, type ShapeObject, type TextObject } from '@/lib/document';
 
 /**
  * Page formats for the minimal resize (F1.6). Dimensions fixed at execution
@@ -299,6 +300,49 @@ export function renamePage(document: FremitDocument, pageId: string, name: strin
     ...document,
     pages: document.pages.map((page) => (page.id === pageId ? { ...page, name } : page)),
   };
+}
+
+/**
+ * Replaces the page background (Documento v2: solid color, linear gradient or
+ * image). Only a complete value is written — a color that is not `#rgb`/
+ * `#rrggbb` or an empty image source leaves the page untouched — and stored
+ * colors are normalized (trimmed, lowercased). The objects, geometry and
+ * everything else stay untouched — changing the page fill never moves content.
+ */
+export function setPageBackgroundInPage(page: DocumentPage, background: PageBackground): DocumentPage {
+  const sanitized = sanitizePageBackground(background);
+
+  if (!sanitized || pageBackgroundsEqual(sanitized, page.background)) {
+    return page;
+  }
+
+  return { ...page, background: sanitized };
+}
+
+function transitionsEqual(a: PageTransition | null, b: PageTransition | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+
+  return (
+    a.preset === b.preset &&
+    a.durationMs === b.durationMs &&
+    a.easing === b.easing &&
+    a.direction === b.direction
+  );
+}
+
+/**
+ * Replaces the page transition (Documento v2); `null` is "None". A transition
+ * equal to the stored one is not a write — the page reference stays put, like
+ * every other no-op in this module.
+ */
+export function setPageTransitionInPage(
+  page: DocumentPage,
+  transition: PageTransition | null,
+): DocumentPage {
+  if (transitionsEqual(page.transition, transition)) return page;
+
+  return { ...page, transition };
 }
 
 function clamp(value: number, min: number, max: number): number {
