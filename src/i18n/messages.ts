@@ -159,6 +159,18 @@ export interface MessageSchema {
     canvasLabel: string;
     workspaceBackground: string;
   };
+  contextMenu: {
+    /** Accessible name of the menu opened over an image object. */
+    label: string;
+    replaceImage: string;
+    maskImage: string;
+    clearMask: string;
+    invalidFile: string;
+    readFailed: string;
+    videoUnsupported: string;
+    unsupportedType: string;
+    error: string;
+  };
   text: {
     headings: string;
     subheading: string;
@@ -634,6 +646,17 @@ export const messages: Record<Locale, MessageSchema> = {
       selection: 'Selection',
       canvasLabel: 'Canvas workspace',
       workspaceBackground: 'Workspace background',
+    },
+    contextMenu: {
+      label: 'Image actions',
+      replaceImage: 'Replace image',
+      maskImage: 'Apply rounded mask',
+      clearMask: 'Clear mask',
+      invalidFile: 'Only image files are supported.',
+      readFailed: 'The image file could not be read.',
+      videoUnsupported: 'Video is not supported. Choose an image.',
+      unsupportedType: 'This file type is not supported. Use SVG, WebP, PNG or JPG.',
+      error: 'The image could not be replaced.',
     },
     text: {
       headings: 'Headings',
@@ -1159,6 +1182,17 @@ export const messages: Record<Locale, MessageSchema> = {
       canvasLabel: 'Área de trabalho do canvas',
       workspaceBackground: 'Fundo da área de trabalho',
     },
+    contextMenu: {
+      label: 'Ações da imagem',
+      replaceImage: 'Substituir imagem',
+      maskImage: 'Aplicar máscara arredondada',
+      clearMask: 'Limpar máscara',
+      invalidFile: 'Apenas arquivos de imagem são aceitos.',
+      readFailed: 'Não foi possível ler o arquivo de imagem.',
+      videoUnsupported: 'Vídeo não é suportado. Escolha uma imagem.',
+      unsupportedType: 'Este tipo de arquivo não é suportado. Use SVG, WebP, PNG ou JPG.',
+      error: 'Não foi possível substituir a imagem.',
+    },
     text: {
       headings: 'Títulos',
       subheading: 'Subtítulo',
@@ -1682,6 +1716,17 @@ export const messages: Record<Locale, MessageSchema> = {
       selection: 'Selección',
       canvasLabel: 'Área de trabajo del lienzo',
       workspaceBackground: 'Fondo del área de trabajo',
+    },
+    contextMenu: {
+      label: 'Acciones de la imagen',
+      replaceImage: 'Reemplazar imagen',
+      maskImage: 'Aplicar máscara redondeada',
+      clearMask: 'Quitar máscara',
+      invalidFile: 'Solo se aceptan archivos de imagen.',
+      readFailed: 'No se pudo leer el archivo de imagen.',
+      videoUnsupported: 'El vídeo no es compatible. Elige una imagen.',
+      unsupportedType: 'Este tipo de archivo no es compatible. Usa SVG, WebP, PNG o JPG.',
+      error: 'No se pudo reemplazar la imagen.',
     },
     text: {
       headings: 'Títulos',
