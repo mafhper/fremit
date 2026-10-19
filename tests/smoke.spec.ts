@@ -235,6 +235,7 @@ test('public mobile menu exposes navigation and open app', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /Paste, edit, and export\.|Cole, edite e exporte\./i })).toBeVisible();
 
   const menu = page.getByRole('button', { name: /Menu|Menú/i });
+  await expect(menu.locator('svg')).toHaveAttribute('aria-hidden', 'true');
   await menu.click();
   await expect(menu).toHaveAttribute('aria-expanded', 'true');
 
@@ -284,6 +285,10 @@ test('theme selector switches between dark and light', async ({ page }) => {
   const selector = page.getByRole('button', {
     name: /Color selector|Seletor de cores|Selector de color/i,
   });
+
+  // The chrome icons are vendored Runeicons too (sun/moon), decorative.
+  await expect(selector.locator('svg')).toHaveAttribute('aria-hidden', 'true');
+  await expect(selector.locator('svg')).toHaveAttribute('stroke', 'currentColor');
 
   await expect.poll(() => page.evaluate(() => document.documentElement.className)).not.toBe('');
   const initialTheme = await page.evaluate(() => document.documentElement.className);

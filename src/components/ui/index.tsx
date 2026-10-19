@@ -4,7 +4,8 @@ import * as SwitchPrimitive from "@radix-ui/react-switch"
 import * as SelectPrimitive from "@radix-ui/react-select"
 import * as TabsPrimitive from "@radix-ui/react-tabs"
 import * as LabelPrimitive from "@radix-ui/react-label"
-import { Check, ChevronDown } from "lucide-react"
+import { RuneCheckIcon } from "@/components/icons/rune/Check"
+import { RuneChevronDownIcon } from "@/components/icons/rune/ChevronDown"
 import { cn } from "@/lib/utils"
 import { Button } from "./button"
 
@@ -107,7 +108,7 @@ const SelectTrigger = React.forwardRef<
     >
         {children}
         <SelectPrimitive.Icon asChild>
-            <ChevronDown className="h-4 w-4 opacity-50" />
+            <RuneChevronDownIcon className="h-4 w-4 opacity-50" />
         </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
 ))
@@ -162,7 +163,7 @@ const SelectItem = React.forwardRef<
     >
         <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
             <SelectPrimitive.ItemIndicator>
-                <Check className="h-4 w-4" />
+                <RuneCheckIcon className="h-4 w-4" />
             </SelectPrimitive.ItemIndicator>
         </span>
         <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>

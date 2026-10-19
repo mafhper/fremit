@@ -1,6 +1,7 @@
 import * as Popover from '@radix-ui/react-popover';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
-import { GitHubPanelIcon, MenuPanelIcon } from '@/components/icons/AppIcons';
+import { GitHubPanelIcon } from '@/components/icons/AppIcons';
+import { RuneMenuIcon } from '@/components/icons/rune/Menu';
 import iconUrl from '/icon.svg?url';
 import { LocaleSelector } from '@/components/layout/LocaleSelector';
 import { ThemeSelector } from '@/components/layout/ThemeSelector';
@@ -88,7 +89,7 @@ export function ProductLayout() {
                   aria-label={copy.nav.menu}
                   title={copy.nav.menu}
                 >
-                  <MenuPanelIcon className="h-4 w-4" />
+                  <RuneMenuIcon className="h-4 w-4" />
                 </Button>
               </Popover.Trigger>
               <Popover.Portal>
