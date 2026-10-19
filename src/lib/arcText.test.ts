@@ -4,8 +4,11 @@ import {
   ARC_MIN_SWEEP_DEGREES,
   DEFAULT_ARC_AMOUNT,
   arcSweepDegrees,
+  arcTextBox,
+  arcTextWidth,
   buildArcPathData,
   clampArcAmount,
+  measureTextWidth,
 } from '@/lib/arcText';
 
 /**
@@ -117,5 +120,76 @@ describe('arc text geometry', () => {
       expect(geometry.height).toBeGreaterThan(0);
       expect(geometry.d).not.toContain('NaN');
     }
+  });
+});
+
+/** Arc length from the endpoint parameters: the sweep is 2·asin(chord/2r). */
+function arcLength(d: string): number {
+  const arc = readArcPath(d);
+  const chord = arc.x1 - arc.x0;
+
+  return arc.radius * 2 * Math.asin(chord / (2 * arc.radius));
+}
+
+describe('arc text layout width', () => {
+  it('runs on the engine layout when it is wider than the string measure', () => {
+    // The Linux/FreeType case: the engine's per-glyph sum lands a fraction of
+    // a pixel past the one-shot string measure. The path must cover it.
+    const measured = 400;
+    const layout = 400.75;
+
+    const width = arcTextWidth(measured, layout);
+
+    expect(width).toBeGreaterThan(layout);
+    expect(width).toBeCloseTo(layout + 1, 6);
+  });
+
+  it('keeps a sub-pixel slack over the wider measurement', () => {
+    // The layout is the same as the string measure (Windows/DirectWrite): the
+    // path still gets a 1 px floor, because the path data is rounded and the
+    // two measurements never agree to the last bit.
+    expect(arcTextWidth(400, 0)).toBeCloseTo(401, 6);
+    expect(arcTextWidth(400, 320)).toBeCloseTo(401, 6);
+
+    // Long runs outgrow the floor: the slack scales with the width.
+    expect(arcTextWidth(4000, 0)).toBeCloseTo(4008, 6);
+  });
+
+  it('never lets the centering offset go negative', () => {
+    // Fabric centers the run with `(pathLength - layoutWidth) / 2` and wraps
+    // the first glyph to the end of the path when that offset is negative.
+    const measured = 352.15;
+    const layout = 352.83;
+
+    for (const direction of ['up', 'down'] as const) {
+      const geometry = buildArcPathData({
+        textWidth: arcTextWidth(measured, layout),
+        direction,
+        amount: 0.6,
+      });
+
+      expect((arcLength(geometry.d) - layout) / 2, `${direction} offset`).toBeGreaterThan(0);
+    }
+  });
+
+  it('derives the stored box from the same width as the path', () => {
+    const metrics = {
+      text: 'Curved text',
+      fontFamily: 'Inter, sans-serif',
+      fontSize: 59,
+      fontWeight: 600,
+    };
+
+    const measuredOnly = arcTextBox(metrics, { direction: 'up', amount: 0.6 });
+    const layout = measureTextWidth(metrics) + 4;
+    const withLayout = arcTextBox(metrics, { direction: 'up', amount: 0.6 }, layout);
+
+    // Same sweep, longer run: the chord and the sagitta both grow, so a box
+    // measured from only one of the two inputs could describe a narrower run
+    // than the path it is stored with.
+    expect(withLayout.width).toBeGreaterThan(measuredOnly.width);
+    expect(withLayout.height).toBeGreaterThan(measuredOnly.height);
+    expect(arcLength(withLayout.geometry.d)).toBeGreaterThan(layout);
+    expect((arcLength(withLayout.geometry.d) - layout) / 2).toBeGreaterThan(0);
   });
 });

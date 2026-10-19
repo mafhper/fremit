@@ -4,11 +4,15 @@
  * the text, the font and the curvature — nothing is frozen in the document, so
  * editing the text or the font re-flows the curve.
  *
- * The arc is a circular segment whose arc length equals the measured text
- * width: the text runs along the curve from end to end. `up` is the rainbow
- * (text over the top of a circle), `down` is the valley (text under the bottom
- * of a circle); the path is laid out so that one path side keeps the glyphs
- * upright in both cases.
+ * The arc is a circular segment whose arc length covers the text width: the
+ * text runs along the curve from end to end. The width is the larger of the
+ * one-shot string measurement and the engine's per-glyph layout, plus a
+ * sub-pixel slack — the text engine lays the glyphs out from its own sum, and
+ * a path shorter than that sum makes its centering offset negative and wraps
+ * the first glyph to the end of the path. `up` is the rainbow (text over the
+ * top of a circle), `down` is the valley (text under the bottom of a circle);
+ * the path is laid out so that one path side keeps the glyphs upright in both
+ * cases.
  *
  * The geometry is our own: the reference only proved the concept, and no code
  * was taken from it.
@@ -33,10 +37,34 @@ export interface ArcPathGeometry {
 }
 
 export interface ArcPathInput {
-  /** Measured width of the text at the object's font, in pixels. */
+  /** Width the arc runs on, in text pixels (see `arcTextWidth`). */
   textWidth: number;
   direction: ArcDirection;
   amount: number;
+}
+
+/**
+ * Sub-pixel slack of the arc path: the path data is rounded to two decimals
+ * and the engine's layout sum can drift past either measurement by a fraction
+ * of a pixel depending on the platform rasterizer. The slack keeps the path
+ * from ever coming out shorter than the width the glyphs are laid out at,
+ * which is the only condition for the first glyph not to wrap.
+ */
+const ARC_WIDTH_SLACK_RATIO = 0.002;
+const ARC_WIDTH_SLACK_MIN = 1;
+
+/**
+ * Width the arc runs on: the larger of the two measurements of the same text —
+ * the one-shot string measure (`measureTextWidth`) and the engine's per-glyph
+ * layout sum — plus the sub-pixel slack. Fabric centers the run with
+ * `(pathLength - layoutWidth) / 2`; taking the maximum keeps that offset
+ * non-negative on every rasterizer.
+ */
+export function arcTextWidth(measured: number, layoutWidth = 0): number {
+  const layout = Number.isFinite(layoutWidth) ? layoutWidth : 0;
+  const base = Math.max(measured, layout);
+
+  return base + Math.max(ARC_WIDTH_SLACK_MIN, base * ARC_WIDTH_SLACK_RATIO);
 }
 
 /** `amount` is stored 0..1; anything else (NaN included) lands in range. */
@@ -133,9 +161,16 @@ export function measureTextWidth({ text, fontFamily, fontSize, fontWeight }: Tex
 export function arcTextBox(
   metrics: TextMetricsInput,
   arc: TextArc,
+  /**
+   * Width of the same text as the engine lays it out (Fabric's
+   * `calcTextWidth`). The stored box is derived from the same width as the
+   * path, so the two never disagree; callers without a live object omit it and
+   * the string measurement plus the slack stands in.
+   */
+  layoutWidth = 0,
 ): { width: number; height: number; geometry: ArcPathGeometry } {
   const geometry = buildArcPathData({
-    textWidth: measureTextWidth(metrics),
+    textWidth: arcTextWidth(measureTextWidth(metrics), layoutWidth),
     direction: arc.direction,
     amount: arc.amount,
   });
