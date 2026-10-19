@@ -68,6 +68,9 @@ const workedDocument: FremitDocument = {
           stroke: null,
           strokeWidth: 0,
           cornerRadius: 12,
+          sides: 5,
+          innerRadius: 0.5,
+          animation: { preset: 'rise', durationMs: 500, easing: 'easeOut', direction: 'up' },
         },
         {
           type: 'text',
@@ -228,6 +231,81 @@ describe('Documento JSON round-trip', () => {
       'shape',
       'image',
     ]);
+  });
+
+  it('round-trips every shape kind with its star/polygon parameters', () => {
+    const document = createDocument();
+    document.pages[0].objects.push(
+      createShapeObject('rect'),
+      createShapeObject('ellipse'),
+      createShapeObject('triangle'),
+      createShapeObject('line', { width: 400, height: 1 }),
+      createShapeObject('star', { sides: 7, innerRadius: 0.35 }),
+      createShapeObject('polygon', { sides: 6 }),
+    );
+
+    const reloaded = parseDocument(serializeDocument(document));
+
+    expect(reloaded).toEqual(document);
+    expect(
+      reloaded.pages[0].objects.map((object) => (object.type === 'shape' ? object.shape : null)),
+    ).toEqual(['rect', 'ellipse', 'triangle', 'line', 'star', 'polygon']);
+
+    const star = reloaded.pages[0].objects[4];
+    expect(star.type === 'shape' && star.sides).toBe(7);
+    expect(star.type === 'shape' && star.innerRadius).toBe(0.35);
+  });
+});
+
+describe('Documento v1 migration', () => {
+  it('declares v1 and v2 as the versions the parser understands', () => {
+    expect(SUPPORTED_SCHEMA_VERSIONS).toEqual([1, 2]);
+    expect(DOCUMENT_SCHEMA_VERSION).toBe(2);
+  });
+
+  it('loads a v1 page as v2: the color becomes a solid fill, the text gets arc null', () => {
+    const migrated = parseDocument(JSON.stringify(v1Document));
+
+    expect(migrated.schemaVersion).toBe(DOCUMENT_SCHEMA_VERSION);
+    expect(migrated.pages[0].background).toEqual({ kind: 'solid', color: '#f5f0e8' });
+    expect(migrated.pages[0].transition).toBeNull();
+
+    const text = migrated.pages[0].objects[0];
+    expect(text.type === 'text' && text.arc).toBeNull();
+    expect(text.animation).toBeNull();
+  });
+
+  it('re-serializes the migrated document as v2 and parses back equal', () => {
+    const migrated = parseDocument(JSON.stringify(v1Document));
+    const serialized = serializeDocument(migrated);
+
+    expect(JSON.parse(serialized).schemaVersion).toBe(2);
+    expect(parseDocument(serialized)).toEqual(migrated);
+  });
+
+  it('keeps a v1 background that is not a hex color (tolerant migration)', () => {
+    const named = {
+      ...v1Document,
+      pages: [{ ...v1Document.pages[0], background: 'ivory' }],
+    };
+
+    expect(parseDocument(JSON.stringify(named)).pages[0].background).toEqual({
+      kind: 'solid',
+      color: 'ivory',
+    });
+  });
+
+  it('reads a v2 shape without sides/innerRadius with the defaults (tolerant migration)', () => {
+    const withoutShapeFields = JSON.parse(serializeDocument(workedDocument)) as {
+      pages: { objects: Record<string, unknown>[] }[];
+    };
+    delete withoutShapeFields.pages[0].objects[1].sides;
+    delete withoutShapeFields.pages[0].objects[1].innerRadius;
+
+    const shape = parseDocument(JSON.stringify(withoutShapeFields)).pages[0].objects[1];
+
+    expect(shape.type === 'shape' && shape.sides).toBe(5);
+    expect(shape.type === 'shape' && shape.innerRadius).toBe(0.5);
   });
 });
 

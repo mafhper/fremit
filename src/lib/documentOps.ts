@@ -40,13 +40,59 @@ export function getPageFormat(id: PageFormatId): PageFormat {
   return format;
 }
 
-/** Geometry patch for one object; the discriminant `type` never changes. */
-export type DocumentObjectPatch = Partial<
-  Omit<TextObject, 'type'> & Omit<ShapeObject, 'type'> & Omit<ImageObject, 'type'>
->;
+/**
+ * One patch, discriminated by the object type it may touch. The union is what
+ * keeps a cross patch out: `fontFamily` never type-checks against a shape, and
+ * `id`/`type` are omitted from every branch, so a patch cannot rewrite the
+ * identity of the object it targets. Fields shared by every type build through
+ * `objectPatch`, which takes the discriminant from the target.
+ */
+export type DocumentObjectPatch =
+  | ({ type: 'text' } & Partial<Omit<TextObject, 'id' | 'type'>>)
+  | ({ type: 'shape' } & Partial<Omit<ShapeObject, 'id' | 'type'>>)
+  | ({ type: 'image' } & Partial<Omit<ImageObject, 'id' | 'type'>>);
 
+/** Fields every object type shares — safe to build before the target is known. */
+export type CommonObjectFields = Partial<Omit<DocumentObjectBase, 'id'>>;
+
+/**
+ * Wraps shared fields into a patch for `type`; the discriminant comes from the
+ * target. The `type` is written after the spread on purpose: a cast could
+ * smuggle a `type` into the shared fields, and the spread order is what stops
+ * it from retargeting the patch — `mergeObject` repeats the refusal at write
+ * time.
+ */
+export function objectPatch(
+  type: DocumentObject['type'],
+  fields: CommonObjectFields,
+): DocumentObjectPatch {
+  switch (type) {
+    case 'text':
+      return { ...fields, type: 'text' };
+    case 'shape':
+      return { ...fields, type: 'shape' };
+    case 'image':
+      return { ...fields, type: 'image' };
+  }
+}
+
+/**
+ * Merges a patch into one object. The discriminant must match the target and
+ * only fields the object already carries are written: a cross patch
+ * (`fontFamily` on a shape) or an identity rewrite (`id`) rejects the whole
+ * patch instead of corrupting the object. Both are only reachable through a
+ * cast — the types already forbid them — but the merge never trusts the cast.
+ */
 function mergeObject(object: DocumentObject, patch: DocumentObjectPatch): DocumentObject {
-  return { ...object, ...patch };
+  const { type, ...fields } = patch;
+
+  if (type !== object.type) return object;
+
+  for (const key of Object.keys(fields)) {
+    if (key === 'id' || !(key in object)) return object;
+  }
+
+  return { ...object, ...fields };
 }
 
 export function findPage(document: FremitDocument, pageId: string): DocumentPage | undefined {
@@ -65,20 +111,86 @@ export function updateObjectInPage(
   objectId: string,
   patch: DocumentObjectPatch,
 ): DocumentPage {
-  return {
-    ...page,
-    objects: page.objects.map((object) =>
-      object.id === objectId ? mergeObject(object, patch) : object,
-    ),
-  };
+  const index = page.objects.findIndex((object) => object.id === objectId);
+  const current = page.objects[index];
+
+  // An unknown id is not a write: the page reference stays put.
+  if (!current) return page;
+
+  const next = mergeObject(current, patch);
+
+  // A rejected patch (wrong type, cross field, identity rewrite) is not a write either.
+  if (next === current) return page;
+
+  const objects = [...page.objects];
+  objects[index] = next;
+
+  return { ...page, objects };
+}
+
+/** Appends every object on top of the stack in one page replacement. */
+export function addObjectsToPage(page: DocumentPage, objects: DocumentObject[]): DocumentPage {
+  if (objects.length === 0) return page;
+
+  return { ...page, objects: [...page.objects, ...objects] };
 }
 
 export function addObjectToPage(page: DocumentPage, object: DocumentObject): DocumentPage {
-  return { ...page, objects: [...page.objects, object] };
+  return addObjectsToPage(page, [object]);
 }
 
 export function removeObjectFromPage(page: DocumentPage, objectId: string): DocumentPage {
   return { ...page, objects: page.objects.filter((object) => object.id !== objectId) };
+}
+
+/**
+ * Copy of one object with fresh nested values. `arc` and `animation` are the
+ * nested values an object carries, and a plain spread would keep sharing them:
+ * the copies are meant to be independently editable, so an in-place edit of
+ * one must never leak into the other. Fresh identity stays the caller's job.
+ */
+function cloneObject(object: DocumentObject): DocumentObject {
+  const base: DocumentObject = {
+    ...object,
+    animation: object.animation ? { ...object.animation } : null,
+  };
+
+  if (base.type === 'text') {
+    return { ...base, arc: base.arc ? { ...base.arc } : null };
+  }
+
+  return base;
+}
+
+/**
+ * Duplicates one object directly above its source — the object-level
+ * counterpart of `duplicatePage`: fresh id, ` copy` name, same content, same
+ * neighbourhood in z-order. The copy shares no nested value with its source,
+ * so editing one never corrupts the other. The copy's id comes back so the
+ * caller can select it. An unknown id is not a write: the page reference stays
+ * put.
+ */
+export function duplicateObjectInPage(
+  page: DocumentPage,
+  objectId: string,
+): { page: DocumentPage; objectId: string } {
+  const index = page.objects.findIndex((object) => object.id === objectId);
+  const source = page.objects[index];
+
+  if (!source) {
+    return { page, objectId };
+  }
+
+  const copy: DocumentObject = {
+    ...cloneObject(source),
+    id: crypto.randomUUID(),
+    name: `${source.name} copy`,
+  };
+
+  const objects = [...page.objects];
+  objects.splice(index + 1, 0, copy);
+
+  return { page: { ...page, objects }, objectId: copy.id };
 }
 
 /**

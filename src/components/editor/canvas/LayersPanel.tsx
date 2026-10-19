@@ -42,9 +42,11 @@ export function LayersPanel() {
   const activePageId = useStore((state) => state.activePageId);
   const selectedObjectId = useStore((state) => state.selectedObjectId);
   const selectObject = useStore((state) => state.selectObject);
+  const addObject = useStore((state) => state.addObject);
   const updateObject = useStore((state) => state.updateObject);
   const removeObject = useStore((state) => state.removeObject);
   const moveObjectZ = useStore((state) => state.moveObjectZ);
+  const duplicateObject = useStore((state) => state.duplicateObject);
 
   const page = document.pages.find((candidate) => candidate.id === activePageId) ?? null;
   if (!page) return null;
@@ -52,36 +54,50 @@ export function LayersPanel() {
   const rows = [...page.objects].reverse();
   const selected = page.objects.find((object) => object.id === selectedObjectId) ?? null;
 
+  // Same default as the shapes drawer: the shared preset, inserted through
+  // the store so the selection follows the new object.
+  const addDefaultShape = () => {
+    addObject(createShapePreset('rect', page));
+  };
+
   return (
-    <section className="flex min-h-0 flex-col" aria-label={copy.canvas.layers}>
-      <div className="flex items-center justify-between gap-2 px-1">
-        <h2 className="text-sm font-semibold tracking-tight">{copy.canvas.layers}</h2>
-        <div className="flex items-center gap-1">
-          <IconButton
-            label={copy.canvas.layerUp}
-            testId="layer-up"
-            disabled={!selected}
-            onClick={() => selected && moveObjectZ(selected.id, 'up')}
-          >
-            <ChevronUp className="h-4 w-4" />
-          </IconButton>
-          <IconButton
-            label={copy.canvas.layerDown}
-            testId="layer-down"
-            disabled={!selected}
-            onClick={() => selected && moveObjectZ(selected.id, 'down')}
-          >
-            <ChevronDown className="h-4 w-4" />
-          </IconButton>
-          <IconButton
-            label={copy.canvas.deleteObject}
-            testId="layer-delete"
-            disabled={!selected}
-            onClick={() => selected && removeObject(selected.id)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </IconButton>
-        </div>
+    <div className="flex min-h-0 flex-col">
+      <div className="flex items-center justify-end gap-1 px-1">
+        <IconButton label={copy.canvas.addObject} testId="layer-add" onClick={addDefaultShape}>
+          <RunePlusIcon className="h-4 w-4" />
+        </IconButton>
+        <IconButton
+          label={copy.canvas.duplicateObject}
+          testId="layer-duplicate"
+          disabled={!selected}
+          onClick={() => selected && duplicateObject(selected.id)}
+        >
+          <RuneCopyIcon className="h-4 w-4" />
+        </IconButton>
+        <IconButton
+          label={copy.canvas.layerUp}
+          testId="layer-up"
+          disabled={!selected}
+          onClick={() => selected && moveObjectZ(selected.id, 'up')}
+        >
+          <RuneChevronUpIcon className="h-4 w-4" />
+        </IconButton>
+        <IconButton
+          label={copy.canvas.layerDown}
+          testId="layer-down"
+          disabled={!selected}
+          onClick={() => selected && moveObjectZ(selected.id, 'down')}
+        >
+          <RuneChevronDownIcon className="h-4 w-4" />
+        </IconButton>
+        <IconButton
+          label={copy.canvas.deleteObject}
+          testId="layer-delete"
+          disabled={!selected}
+          onClick={() => selected && removeObject(selected.id)}
+        >
+          <RuneTrash2Icon className="h-4 w-4" />
+        </IconButton>
       </div>
 
       {rows.length === 0 ? (
@@ -182,6 +198,6 @@ export function LayersPanel() {
           <p className="mt-1 text-xs text-[hsl(var(--text-muted))]">—</p>
         )}
       </div>
-    </section>
+    </div>
   );
 }

@@ -249,6 +249,17 @@ export interface ShapeObject extends DocumentObjectBase {
   strokeWidth: number;
   /** Corner radius in pixels; applies to `rect`. */
   cornerRadius: number;
+  /**
+   * Star points / polygon sides (schema v2); inert on the other kinds. The
+   * parser rounds it on load, and every renderer clamps and rounds it again to
+   * `SHAPE_SIDES_MIN`..`SHAPE_SIDES_MAX` — so the stored count is the drawn one.
+   */
+  sides: number;
+  /**
+   * Inner radius of a star as a ratio of its outer radius, 0..1 (schema v2);
+   * inert on the other kinds.
+   */
+  innerRadius: number;
 }
 
 export interface ImageObject extends DocumentObjectBase {
@@ -370,6 +381,9 @@ export function createShapeObject(
     stroke: null,
     strokeWidth: 0,
     cornerRadius: 0,
+    sides: DEFAULT_SHAPE_SIDES,
+    innerRadius: DEFAULT_SHAPE_INNER_RADIUS,
+    animation: null,
     ...overrides,
   };
 }
@@ -602,13 +616,18 @@ function parseObject(value: unknown, where: string, version: number): DocumentOb
       fontWeight: readNumber(value, 'fontWeight', where),
       fill: readString(value, 'fill', where),
       align,
+      // v1 has no curved text: the migration is the straight baseline. A v2
+      // writer that omits `arc` gets the same treatment instead of a hard
+      // rejection — the field is the only text field that is optional in
+      // practice.
+      arc: version === 1 || value.arc === undefined ? null : parseArc(value.arc, where),
     };
   }
 
   if (type === 'shape') {
     const shape = value.shape;
-    if (shape !== 'rect' && shape !== 'ellipse') {
-      throwParseError(`${where}.shape must be rect or ellipse`);
+    if (typeof shape !== 'string' || !(SHAPE_KINDS as readonly string[]).includes(shape)) {
+      throwParseError(`${where}.shape is not a known shape: ${String(shape)}`);
     }
     const stroke = value.stroke;
     if (stroke !== null && typeof stroke !== 'string') {
@@ -617,11 +636,31 @@ function parseObject(value: unknown, where: string, version: number): DocumentOb
     return {
       ...base,
       type,
-      shape,
+      shape: shape as ShapeKind,
       fill: readString(value, 'fill', where),
       stroke,
       strokeWidth: readNumber(value, 'strokeWidth', where, { min: 0 }),
       cornerRadius: readNumber(value, 'cornerRadius', where, { min: 0 }),
+      // v1 has no star/polygon parameters; a v2 writer that omits them gets
+      // the defaults instead of a hard rejection — same treatment as `arc`.
+      //
+      // A side count is an integer everywhere it is drawn (the geometry, the
+      // canvas sync and the inspector all round it), so the boundary stores
+      // the rounded value: what was loaded is exactly what the next render
+      // shows instead of a fractional number that silently renders as another.
+      sides:
+        version === 1 || value.sides === undefined
+          ? DEFAULT_SHAPE_SIDES
+          : Math.round(
+              readNumber(value, 'sides', where, { min: SHAPE_SIDES_MIN, max: SHAPE_SIDES_MAX }),
+            ),
+      innerRadius:
+        version === 1 || value.innerRadius === undefined
+          ? DEFAULT_SHAPE_INNER_RADIUS
+          : readNumber(value, 'innerRadius', where, {
+              min: SHAPE_INNER_RADIUS_MIN,
+              max: SHAPE_INNER_RADIUS_MAX,
+            }),
     };
   }
 

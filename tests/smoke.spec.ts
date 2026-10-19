@@ -1238,6 +1238,55 @@ test('canvas editor selects, nudges, locks and reorders layers from the panel', 
   await expect(page.getByTestId('layer-row').first()).toContainText('Accent bar');
 });
 
+test('canvas editor creates and duplicates objects from the layers panel header', async ({ page }) => {
+  await page.goto('/fremit/editor');
+  await expect(page.getByTestId('layer-row')).toHaveCount(3);
+
+  const rail = page.getByTestId('sidebar-rail');
+  const layers = page.getByTestId('sidebar-panel-layers');
+
+  // The sidebar path already lands a row in the list — the store wiring is
+  // there. The rectangle preset is the reference geometry for the panel's own
+  // add: centered at 40% of the 1080×1080 page, a 432 square at (324, 324).
+  await rail.getByRole('button', { name: /Shapes|Formas/ }).click();
+  const shapes = page.getByTestId('sidebar-panel-shapes');
+  await expect(shapes).toBeVisible();
+  await shapes.getByTestId('shape-preset-rect').click();
+
+  await rail.getByRole('button', { name: /Layers|Camadas|Capas/ }).click();
+  await expect(layers).toBeVisible();
+  await expect(layers.getByTestId('layer-row')).toHaveCount(4);
+
+  const presetBox = await readSelectionBox(page);
+  expect(presetBox).toEqual({ x: 324, y: 324, width: 432, height: 432 });
+
+  // Remove it: with nothing selected, duplicate waits for a target and add is
+  // always ready.
+  await layers.getByTestId('layer-delete').click();
+  await expect(layers.getByTestId('layer-row')).toHaveCount(3);
+  await expect(layers.getByTestId('layer-duplicate')).toBeDisabled();
+  await expect(layers.getByTestId('layer-add')).toBeEnabled();
+
+  // The header controls render their vendored icons too.
+  await expect(layers.getByTestId('layer-add').locator('svg')).toHaveCount(1);
+
+  // The panel's own add inserts the same default object — no drawer involved.
+  await layers.getByTestId('layer-add').click();
+  await expect(layers.getByTestId('layer-row')).toHaveCount(4);
+  await expect(layers.getByTestId('layer-row').first()).toContainText('Rectangle');
+  expect(await readSelectionBox(page)).toEqual(presetBox);
+
+  // Duplicate clones the selection right above itself and follows the copy.
+  await layers.getByTestId('layer-duplicate').click();
+  await expect(layers.getByTestId('layer-row')).toHaveCount(5);
+  await expect(layers.getByTestId('layer-row').filter({ hasText: 'Rectangle copy' })).toHaveCount(1);
+  await expect(layers.getByTestId('layer-row').first()).toContainText('Rectangle copy');
+  await expect(
+    layers.getByTestId('layer-row').first().getByTestId('layer-select'),
+  ).toHaveAttribute('aria-pressed', 'true');
+  expect(await readSelectionBox(page)).toEqual(presetBox);
+});
+
 test('canvas editor keeps a locked object in place when dragged', async ({ page }) => {
   await page.goto('/fremit/editor');
   await expect(page.getByTestId('layer-row')).toHaveCount(3);
@@ -1370,7 +1419,9 @@ test('canvas editor resizes an object from its corner handle', async ({ page }) 
   await expect(page.getByTestId('layer-row')).toHaveCount(3);
 });
 
-test('canvas editor adds text, shape and image from the toolbar', async ({ page }) => {
+test('canvas editor inserts text presets, shapes and images from the rail panels', async ({
+  page,
+}) => {
   const png = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
     'base64',
@@ -1382,16 +1433,238 @@ test('canvas editor adds text, shape and image from the toolbar', async ({ page 
   await page.getByRole('button', { name: /Add text|Adicionar texto|Añadir texto/i }).click();
   await expect(page.getByTestId('layer-row')).toHaveCount(4);
   await expect(page.getByTestId('layer-row').filter({ hasText: 'Text' })).toHaveCount(1);
+  const rail = page.getByTestId('sidebar-rail');
+  const openTool = (name: RegExp) => rail.getByRole('button', { name }).click();
+  const layers = () => page.getByTestId('layer-row');
 
   await page.getByRole('button', { name: /Add shape|Adicionar forma|Añadir forma/i }).click();
   await expect(page.getByTestId('layer-row')).toHaveCount(5);
   await expect(page.getByTestId('layer-row').filter({ hasText: 'Shape' })).toHaveCount(1);
+  // Text drawer: straight presets, a pairing (heading + body) and a list. The
+  // dock shows one panel at a time, so the layers panel comes back for counts.
+  await openTool(/Text|Texto/);
+  const textPanel = page.getByTestId('sidebar-panel-text');
+  await expect(textPanel).toBeVisible();
+
+  await textPanel.getByTestId('text-preset-subheading').click();
+  await openTool(/Layers|Camadas|Capas/);
+  await expect(layers()).toHaveCount(4);
+  await expect(layers().filter({ hasText: 'Subheading' })).toHaveCount(1);
+
+  await openTool(/Text|Texto/);
+  await textPanel.getByTestId('text-preset-classic').click();
+  // The pairing lands as one insertion and the selection follows the last
+  // object (the body), which the inspector names.
+  await expect(page.getByTestId('inspector-name')).toHaveValue('Classic body');
+  await openTool(/Layers|Camadas|Capas/);
+  await expect(layers()).toHaveCount(6);
+  await expect(layers().filter({ hasText: 'Classic heading' })).toHaveCount(1);
+  await expect(layers().filter({ hasText: 'Classic body' })).toHaveCount(1);
+
+  await openTool(/Text|Texto/);
+  await textPanel.getByTestId('text-preset-numbered-list').click();
+  await openTool(/Layers|Camadas|Capas/);
+  await expect(layers()).toHaveCount(7);
+  await expect(layers().filter({ hasText: 'Numbered list' })).toHaveCount(1);
+
+  // Shapes drawer.
+  await openTool(/Shapes|Formas/);
+  const shapesPanel = page.getByTestId('sidebar-panel-shapes');
+  await expect(shapesPanel).toBeVisible();
+  await shapesPanel.getByTestId('shape-preset-ellipse').click();
+  await openTool(/Layers|Camadas|Capas/);
+  await expect(layers()).toHaveCount(8);
+  await expect(layers().filter({ hasText: 'Ellipse' })).toHaveCount(1);
+
+  // Images drawer: the upload path.
+  await openTool(/Images|Imagens|Imágenes/);
+  const imagesPanel = page.getByTestId('sidebar-panel-images');
+  await expect(imagesPanel).toBeVisible();
+  await imagesPanel.getByTestId('images-file').setInputFiles({
+    name: 'sticker.png',
+    mimeType: 'image/png',
+    buffer: png,
+  });
+  await openTool(/Layers|Camadas|Capas/);
+  await expect(layers()).toHaveCount(9);
+  await expect(layers().filter({ hasText: 'sticker.png' })).toHaveCount(1);
+
+  // WebP upload: the fixture is encoded by this same browser, uploaded through
+  // the file input (data URL path) and decoded back onto the canvas — import
+  // accepts WebP and the browser decodes it (ADR-007).
+  const webpBase64 = await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 32;
+    canvas.height = 32;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('no 2d context for the WebP fixture');
+    context.fillStyle = '#e11d48';
+    context.fillRect(0, 0, 32, 32);
+
+    return canvas.toDataURL('image/webp').split(',')[1];
+  });
+
+  await openTool(/Images|Imagens|Imágenes/);
+  await imagesPanel.getByTestId('images-file').setInputFiles({
+    name: 'sticker.webp',
+    mimeType: 'image/webp',
+    buffer: Buffer.from(webpBase64, 'base64'),
+  });
+  await openTool(/Layers|Camadas|Capas/);
+  await expect(layers()).toHaveCount(10);
+  await expect(layers().filter({ hasText: 'sticker.webp' })).toHaveCount(1);
+
+  // Decode proof: the flat red square paints at the center of its box (the
+  // inserted image is 32x32, contain-fitted and centered in the layer box).
+  const host = (await page.getByTestId('canvas-host').boundingBox())!;
+  const center = pageToScreen(host, 1080, 540, 453.6);
+  await expect
+    .poll(async () => {
+      const pixel = await readCanvasPixel(page, center);
+      return pixel ? pixel[0] > 180 && pixel[1] < 90 : false;
+    })
+    .toBe(true);
+});
+
+test('canvas editor inserts every shape kind, renders it and exports it', async ({ page }) => {
+  test.slow();
+  await page.goto('/fremit/editor');
+  await expect(page.getByTestId('layer-row')).toHaveCount(3);
+
+  const rail = page.getByTestId('sidebar-rail');
+  await rail.getByRole('button', { name: /Shapes|Formas/ }).click();
+  const shapes = page.getByTestId('sidebar-panel-shapes');
+  await expect(shapes).toBeVisible();
+
+  const host = (await page.getByTestId('canvas-host').boundingBox())!;
+  const names = {
+    line: 'Line',
+    rect: 'Rectangle',
+    ellipse: 'Ellipse',
+    triangle: 'Triangle',
+    star: 'Star',
+    polygon: 'Polygon',
+  } as const;
+  const isBlue = (pixel: number[] | undefined) =>
+    !!pixel && pixel[0] < 90 && pixel[2] > 150;
+
+  // The line first, alone on the page: a pixel sample proves its stroke
+  // without any filled shape underneath. The segment rides the box diagonal
+  // at the page center, so the sample sits on the stroke; the control sample
+  // sits below the starter cover image, where only the page fill paints.
+  await shapes.getByTestId('shape-preset-line').click();
+  await expect(page.getByTestId('inspector-name')).toHaveValue('Line');
+
+  const onLine = pageToScreen(host, 1080, 540, 542);
+  const offLine = pageToScreen(host, 1080, 540, 750);
+  await expect.poll(async () => isBlue(await readCanvasPixel(page, onLine))).toBe(true);
+  const background = await readCanvasPixel(page, offLine);
+  expect(background?.[0]).toBeGreaterThan(200);
+
+  // The raster export paints the same stroke: the new geometry travels
+  // through the real render path, not only through the live canvas.
+  const [linePixel, pagePixel] = await sampleExportedPng(page, [
+    { x: 540, y: 542 },
+    { x: 540, y: 750 },
+  ]);
+  expect(isBlue(linePixel)).toBe(true);
+  expect(pagePixel[0]).toBeGreaterThan(200);
+
+  // The filled kinds share the same centered box, so each new one lands on
+  // top of the previous and the center sample shows the kind just inserted.
+  const center = pageToScreen(host, 1080, 540, 540);
+
+  for (const kind of ['rect', 'ellipse', 'triangle', 'star', 'polygon'] as const) {
+    await shapes.getByTestId(`shape-preset-${kind}`).click();
+    await expect(page.getByTestId('inspector-name')).toHaveValue(names[kind]);
+    await expect.poll(async () => isBlue(await readCanvasPixel(page, center))).toBe(true);
+  }
+
+  // Every kind landed as a layer.
+  await rail.getByRole('button', { name: /Layers|Camadas|Capas/ }).click();
+  await expect(page.getByTestId('layer-row')).toHaveCount(9);
+
+  // The vector export carries each kind as its own element: rect, ellipse,
+  // polyline (the line) and one polygon per triangle, star and polygon.
+  const svg = await exportActivePageAsSvg(page);
+  expect(svg).toContain('<rect');
+  expect(svg).toContain('<ellipse');
+  expect(svg).toContain('<polyline');
+  expect((svg.match(/<polygon/g) ?? []).length).toBeGreaterThanOrEqual(3);
+  expect(svg).toContain('vector-effect="non-scaling-stroke"');
+
+  // The inspector edits the new parameters live: star tips and inner radius,
+  // and the line's length over its box diagonal. The dock went back to the
+  // layers panel for the count, so the shapes drawer comes back first.
+  await rail.getByRole('button', { name: /Shapes|Formas/ }).click();
+  await expect(shapes).toBeVisible();
+
+  const inspector = page.getByTestId('inspector');
+
+  await shapes.getByTestId('shape-preset-star').click();
+  await expect(inspector.getByTestId('inspector-sides')).toHaveValue('5');
+  let hash = await canvasHash(page);
+  await inspector.getByTestId('inspector-sides').fill('7');
+  await expect.poll(() => canvasHash(page)).not.toBe(hash);
+  await expect(inspector.getByTestId('inspector-sides')).toHaveValue('7');
+
+  hash = await canvasHash(page);
+  await inspector.getByTestId('inspector-inner-radius').fill('70');
+  await expect.poll(() => canvasHash(page)).not.toBe(hash);
+  await expect(inspector.getByTestId('inspector-inner-radius')).toHaveValue('70');
+
+  await shapes.getByTestId('shape-preset-line').click();
+  await expect(inspector.getByTestId('inspector-length')).toHaveValue('432');
+  hash = await canvasHash(page);
+  await inspector.getByTestId('inspector-length').fill('600');
+  await expect.poll(() => canvasHash(page)).not.toBe(hash);
+  await expect(inspector.getByTestId('inspector-width')).toHaveValue('600');
+});
+
+test('canvas editor inspector edits the selected shape live', async ({ page }) => {
+  await page.goto('/fremit/editor');
+  await expect(page.getByTestId('layer-row')).toHaveCount(3);
 
   await page
     .locator('input[type="file"]')
     .setInputFiles({ name: 'sticker.png', mimeType: 'image/png', buffer: png });
   await expect(page.getByTestId('layer-row')).toHaveCount(6);
   await expect(page.getByTestId('layer-row').filter({ hasText: 'sticker.png' })).toHaveCount(1);
+    .getByTestId('layer-row')
+    .filter({ hasText: 'Accent bar' })
+    .getByTestId('layer-select')
+    .click();
+  const inspector = page.getByTestId('inspector');
+
+  // Geometry: the width control writes the document; the layers readout follows.
+  await inspector.getByTestId('inspector-width').fill('200');
+  await expect(page.getByTestId('selection-width')).toHaveText('200');
+
+  // Fill: the canvas repaints the bar with the new color. The sample sits
+  // inside the bar but away from the Fabric controls (corners and mid-edges),
+  // which paint over the content while the object is selected.
+  const host = (await page.getByTestId('canvas-host').boundingBox())!;
+  const center = pageToScreen(host, 1080, 150, 743);
+  const before = await readCanvasPixel(page, center);
+  expect(before?.slice(0, 3)).toEqual([31, 111, 235]);
+
+  await inspector.getByTestId('inspector-fill').locator('input[type="text"]').fill('#ff0000');
+  // The hex field writes once, on blur/Enter: the Enter is the commit.
+  await inspector.getByTestId('inspector-fill').locator('input[type="text"]').press('Enter');
+  await expect.poll(async () => (await readCanvasPixel(page, center))?.[0]).toBeGreaterThan(200);
+  const painted = await readCanvasPixel(page, center);
+  expect(painted?.[1]).toBeLessThan(80);
+
+  // Opacity blends the bar with the page background.
+  await inspector.getByTestId('inspector-opacity').fill('50');
+  await expect.poll(async () => (await readCanvasPixel(page, center))?.[1]).toBeGreaterThan(80);
+
+  // Rotation is a live control too: the painted canvas changes.
+  const hash = await canvasHash(page);
+  await inspector.getByTestId('inspector-rotation').fill('8');
+  await expect.poll(() => canvasHash(page)).not.toBe(hash);
+});
+
 test('canvas editor inspector switches the image fit live', async ({ page }) => {
   await page.goto('/fremit/editor');
   await expect(page.getByTestId('layer-row')).toHaveCount(3);

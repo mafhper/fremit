@@ -1,9 +1,12 @@
 import { create } from 'zustand';
 import { getViewportSize } from '@/lib/framePresets';
-import { createImageObject, type DocumentObject, type FremitDocument } from '@/lib/document';
+import { createImageObject, type DocumentObject, type DocumentPage, type FremitDocument, type PageBackground, type PageTransition } from '@/lib/document';
+import type { RepoSummary } from '@/lib/githubRepo';
 import {
-  addObjectToPage,
+  addObjectsToPage,
   addPage as addPageToDocument,
+  addTemplatePage as addTemplatePageToDocument,
+  duplicateObjectInPage,
   duplicatePage as duplicateDocumentPage,
   findPage,
   moveObjectInPage,
@@ -12,11 +15,18 @@ import {
   renamePage as renameDocumentPage,
   replacePage,
   resizePageToFormat,
+  setPageBackgroundInPage,
+  setPageTransitionInPage,
   updateObjectInPage,
   type DocumentObjectPatch,
   type PageFormatId,
 } from '@/lib/documentOps';
 import { createStarterDocument } from '@/lib/starterDocument';
+import {
+  ImageReplaceError,
+  replaceImageSourceInPage,
+  type ImageReplaceResult,
+} from '@/lib/imageReplace';
 import type {
   AppShellState,
   BackgroundState,
@@ -214,7 +224,28 @@ function withViewport(frame: FrameState, next: Partial<FrameState>) {
   };
 }
 
-export const useStore = create<AppState>((set) => ({
+/**
+ * One insertion path for the active page: the objects land together and the
+ * selection follows the last of the group. `addObject` and `addObjects` differ
+ * only in the size of the group, so a pairing can never half-insert.
+ */
+function insertObjects(
+  state: Pick<AppState, 'document' | 'activePageId'>,
+  objects: DocumentObject[],
+): Partial<AppState> {
+  if (objects.length === 0) return {};
+
+  const page = findPage(state.document, state.activePageId);
+
+  if (!page) return {};
+
+  return {
+    document: replacePage(state.document, addObjectsToPage(page, objects)),
+    selectedObjectId: objects[objects.length - 1].id,
+  };
+}
+
+export const useStore = create<AppState>((set, get) => ({
   source: {
     draftUrl: '',
     status: 'idle',
@@ -440,24 +471,48 @@ export const useStore = create<AppState>((set) => ({
 
       return { document: replacePage(state.document, resizePageToFormat(page, format)) };
     }),
-  addObject: (object) =>
+  setPageBackground: (pageId, background) =>
     set((state) => {
-      const page = findPage(state.document, state.activePageId);
+      const page = findPage(state.document, pageId);
 
       if (!page) return {};
 
-      return {
-        document: replacePage(state.document, addObjectToPage(page, object)),
-        selectedObjectId: object.id,
-      };
+      const nextPage = setPageBackgroundInPage(page, background);
+
+      // A value the document does not accept (or the same color again) leaves
+      // the document reference alone: no write, no re-render.
+      if (nextPage === page) return {};
+
+      return { document: replacePage(state.document, nextPage) };
     }),
+  setPageTransition: (pageId, transition) =>
+    set((state) => {
+      const page = findPage(state.document, pageId);
+
+      if (!page) return {};
+
+      const nextPage = setPageTransitionInPage(page, transition);
+
+      // The same transition again (or "None" over "None") is not a write.
+      if (nextPage === page) return {};
+
+      return { document: replacePage(state.document, nextPage) };
+    }),
+  addObject: (object) => set((state) => insertObjects(state, [object])),
+  addObjects: (objects) => set((state) => insertObjects(state, objects)),
   updateObject: (objectId, patch) =>
     set((state) => {
       const page = findPage(state.document, state.activePageId);
 
       if (!page) return {};
 
-      return { document: replacePage(state.document, updateObjectInPage(page, objectId, patch)) };
+      const nextPage = updateObjectInPage(page, objectId, patch);
+
+      // An unknown id or a rejected patch leaves the document alone: no write,
+      // no re-render.
+      if (nextPage === page) return {};
+
+      return { document: replacePage(state.document, nextPage) };
     }),
   removeObject: (objectId) =>
     set((state) => {
@@ -478,6 +533,46 @@ export const useStore = create<AppState>((set) => ({
 
       return { document: replacePage(state.document, moveObjectInPage(page, objectId, direction)) };
     }),
+  duplicateObject: (objectId) =>
+    set((state) => {
+      const page = findPage(state.document, state.activePageId);
+
+      if (!page) return {};
+
+      const result = duplicateObjectInPage(page, objectId);
+
+      // An unknown id is not a write: the document reference stays put.
+      if (result.page === page) return {};
+
+      return {
+        document: replacePage(state.document, result.page),
+        selectedObjectId: result.objectId,
+      };
+    }),
+  replaceImageSource: (objectId, src) => {
+    const state = get();
+    const page = findPage(state.document, state.activePageId);
+
+    if (!page) return { ok: false, code: 'unknown-object' };
+
+    try {
+      const nextPage = replaceImageSourceInPage(page, objectId, src);
+
+      // Only a successful replacement writes; the selection is not touched, so
+      // the object stays selected across the source swap.
+      if (nextPage !== page) {
+        set({ document: replacePage(state.document, nextPage) });
+      }
+
+      return { ok: true };
+    } catch (error) {
+      if (error instanceof ImageReplaceError) {
+        return { ok: false, code: error.code };
+      }
+
+      throw error;
+    }
+  },
   selectObject: (objectId) => set({ selectedObjectId: objectId }),
   upsertSourceImage: (src, name) =>
     set((state) => {

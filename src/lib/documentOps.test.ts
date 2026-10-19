@@ -2,17 +2,25 @@ import { describe, expect, it } from 'vitest';
 import {
   PAGE_FORMATS,
   addObjectToPage,
+  addObjectsToPage,
   addPage,
+  addTemplatePage,
+  duplicateObjectInPage,
   duplicatePage,
   findPage,
   getPageFormat,
   moveObjectInPage,
   movePage,
+  objectPatch,
   removeObjectFromPage,
   renamePage,
   replacePage,
   resizePageToFormat,
+  setPageBackgroundInPage,
+  setPageTransitionInPage,
   updateObjectInPage,
+  type CommonObjectFields,
+  type DocumentObjectPatch,
 } from '@/lib/documentOps';
 import {
   createDocument,
@@ -50,10 +58,47 @@ function buildDocument(): FremitDocument {
   return createDocument([buildPage()]);
 }
 
+/** One curved text — the object with the only nested value of the contract. */
+function buildCurvedPage(): DocumentPage {
+  return {
+    ...buildPage(),
+    objects: [createTextObject('Curved', { id: 'text-arc', arc: { direction: 'up', amount: 0.6 } })],
+  };
+}
+
+/**
+ * The parameterized shapes of schema v2. `sides` and `innerRadius` are content,
+ * not length: the generic operations must carry them untouched.
+ */
+function buildParameterizedPage(): DocumentPage {
+  return {
+    ...buildPage(),
+    objects: [
+      createShapeObject('star', {
+        id: 'star-1',
+        x: 100,
+        y: 100,
+        width: 300,
+        height: 300,
+        sides: 9,
+        innerRadius: 0.42,
+      }),
+      createShapeObject('polygon', {
+        id: 'polygon-1',
+        x: 500,
+        y: 100,
+        width: 200,
+        height: 200,
+        sides: 6,
+      }),
+    ],
+  };
+}
+
 describe('object operations', () => {
   it('patches only the target object and keeps the rest untouched', () => {
     const page = buildPage();
-    const next = updateObjectInPage(page, 'shape-1', { x: 42, opacity: 0.5 });
+    const next = updateObjectInPage(page, 'shape-1', { type: 'shape', x: 42, opacity: 0.5 });
 
     const shape = next.objects.find((object) => object.id === 'shape-1');
     expect(shape).toMatchObject({ x: 42, opacity: 0.5 });
@@ -62,13 +107,71 @@ describe('object operations', () => {
   });
 
   it('patches type-specific fields (font size) without losing the type', () => {
-    const next = updateObjectInPage(buildPage(), 'text-1', { fontSize: 72, text: 'Changed' });
+    const next = updateObjectInPage(buildPage(), 'text-1', {
+      type: 'text',
+      fontSize: 72,
+      text: 'Changed',
+    });
     const text = next.objects.find((object): object is TextObject => object.id === 'text-1');
 
     expect(text?.type).toBe('text');
     expect(text?.fontSize).toBe(72);
     expect(text?.text).toBe('Changed');
     expect(text?.align).toBe('left');
+  });
+
+  it('rejects a patch built for another object type', () => {
+    const page = buildPage();
+    const crossed: DocumentObjectPatch = { type: 'text', text: 'nope' };
+
+    expect(updateObjectInPage(page, 'shape-1', crossed)).toBe(page);
+  });
+
+  it('rejects a cross field smuggled through a cast instead of corrupting the shape', () => {
+    const page = buildPage();
+    // `fontFamily` belongs to text objects; the cast is the only way to get it
+    // into a shape patch — the merge must refuse the whole patch.
+    const crossed = { type: 'shape', fontFamily: 'Georgia' } as unknown as DocumentObjectPatch;
+    const next = updateObjectInPage(page, 'shape-1', crossed);
+
+    expect(next).toBe(page);
+    expect(next.objects.find((object) => object.id === 'shape-1')).not.toHaveProperty('fontFamily');
+  });
+
+  it('never rewrites the id, even when a cast smuggles one in', () => {
+    const page = buildPage();
+    const crossed = { type: 'shape', id: 'hacked', x: 5 } as unknown as DocumentObjectPatch;
+    const next = updateObjectInPage(page, 'shape-1', crossed);
+
+    expect(next).toBe(page);
+    expect(next.objects.map((object) => object.id)).not.toContain('hacked');
+  });
+
+  it('ignores an unknown object id without touching the page', () => {
+    const page = buildPage();
+
+    expect(updateObjectInPage(page, 'missing', { type: 'shape', x: 1 })).toBe(page);
+  });
+
+  it('builds a patch for shared fields with the discriminant of the target', () => {
+    expect(objectPatch('text', { x: 1 })).toEqual({ type: 'text', x: 1 });
+    expect(objectPatch('shape', { visible: false })).toEqual({ type: 'shape', visible: false });
+    expect(objectPatch('image', { name: 'Shot' })).toEqual({ type: 'image', name: 'Shot' });
+  });
+
+  it('never lets a casted type override the discriminant of the patch', () => {
+    // The only way to get a `type` into the shared fields is a cast; the
+    // builder must keep the discriminant it was given.
+    const smuggled = { type: 'shape', x: 1 } as unknown as CommonObjectFields;
+    const patch = objectPatch('text', smuggled);
+
+    expect(patch.type).toBe('text');
+
+    // Built for text, the patch must not land on a shape — and still lands on
+    // the type it was built for.
+    const page = buildPage();
+    expect(updateObjectInPage(page, 'shape-1', patch)).toBe(page);
+    expect(updateObjectInPage(page, 'text-1', patch).objects[2]).toMatchObject({ x: 1 });
   });
 
   it('adds an object on top and removes it by id', () => {
@@ -86,6 +189,166 @@ describe('object operations', () => {
     expect(removed.objects.map((object) => object.id)).toEqual(['image-1', 'shape-1', 'text-1']);
   });
 
+  it('adds a group in one page replacement and ignores an empty group', () => {
+    const page = buildPage();
+    const group = [
+      createShapeObject('ellipse', { id: 'shape-2' }),
+      createTextObject('Two', { id: 'text-2' }),
+    ];
+    const added = addObjectsToPage(page, group);
+
+    expect(added.objects.map((object) => object.id)).toEqual([
+      'image-1',
+      'shape-1',
+      'text-1',
+      'shape-2',
+      'text-2',
+    ]);
+    expect(added.objects.slice(0, 3)).toEqual(page.objects);
+
+    expect(addObjectsToPage(added, [])).toBe(added);
+  });
+
+  it('duplicates an object directly above its source with a fresh identity', () => {
+    const page = buildPage();
+    const { page: next, objectId } = duplicateObjectInPage(page, 'shape-1');
+    const copy = next.objects.find((object) => object.id === objectId);
+
+    expect(next.objects.map((object) => object.id)).toEqual([
+      'image-1',
+      'shape-1',
+      objectId,
+      'text-1',
+    ]);
+    expect(objectId).not.toBe('shape-1');
+    // Same content, different identity: the copy is a clone of its source.
+    expect(copy).toEqual({ ...page.objects[1], id: objectId, name: 'Shape copy' });
+  });
+
+  it('ignores duplicate requests for unknown objects', () => {
+    const page = buildPage();
+    const result = duplicateObjectInPage(page, 'missing');
+
+    expect(result.page).toBe(page);
+  });
+
+  it('duplicates the parameterized shapes without flattening their parameters', () => {
+    const page = buildParameterizedPage();
+
+    const star = duplicateObjectInPage(page, 'star-1');
+    const starCopy = star.page.objects.find((object) => object.id === star.objectId) as ShapeObject;
+
+    expect(starCopy).toMatchObject({
+      shape: 'star',
+      sides: 9,
+      innerRadius: 0.42,
+      width: 300,
+      height: 300,
+    });
+
+    const polygon = duplicateObjectInPage(page, 'polygon-1');
+    const polygonCopy = polygon.page.objects.find(
+      (object) => object.id === polygon.objectId,
+    ) as ShapeObject;
+
+    expect(polygonCopy).toMatchObject({ shape: 'polygon', sides: 6, width: 200, height: 200 });
+  });
+
+  it('keeps a duplicated document a valid round-trip', () => {
+    const { page } = duplicateObjectInPage(buildPage(), 'text-1');
+    const document = createDocument([page]);
+
+    expect(parseDocument(serializeDocument(document))).toEqual(document);
+  });
+
+  it('duplicates an image with its mask without altering the source', () => {
+    const page: DocumentPage = {
+      ...buildPage(),
+      objects: [
+        createImageObject(onePixelPng, {
+          id: 'image-1',
+          x: 10,
+          y: 20,
+          width: 300,
+          height: 200,
+          mask: 'rounded',
+        }),
+        createShapeObject('rect', { id: 'shape-1' }),
+      ],
+    };
+
+    const { page: next, objectId } = duplicateObjectInPage(page, 'image-1');
+    const copy = next.objects.find((object) => object.id === objectId);
+
+    expect(copy).toMatchObject({
+      type: 'image',
+      mask: 'rounded',
+      x: 10,
+      y: 20,
+      width: 300,
+      height: 200,
+    });
+    expect(page.objects[0]).toMatchObject({ mask: 'rounded' });
+
+    // The mask is a document field: clearing the copy never touches the source.
+    const edited = updateObjectInPage(next, objectId, { type: 'image', mask: null });
+    expect(edited.objects.find((object) => object.id === objectId)).toMatchObject({ mask: null });
+    expect(edited.objects[0]).toMatchObject({ mask: 'rounded' });
+  });
+
+  it('duplicates a curved text with an arc independent from the source', () => {
+    const page = buildCurvedPage();
+    const { page: next, objectId } = duplicateObjectInPage(page, 'text-arc');
+    const source = page.objects[0] as TextObject;
+    const copy = next.objects.find((object) => object.id === objectId) as TextObject;
+
+    expect(copy.arc).toEqual({ direction: 'up', amount: 0.6 });
+    expect(copy.arc).not.toBe(source.arc);
+
+    // The copy is independently editable: an in-place edit of the copy's arc
+    // must not corrupt the source.
+    if (!copy.arc) throw new Error('expected the copy to keep the arc');
+    copy.arc.amount = 0.1;
+
+    expect(source.arc).toEqual({ direction: 'up', amount: 0.6 });
+  });
+
+  it('patches the entrance animation through the shared fields', () => {
+    const page = buildPage();
+    const animation = { preset: 'fade', durationMs: 600, easing: 'easeOut', direction: 'up' } as const;
+    const next = updateObjectInPage(page, 'shape-1', objectPatch('shape', { animation }));
+
+    expect(next.objects[1].animation).toEqual(animation);
+    expect(next.objects[0]).toBe(page.objects[0]);
+
+    // Clearing is an explicit null — the object goes back to static.
+    const cleared = updateObjectInPage(next, 'shape-1', objectPatch('shape', { animation: null }));
+    expect(cleared.objects[1].animation).toBeNull();
+  });
+
+  it('duplicates an object with an animation independent from the source', () => {
+    const page = updateObjectInPage(
+      buildPage(),
+      'text-1',
+      objectPatch('text', {
+        animation: { preset: 'words', durationMs: 700, easing: 'easeOut', direction: 'up' },
+      }),
+    );
+    const { page: next, objectId } = duplicateObjectInPage(page, 'text-1');
+    const source = page.objects.find((object) => object.id === 'text-1');
+    const copy = next.objects.find((object) => object.id === objectId);
+
+    expect(copy?.animation).toEqual(source?.animation);
+    expect(copy?.animation).not.toBe(source?.animation);
+
+    // The copy is independently editable: an in-place edit of the copy's
+    // animation must not corrupt the source.
+    if (!copy?.animation) throw new Error('expected the copy to keep the animation');
+    copy.animation.durationMs = 100;
+
+    expect(source?.animation?.durationMs).toBe(700);
+  });
+
   it('moves an object up and down in z-order and stops at the edges', () => {
     const page = buildPage();
     const raised = moveObjectInPage(page, 'shape-1', 'up');
@@ -101,7 +364,11 @@ describe('object operations', () => {
   });
 
   it('keeps the layer flags through a patch', () => {
-    const next = updateObjectInPage(buildPage(), 'image-1', { visible: false, locked: true });
+    const next = updateObjectInPage(buildPage(), 'image-1', {
+      type: 'image',
+      visible: false,
+      locked: true,
+    });
     const image = next.objects[0];
 
     expect(image.visible).toBe(false);
