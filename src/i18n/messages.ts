@@ -157,6 +157,7 @@ export interface MessageSchema {
     exportFallbackToPng: string;
     selection: string;
     canvasLabel: string;
+    workspaceBackground: string;
   };
   text: {
     headings: string;
@@ -198,6 +199,23 @@ export interface MessageSchema {
     line: string;
     star: string;
     polygon: string;
+  };
+  images: {
+    upload: string;
+    url: string;
+    urlPlaceholder: string;
+    addUrl: string;
+    paste: string;
+    invalidFile: string;
+    emptyClipboard: string;
+    invalidUrl: string;
+    readFailed: string;
+    videoUnsupported: string;
+    unsupportedType: string;
+    notAnImage: string;
+    fetchFailed: string;
+    loadFailed: string;
+    error: string;
   };
   templates: {
     socialPost: string;
@@ -319,6 +337,21 @@ export interface MessageSchema {
     arcAmount: string;
     straighten: string;
   };
+  sidebar: {
+    rail: string;
+    templates: string;
+    text: string;
+    shapes: string;
+    icons: string;
+    images: string;
+    background: string;
+    brand: string;
+    animate: string;
+    pages: string;
+    layers: string;
+    inspector: string;
+    comingSoon: string;
+  };
   animate: {
     element: string;
     elementHint: string;
@@ -338,6 +371,12 @@ export interface MessageSchema {
     easings: Record<AnimationEasing, string>;
     directions: Record<AnimationDirection, string>;
   };
+  present: {
+    previous: string;
+    next: string;
+    exit: string;
+    /** Toolbar name; distinct from the button that opens presentation mode. */
+    toolbar: string;
   };
   controls: {
     frameFamily: string;
@@ -594,6 +633,7 @@ export const messages: Record<Locale, MessageSchema> = {
       exportFallbackToPng: 'Browser without WebP — PNG delivered.',
       selection: 'Selection',
       canvasLabel: 'Canvas workspace',
+      workspaceBackground: 'Workspace background',
     },
     text: {
       headings: 'Headings',
@@ -635,6 +675,23 @@ export const messages: Record<Locale, MessageSchema> = {
       line: 'Line',
       star: 'Star',
       polygon: 'Polygon',
+    },
+    images: {
+      upload: 'Upload image',
+      url: 'Image URL',
+      urlPlaceholder: 'Paste an image URL',
+      addUrl: 'Add image',
+      paste: 'Paste from clipboard',
+      invalidFile: 'Only image files are supported.',
+      emptyClipboard: 'No image found in the clipboard.',
+      invalidUrl: 'This URL is not valid.',
+      readFailed: 'The image file could not be read.',
+      videoUnsupported: 'Video is not supported. Choose an image.',
+      unsupportedType: 'This file type is not supported. Use SVG, WebP, PNG or JPG.',
+      notAnImage: 'This URL did not return an image.',
+      fetchFailed: 'This image URL could not be downloaded.',
+      loadFailed: 'The image could not be loaded.',
+      error: 'The image could not be added.',
     },
     templates: {
       socialPost: 'Social post',
@@ -778,6 +835,21 @@ export const messages: Record<Locale, MessageSchema> = {
       arcAmount: 'Curvature',
       straighten: 'Straighten',
     },
+    sidebar: {
+      rail: 'Canvas tools',
+      templates: 'Templates',
+      text: 'Text',
+      shapes: 'Shapes',
+      icons: 'Icons',
+      images: 'Images',
+      background: 'Background',
+      brand: 'Brand',
+      animate: 'Animate',
+      pages: 'Pages',
+      layers: 'Layers',
+      inspector: 'Inspector',
+      comingSoon: 'Coming soon.',
+    },
     animate: {
       element: 'Element',
       elementHint: 'Select an object, then pick its entrance.',
@@ -831,6 +903,11 @@ export const messages: Record<Locale, MessageSchema> = {
         right: 'Right',
       },
     },
+    present: {
+      previous: 'Previous page',
+      next: 'Next page',
+      exit: 'Exit presentation',
+      toolbar: 'Presentation controls',
     },
     controls: {
       frameFamily: 'Frame family',
@@ -1080,6 +1157,7 @@ export const messages: Record<Locale, MessageSchema> = {
       exportFallbackToPng: 'Navegador sem WebP — PNG entregue.',
       selection: 'Seleção',
       canvasLabel: 'Área de trabalho do canvas',
+      workspaceBackground: 'Fundo da área de trabalho',
     },
     text: {
       headings: 'Títulos',
@@ -1121,6 +1199,23 @@ export const messages: Record<Locale, MessageSchema> = {
       line: 'Linha',
       star: 'Estrela',
       polygon: 'Polígono',
+    },
+    images: {
+      upload: 'Enviar imagem',
+      url: 'URL da imagem',
+      urlPlaceholder: 'Cole a URL de uma imagem',
+      addUrl: 'Adicionar imagem',
+      paste: 'Colar da área de transferência',
+      invalidFile: 'Só arquivos de imagem são aceitos.',
+      emptyClipboard: 'Nenhuma imagem na área de transferência.',
+      invalidUrl: 'Esta URL não é válida.',
+      readFailed: 'Não foi possível ler o arquivo de imagem.',
+      videoUnsupported: 'Vídeo não é suportado. Escolha uma imagem.',
+      unsupportedType: 'Este tipo de arquivo não é suportado. Use SVG, WebP, PNG ou JPG.',
+      notAnImage: 'Esta URL não retornou uma imagem.',
+      fetchFailed: 'Não foi possível baixar esta URL de imagem.',
+      loadFailed: 'Não foi possível carregar a imagem.',
+      error: 'A imagem não pôde ser adicionada.',
     },
     templates: {
       socialPost: 'Post social',
@@ -1264,6 +1359,21 @@ export const messages: Record<Locale, MessageSchema> = {
       arcAmount: 'Curvatura',
       straighten: 'Endireitar',
     },
+    sidebar: {
+      rail: 'Ferramentas do canvas',
+      templates: 'Templates',
+      text: 'Texto',
+      shapes: 'Formas',
+      icons: 'Ícones',
+      images: 'Imagens',
+      background: 'Fundo',
+      brand: 'Marca',
+      animate: 'Animar',
+      pages: 'Páginas',
+      layers: 'Camadas',
+      inspector: 'Inspetor',
+      comingSoon: 'Em breve.',
+    },
     animate: {
       element: 'Elemento',
       elementHint: 'Selecione um objeto e escolha a entrada.',
@@ -1317,6 +1427,11 @@ export const messages: Record<Locale, MessageSchema> = {
         right: 'Direita',
       },
     },
+    present: {
+      previous: 'Página anterior',
+      next: 'Próxima página',
+      exit: 'Sair da apresentação',
+      toolbar: 'Controles da apresentação',
     },
     controls: {
       frameFamily: 'Família da moldura',
@@ -1566,6 +1681,7 @@ export const messages: Record<Locale, MessageSchema> = {
       exportFallbackToPng: 'Navegador sin WebP — PNG entregado.',
       selection: 'Selección',
       canvasLabel: 'Área de trabajo del lienzo',
+      workspaceBackground: 'Fondo del área de trabajo',
     },
     text: {
       headings: 'Títulos',
@@ -1607,6 +1723,23 @@ export const messages: Record<Locale, MessageSchema> = {
       line: 'Línea',
       star: 'Estrella',
       polygon: 'Polígono',
+    },
+    images: {
+      upload: 'Subir imagen',
+      url: 'URL de la imagen',
+      urlPlaceholder: 'Pega la URL de una imagen',
+      addUrl: 'Añadir imagen',
+      paste: 'Pegar del portapapeles',
+      invalidFile: 'Solo se aceptan archivos de imagen.',
+      emptyClipboard: 'No hay ninguna imagen en el portapapeles.',
+      invalidUrl: 'Esta URL no es válida.',
+      readFailed: 'No se pudo leer el archivo de imagen.',
+      videoUnsupported: 'El vídeo no es compatible. Elige una imagen.',
+      unsupportedType: 'Este tipo de archivo no es compatible. Usa SVG, WebP, PNG o JPG.',
+      notAnImage: 'Esta URL no devolvió una imagen.',
+      fetchFailed: 'No se pudo descargar esta URL de imagen.',
+      loadFailed: 'No se pudo cargar la imagen.',
+      error: 'La imagen no pudo añadirse.',
     },
     templates: {
       socialPost: 'Post social',
@@ -1750,6 +1883,21 @@ export const messages: Record<Locale, MessageSchema> = {
       arcAmount: 'Curvatura',
       straighten: 'Enderezar',
     },
+    sidebar: {
+      rail: 'Herramientas del lienzo',
+      templates: 'Plantillas',
+      text: 'Texto',
+      shapes: 'Formas',
+      icons: 'Iconos',
+      images: 'Imágenes',
+      background: 'Fondo',
+      brand: 'Marca',
+      animate: 'Animar',
+      pages: 'Páginas',
+      layers: 'Capas',
+      inspector: 'Inspector',
+      comingSoon: 'Próximamente.',
+    },
     animate: {
       element: 'Elemento',
       elementHint: 'Selecciona un objeto y elige su entrada.',
@@ -1803,6 +1951,11 @@ export const messages: Record<Locale, MessageSchema> = {
         right: 'Derecha',
       },
     },
+    present: {
+      previous: 'Página anterior',
+      next: 'Página siguiente',
+      exit: 'Salir de la presentación',
+      toolbar: 'Controles de la presentación',
     },
     controls: {
       frameFamily: 'Familia del marco',

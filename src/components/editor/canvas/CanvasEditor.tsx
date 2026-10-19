@@ -1,26 +1,35 @@
 /**
  * Dedicated canvas editor at `/editor`: document pages, layers, rulers, snap
  * and zoom over the Documento JSON, wired into the app store (theme, source,
- * background). The mockup composer stays at `/mockup` until the export from
- * the document replaces it.
+ * background). Insertion lives in the rail panels (text/shapes/images); the
+ * toolbar keeps the viewport controls. The mockup composer stays at `/mockup`
+ * until the export from the document replaces it.
  */
 
-import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import iconUrl from '/icon.svg?url';
-import { Image as ImageIcon, Maximize, Square, Type, ZoomIn, ZoomOut } from 'lucide-react';
+import { Maximize, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button, Switch } from '@/components/ui';
 import { ThemeSelector } from '@/components/layout/ThemeSelector';
 import { useApplyTheme } from '@/hooks/useApplyTheme';
 import { useI18n } from '@/i18n/useI18n';
-import { createShapeObject, createTextObject } from '@/lib/document';
 import { fitViewport, RULER_SIZE, zoomAtPoint, type Viewport } from '@/lib/editorViewport';
 import { cn } from '@/lib/utils';
 import { useStore } from '@/store/useStore';
 import { CanvasRulers } from './CanvasRulers';
 import { CanvasStage } from './CanvasStage';
-import { LayersPanel } from './LayersPanel';
-import { PagesPanel } from './PagesPanel';
+import { ExportPanel } from './ExportPanel';
+import { Inspector } from './Inspector';
+import { PanelSection } from './PanelSection';
+import { PresentBar } from './PresentBar';
+import { SidebarRail } from './SidebarRail';
+import {
+  DEFAULT_PANEL_ID,
+  findPanel,
+  togglePanel,
+  type PanelId,
+} from './panels/registry';
 
 function ToolbarButton({
   label,
@@ -53,18 +62,25 @@ export function CanvasEditor() {
   const document = useStore((state) => state.document);
   const activePageId = useStore((state) => state.activePageId);
   const activeSource = useStore((state) => state.source.active);
-  const addObject = useStore((state) => state.addObject);
   const upsertSourceImage = useStore((state) => state.upsertSourceImage);
+  const presenting = useStore((state) => state.presenting);
+  const stopPresenting = useStore((state) => state.stopPresenting);
 
   useApplyTheme();
 
   const stageRef = useRef<HTMLDivElement | null>(null);
-  const imageInputRef = useRef<HTMLInputElement | null>(null);
   const fittedRef = useRef(false);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
   const [viewport, setViewport] = useState<Viewport>({ zoom: 0.5, x: 0, y: 0 });
   const [snapEnabled, setSnapEnabled] = useState(true);
+  const [activePanelId, setActivePanelId] = useState<PanelId | null>(DEFAULT_PANEL_ID);
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
+
+  const activePanel = findPanel(activePanelId);
+
+  const togglePanelById = (panelId: PanelId) => {
+    setActivePanelId((current) => togglePanel(current, panelId));
+  };
 
   const page = document.pages.find((candidate) => candidate.id === activePageId) ?? null;
   const pageSize = page ? { width: page.width, height: page.height } : { width: 0, height: 0 };
@@ -107,6 +123,20 @@ export function CanvasEditor() {
     upsertSourceImage(activeSource.resolvedImageUrl, activeSource.title);
   }, [activeSource, upsertSourceImage]);
 
+  // Escape leaves presentation mode; the canvas keeps its own Escape handling
+  // for the selection, which is harmless while presenting.
+  useEffect(() => {
+    if (!presenting) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') stopPresenting();
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [presenting, stopPresenting]);
+
   const zoomBy = (factor: number) => {
     setViewport((current) =>
       zoomAtPoint(current, current.zoom * factor, {
@@ -124,54 +154,9 @@ export function CanvasEditor() {
     );
   };
 
-  const addText = () => {
-    if (!page) return;
-
-    addObject(
-      createTextObject('Text', {
-        name: 'Text',
-        x: page.width * 0.12,
-        y: page.height * 0.42,
-        width: page.width * 0.76,
-        fontSize: Math.max(24, Math.round(page.width * 0.07)),
-      }),
-    );
-  };
-
-  const addShape = () => {
-    if (!page) return;
-
-    const size = Math.round(Math.min(page.width, page.height) * 0.4);
-
-    addObject(
-      createShapeObject('rect', {
-        name: 'Shape',
-        x: Math.round((page.width - size) / 2),
-        y: Math.round((page.height - size) / 2),
-        width: size,
-        height: size,
-        cornerRadius: Math.round(size * 0.12),
-      }),
-    );
-  };
-
-  const addImageFile = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        upsertSourceImage(reader.result, file.name);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
   return (
     <div
-      className="flex h-svh flex-col overflow-hidden bg-background text-foreground"
+      className="relative flex h-svh flex-col overflow-hidden bg-background text-foreground"
       data-testid="editor-shell"
     >
       <header className="border-b border-border/80 bg-background/88 backdrop-blur">
@@ -207,36 +192,33 @@ export function CanvasEditor() {
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="flex min-h-0 flex-1 flex-col">
-          <div className="flex flex-wrap items-center gap-2 border-b border-border/70 px-3 py-2">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--text-soft))]">
-              {copy.canvas.insert}
-            </span>
-            <ToolbarButton label={copy.canvas.addText} onClick={addText}>
-              <Type className="h-4 w-4" />
-              {copy.canvas.addText}
-            </ToolbarButton>
-            <ToolbarButton label={copy.canvas.addShape} onClick={addShape}>
-              <Square className="h-4 w-4" />
-              {copy.canvas.addShape}
-            </ToolbarButton>
-            <ToolbarButton
-              label={copy.canvas.addImage}
-              onClick={() => imageInputRef.current?.click()}
-            >
-              <ImageIcon className="h-4 w-4" />
-              {copy.canvas.addImage}
-            </ToolbarButton>
-            <input
-              ref={imageInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={addImageFile}
-            />
+      <div className="flex min-h-0 flex-1">
+        {!presenting && (
+          <SidebarRail
+            testId="sidebar-rail"
+            activePanelId={activePanelId}
+            onToggle={togglePanelById}
+            className="hidden lg:flex"
+          />
+        )}
 
-            <div className="ml-auto flex items-center gap-2">
+        {!presenting && activePanel && (
+          <PanelSection
+            panel={activePanel}
+            showHeader
+            onClose={() => setActivePanelId(null)}
+            className={cn(
+              // One dock width for every category: `placement` is content
+              // semantics, not a width step. The wide step wins because the
+              // translated labels grow.
+              'hidden shrink-0 border-r border-border/80 bg-[hsl(var(--surface))/0.55] lg:flex lg:w-80',
+            )}
+          />
+        )}
+
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          {!presenting && (
+            <div className="flex flex-wrap items-center justify-end gap-2 border-b border-border/70 px-3 py-2">
               <ToolbarButton label={copy.canvas.zoomOut} onClick={() => zoomBy(1 / 1.2)}>
                 <ZoomOut className="h-4 w-4" />
               </ToolbarButton>
@@ -261,12 +243,12 @@ export function CanvasEditor() {
                 {copy.canvas.snap}
               </label>
             </div>
-          </div>
+          )}
 
           <div className="min-h-0 flex-1 p-2 md:p-3">
             <div
               ref={stageRef}
-              className="relative h-full w-full overflow-hidden rounded-[1.6rem] border border-border/70 bg-[hsl(var(--surface-muted))/0.35]"
+              className="relative h-full w-full overflow-hidden rounded-[1.6rem] border border-border/70 bg-[hsl(var(--canvas-workspace))]"
             >
               <CanvasRulers viewport={viewport} pageSize={pageSize} stageSize={stageSize} />
               <CanvasStage
@@ -278,20 +260,31 @@ export function CanvasEditor() {
           </div>
         </div>
 
-        <aside
-          className="hidden min-h-0 overflow-y-auto border-l border-border/80 bg-[hsl(var(--surface))/0.94] px-3 py-4 lg:block"
-          data-testid="editor-panel"
-        >
-          <div className="space-y-5">
-            <PagesPanel />
-            <LayersPanel />
-          </div>
-        </aside>
+        {!presenting && (
+          <aside
+            className="hidden w-[360px] shrink-0 overflow-y-auto border-l border-border/80 bg-[hsl(var(--surface))/0.94] px-3 py-4 lg:block"
+            data-testid="editor-panel"
+          >
+            <div className="space-y-5">
+              <Inspector />
+              <ExportPanel />
+            </div>
+          </aside>
+        )}
       </div>
 
-      {mobilePanelOpen && (
+      {presenting && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-4 z-30 flex justify-center px-4">
+          <PresentBar />
+        </div>
+      )}
+
+      {mobilePanelOpen && !presenting && (
         <div className="fixed inset-0 z-50 bg-black/45 lg:hidden">
-          <div className="absolute inset-x-0 bottom-0 top-auto max-h-[72svh] rounded-t-[1.75rem] border border-border/80 bg-background shadow-2xl">
+          <div
+            className="absolute inset-x-0 bottom-0 top-auto max-h-[72svh] rounded-t-[1.75rem] border border-border/80 bg-background shadow-2xl"
+            data-testid="mobile-panel-sheet"
+          >
             <div className="flex items-center justify-between border-b border-border/80 px-4 py-3">
               <div className="text-sm font-semibold">{copy.editor.openControls}</div>
               <div className="flex items-center gap-2">
@@ -306,10 +299,15 @@ export function CanvasEditor() {
                 </Button>
               </div>
             </div>
-            <div className="h-[calc(72svh-65px)] overflow-y-auto px-3 py-4">
-              <div className="space-y-5">
-                <PagesPanel />
-                <LayersPanel />
+            <div className="flex h-[calc(72svh-65px)] min-h-0 flex-col">
+              <SidebarRail
+                orientation="horizontal"
+                activePanelId={activePanelId}
+                onToggle={togglePanelById}
+              />
+              {activePanel && <PanelSection panel={activePanel} className="min-h-0 flex-1" />}
+              <div className="shrink-0 border-t border-border/80 px-3 py-3">
+                <ExportPanel />
               </div>
             </div>
           </div>
