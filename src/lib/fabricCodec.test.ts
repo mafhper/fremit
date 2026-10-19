@@ -364,3 +364,73 @@ describe('canvas codec: shapes', () => {
     });
   });
 });
+
+describe('canvas codec: image mask', () => {
+  const natural = { width: 480, height: 300 };
+
+  function coverImage(mask: ImageObject['mask']) {
+    const docObject = createImageObject('data:image/png;base64,x', {
+      id: 'image-mask',
+      x: 90,
+      y: 110,
+      width: 900,
+      height: 560,
+      fit: 'cover',
+      mask,
+    });
+    const image = new FabricImage(document.createElement('img'), {
+      width: natural.width,
+      height: natural.height,
+    });
+
+    CANVAS_CODECS.image.applyGeometry(image, docObject, natural);
+
+    return { docObject, image };
+  }
+
+  it('clips the object box with the preset radius in page units', () => {
+    const { image } = coverImage('rounded');
+    const clip = image.clipPath;
+
+    if (!(clip instanceof Rect)) throw new Error('the mask must be a Fabric Rect clip');
+
+    const scaleX = image.scaleX ?? 1;
+    const scaleY = image.scaleY ?? 1;
+
+    // The clip lives in the natural-size space of the FabricImage; multiplied
+    // by the object scale it is the very page rect the thumbnail writes.
+    expect((clip.width ?? 0) * scaleX).toBeCloseTo(900, 6);
+    expect((clip.height ?? 0) * scaleY).toBeCloseTo(560, 6);
+    expect((clip.rx ?? 0) * scaleX).toBeCloseTo(67.2, 6);
+    expect((clip.ry ?? 0) * scaleY).toBeCloseTo(67.2, 6);
+
+    // Centered on the object: the clip and the object box share the center.
+    expect(clip.left).toBe(0);
+    expect(clip.top).toBe(0);
+    expect(clip.originX).toBe('center');
+    expect(clip.originY).toBe('center');
+  });
+
+  it('removes the clip when the mask is cleared', () => {
+    const { docObject, image } = coverImage('rounded');
+
+    CANVAS_CODECS.image.applyGeometry(image, { ...docObject, mask: null }, natural);
+
+    expect(image.clipPath).toBeUndefined();
+  });
+
+  it('never reads or normalizes the mask as geometry', () => {
+    const { docObject, image } = coverImage('rounded');
+
+    // What a canvas resize does: the scale grows, normalize bakes it, and the
+    // commit reads geometry only — the preset is a document field and stays.
+    image.set({ scaleX: (image.scaleX ?? 1) * 1.5, scaleY: (image.scaleY ?? 1) * 1.5 });
+    CANVAS_CODECS.image.normalizeGeometry(image, docObject, natural);
+
+    const patch = CANVAS_CODECS.image.readGeometry(image, docObject);
+
+    expect(patch).not.toHaveProperty('mask');
+    expect(patch).toMatchObject({ type: 'image' });
+    expect(patch.width).toBeCloseTo(1350, 5);
+  });
+});

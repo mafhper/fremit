@@ -648,9 +648,13 @@ const imageCodec: CanvasCodec<ImageObject> = {
     if (object instanceof FabricImage && natural) {
       applyImageFit(object, docObject, natural);
     }
+
+    if (object instanceof FabricImage) {
+      applyImageMask(object, docObject);
+    }
   },
   readGeometry(object) {
-    return baseGeometryPatch(object);
+    return { type: 'image', ...baseGeometryPatch(object) };
   },
   normalizeGeometry(object, docObject, natural) {
     if (object instanceof FabricImage && natural) {

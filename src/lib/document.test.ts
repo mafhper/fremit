@@ -50,6 +50,8 @@ const workedDocument: FremitDocument = {
           locked: false,
           src: onePixelPng,
           fit: 'cover',
+          mask: null,
+          animation: null,
         },
         {
           type: 'shape',
@@ -215,6 +217,21 @@ describe('Documento JSON round-trip', () => {
     expect(parseDocument(second)).toEqual(workedDocument);
   });
 
+  it('creates an image object without a mask by default', () => {
+    expect(createImageObject(onePixelPng).mask).toBeNull();
+  });
+
+  it('keeps the image mask through the round-trip', () => {
+    const masked = structuredClone(workedDocument);
+    const image = masked.pages[0].objects[0] as ImageObject;
+    image.mask = 'rounded';
+
+    const reloaded = parseDocument(serializeDocument(masked));
+
+    expect(reloaded).toEqual(masked);
+    expect(reloaded.pages[0].objects[0]).toMatchObject({ type: 'image', mask: 'rounded' });
+  });
+
   it('builds a valid document from the factories', () => {
     const document = createDocument();
     document.pages[0].objects.push(
@@ -372,6 +389,26 @@ describe('Documento JSON validation', () => {
     outOfRange.pages[0].objects[0].opacity = 2;
 
     expect(parseErrorCode(JSON.stringify(outOfRange))).toBe('invalid-structure');
+  });
+
+  it('reads a v2 image without the mask field as unmasked (tolerant migration)', () => {
+    const withoutMask = JSON.parse(serializeDocument(workedDocument)) as {
+      pages: { objects: Record<string, unknown>[] }[];
+    };
+    delete withoutMask.pages[0].objects[0].mask;
+
+    const image = parseDocument(JSON.stringify(withoutMask)).pages[0].objects[0];
+
+    expect(image.type === 'image' && image.mask).toBeNull();
+  });
+
+  it('rejects an image mask that is not a known preset', () => {
+    const unknownMask = mutateDocument((document) => {
+      const objects = (document.pages as { objects: Record<string, unknown>[] }[])[0].objects;
+      objects[0].mask = 'heart';
+    });
+
+    expect(parseErrorCode(unknownMask)).toBe('invalid-structure');
   });
 
   it('rejects a text object with fontSize 0', () => {

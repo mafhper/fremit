@@ -203,6 +203,52 @@ describe('pageToSvg', () => {
     expect(svg).toContain('<polygon points="200,50 300,100 200,150 100,100" fill="#333333"');
   });
 
+  it('clips a masked image to the object box the canvas and the exporter use', () => {
+    const page: DocumentPage = {
+      ...createPage({ width: 1080, height: 1080 }),
+      objects: [
+        createImageObject('data:image/png;base64,x', {
+          id: 'image-1',
+          x: 90,
+          y: 110,
+          width: 900,
+          height: 560,
+          mask: 'rounded',
+        }),
+      ],
+    };
+
+    const svg = pageToSvg(page);
+
+    // The worked rect: shorter side 560 * 0.12 = 67.2, in page units.
+    expect(svg).toContain('<clipPath id="fremit-mask-image-1">');
+    expect(svg).toContain(
+      '<rect x="90" y="110" width="900" height="560" rx="67.2" ry="67.2"/>',
+    );
+    expect(svg).toContain('clip-path="url(#fremit-mask-image-1)"');
+  });
+
+  it('leaves an unmasked image unclipped', () => {
+    const page: DocumentPage = {
+      ...createPage({ width: 400, height: 400 }),
+      objects: [
+        createImageObject('data:image/png;base64,x', {
+          id: 'image-1',
+          x: 10,
+          y: 20,
+          width: 300,
+          height: 200,
+        }),
+      ],
+    };
+
+    const svg = pageToSvg(page);
+
+    expect(svg).toContain('<image href="data:image/png;base64,x"');
+    expect(svg).not.toContain('<clipPath');
+    expect(svg).not.toContain('clip-path=');
+  });
+
   it('draws no line mark when the line has no stroke', () => {
     const page: DocumentPage = {
       ...createPage({ width: 400, height: 400 }),
