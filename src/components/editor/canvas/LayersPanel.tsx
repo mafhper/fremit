@@ -106,21 +106,33 @@ export function LayersPanel() {
                   <ObjectIcon type={object.type} />
                   <span className="truncate">{object.name}</span>
                 </button>
+                {object.animation ? (
+                  // The layer carries an entrance animation (schema v2): the
+                  // badge marks it and names the preset for tests and tooltips.
+                  <span
+                    data-testid="layer-animation"
+                    data-animation={object.animation.preset}
+                    title={copy.sidebar.animate}
+                    className="flex h-5 w-5 shrink-0 items-center justify-center text-[hsl(var(--text-muted))]"
+                  >
+                    <RuneSparklesIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                  </span>
+                ) : null}
                 <IconButton
                   label={object.visible ? copy.canvas.hideObject : copy.canvas.showObject}
                   testId="layer-visibility"
                   pressed={!object.visible}
-                  onClick={() => updateObject(object.id, { visible: !object.visible })}
+                  onClick={() => updateObject(object.id, objectPatch(object.type, { visible: !object.visible }))}
                 >
-                  {object.visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                  {object.visible ? <RuneEyeIcon className="h-4 w-4" /> : <RuneEyeOffIcon className="h-4 w-4" />}
                 </IconButton>
                 <IconButton
                   label={object.locked ? copy.canvas.unlockObject : copy.canvas.lockObject}
                   testId="layer-lock"
                   pressed={object.locked}
-                  onClick={() => updateObject(object.id, { locked: !object.locked })}
+                  onClick={() => updateObject(object.id, objectPatch(object.type, { locked: !object.locked }))}
                 >
-                  {object.locked ? <Lock className="h-4 w-4" /> : <LockOpen className="h-4 w-4" />}
+                  {object.locked ? <RuneLockIcon className="h-4 w-4" /> : <RuneLockOpenIcon className="h-4 w-4" />}
                 </IconButton>
               </li>
             );
