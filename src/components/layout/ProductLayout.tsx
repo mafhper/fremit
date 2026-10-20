@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { GitHubPanelIcon } from '@/components/icons/AppIcons';
 import { RuneMenuIcon } from '@/components/icons/rune/Menu';
 import iconUrl from '/icon.svg?url';
+import { InstallButton } from '@/components/layout/InstallButton';
 import { LocaleSelector } from '@/components/layout/LocaleSelector';
 import { ThemeSelector } from '@/components/layout/ThemeSelector';
 import { Button } from '@/components/ui';
@@ -76,6 +77,7 @@ export function ProductLayout() {
           </nav>
 
           <div className="flex items-center justify-self-end gap-2 md:gap-3">
+            <InstallButton variant="outline" className="hidden md:flex" />
             <Button asChild className="hidden rounded-full px-4 md:inline-flex md:px-5">
               <Link to="/editor">{copy.nav.openApp}</Link>
             </Button>

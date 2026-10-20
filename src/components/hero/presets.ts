@@ -107,3 +107,35 @@ export const liquidPresets = {
     },
   },
 } as const satisfies Record<string, Record<string, LiquidPreset>>;
+
+/**
+ * Climas da home (promo-site v4): o usuário escolhe, independente do tema do sistema.
+ * morning/night reaproveitam os presets existentes; chrome usa a cena liquid-chrome do shader.
+ */
+export type LiquidMood = 'morning' | 'night' | 'chrome';
+
+const chromeMood: LiquidPreset = {
+  scene: 'liquid-chrome',
+  speed: 0.3,
+  warp: 0.6,
+  ripple: 0.5,
+  chrome: 0.95,
+  contrast: 0.8,
+  grain: 0.02,
+  pointer: 0.9,
+  clouds: 0,
+  stars: 0,
+  bloom: 0.2,
+  centerX: 0.5,
+  centerY: 0.5,
+  centerSize: 1,
+  colorA: '#08080d',
+  colorB: '#8f9bc9',
+  colorC: '#7c8cff',
+};
+
+export const liquidMoods: Record<LiquidMood, LiquidPreset> = {
+  morning: liquidPresets.home.light,
+  night: liquidPresets.home.dark,
+  chrome: chromeMood,
+};

@@ -25,6 +25,14 @@ interface FaqItem {
 
 export interface MessageSchema {
   brandName: string;
+  install: {
+    cta: string;
+    downloadFor: string;
+    otherPlatforms: string;
+    allReleases: string;
+    desktopOnly: string;
+    macIntel: string;
+  };
   nav: {
     home: string;
     about: string;
@@ -159,6 +167,26 @@ export interface MessageSchema {
     canvasLabel: string;
     workspaceBackground: string;
     pageBackground: string;
+    dockLabel: string;
+    formatsLabel: string;
+    moodLabel: string;
+    moods: {
+      morning: string;
+      night: string;
+      chrome: string;
+    };
+    drop: string;
+    exportPng: string;
+    clear: string;
+    openInEditor: string;
+    exportFailed: string;
+    formats: {
+      hero: string;
+      banner: string;
+      post: string;
+      story: string;
+      poster: string;
+    };
   };
   contextMenu: {
     /** Accessible name of the menu opened over an image object. */
@@ -479,6 +507,14 @@ export const localeOptions: Array<{ value: Locale; label: string }> = [
 export const messages: Record<Locale, MessageSchema> = {
   'en-US': {
     brandName: 'Fremit',
+    install: {
+      cta: 'Install',
+      downloadFor: 'Download for',
+      otherPlatforms: 'Other platforms',
+      allReleases: 'All releases',
+      desktopOnly: 'Installers are for desktop. Use the web version on mobile.',
+      macIntel: 'Mac (Intel)',
+    },
     nav: {
       home: 'Home',
       about: 'About',
@@ -499,7 +535,7 @@ export const messages: Record<Locale, MessageSchema> = {
       toggleToLight: 'Switch to light theme',
     },
     home: {
-      title: 'Paste, edit, and export.',
+      title: 'Paste. Drop. Create.',
       subtitle: 'A link, an image, or a screenshot. Adjust the frame and export.',
     },
     about: {
@@ -674,6 +710,26 @@ export const messages: Record<Locale, MessageSchema> = {
       canvasLabel: 'Canvas workspace',
       workspaceBackground: 'Workspace background',
       pageBackground: 'Page background',
+      dockLabel: 'Format and mood',
+      formatsLabel: 'Format',
+      moodLabel: 'Mood',
+      moods: {
+        morning: 'Morning',
+        night: 'Night',
+        chrome: 'Chrome',
+      },
+      drop: 'Drop to frame',
+      exportPng: 'Download PNG',
+      clear: 'Clear',
+      openInEditor: 'Open in editor',
+      exportFailed: 'Could not export the image.',
+      formats: {
+        hero: 'Hero',
+        banner: 'Banner',
+        post: 'Post',
+        story: 'Story',
+        poster: 'Poster',
+      },
     },
     contextMenu: {
       label: 'Image actions',
@@ -1040,6 +1096,14 @@ export const messages: Record<Locale, MessageSchema> = {
   },
   'pt-BR': {
     brandName: 'Fremit',
+    install: {
+      cta: 'Instalar',
+      downloadFor: 'Baixar para',
+      otherPlatforms: 'Outras plataformas',
+      allReleases: 'Todas as versões',
+      desktopOnly: 'Os instaladores são para computador. No celular, use a versão web.',
+      macIntel: 'Mac (Intel)',
+    },
     nav: {
       home: 'Início',
       about: 'Sobre',
@@ -1060,7 +1124,7 @@ export const messages: Record<Locale, MessageSchema> = {
       toggleToLight: 'Mudar para o tema claro',
     },
     home: {
-      title: 'Cole, edite e exporte.',
+      title: 'Cole. Solte. Crie.',
       subtitle: 'Um link, uma imagem ou uma captura. Ajuste a moldura e exporte.',
     },
     about: {
@@ -1236,6 +1300,26 @@ export const messages: Record<Locale, MessageSchema> = {
       canvasLabel: 'Área de trabalho do canvas',
       workspaceBackground: 'Fundo da área de trabalho',
       pageBackground: 'Fundo da página',
+      dockLabel: 'Formato e clima',
+      formatsLabel: 'Formato',
+      moodLabel: 'Clima',
+      moods: {
+        morning: 'Manhã',
+        night: 'Noite',
+        chrome: 'Cromo',
+      },
+      drop: 'Solte para emoldurar',
+      exportPng: 'Baixar PNG',
+      clear: 'Limpar',
+      openInEditor: 'Abrir no editor',
+      exportFailed: 'Não foi possível exportar a imagem.',
+      formats: {
+        hero: 'Hero',
+        banner: 'Banner',
+        post: 'Post',
+        story: 'Story',
+        poster: 'Pôster',
+      },
     },
     contextMenu: {
       label: 'Ações da imagem',
@@ -1602,6 +1686,14 @@ export const messages: Record<Locale, MessageSchema> = {
   },
   es: {
     brandName: 'Fremit',
+    install: {
+      cta: 'Instalar',
+      downloadFor: 'Descargar para',
+      otherPlatforms: 'Otras plataformas',
+      allReleases: 'Todas las versiones',
+      desktopOnly: 'Los instaladores son para escritorio. En el móvil, usa la versión web.',
+      macIntel: 'Mac (Intel)',
+    },
     nav: {
       home: 'Inicio',
       about: 'Sobre',
@@ -1622,7 +1714,7 @@ export const messages: Record<Locale, MessageSchema> = {
       toggleToLight: 'Cambiar al tema claro',
     },
     home: {
-      title: 'Pega, edita y exporta.',
+      title: 'Pega. Suelta. Crea.',
       subtitle: 'Un enlace, una imagen o una captura. Ajusta el marco y exporta.',
     },
     about: {
@@ -1798,6 +1890,26 @@ export const messages: Record<Locale, MessageSchema> = {
       canvasLabel: 'Área de trabajo del lienzo',
       workspaceBackground: 'Fondo del área de trabajo',
       pageBackground: 'Fondo de la página',
+      dockLabel: 'Formato y ambiente',
+      formatsLabel: 'Formato',
+      moodLabel: 'Ambiente',
+      moods: {
+        morning: 'Mañana',
+        night: 'Noche',
+        chrome: 'Cromo',
+      },
+      drop: 'Suelta para enmarcar',
+      exportPng: 'Descargar PNG',
+      clear: 'Limpiar',
+      openInEditor: 'Abrir en el editor',
+      exportFailed: 'No se pudo exportar la imagen.',
+      formats: {
+        hero: 'Hero',
+        banner: 'Banner',
+        post: 'Post',
+        story: 'Story',
+        poster: 'Póster',
+      },
     },
     contextMenu: {
       label: 'Acciones de la imagen',
