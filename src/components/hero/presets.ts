@@ -130,7 +130,7 @@ const chromeMood: LiquidPreset = {
   centerY: 0.5,
   centerSize: 1,
   colorA: '#120505',
-  colorB: '#b82020',
+  colorB: '#9e1b1b',
   colorC: '#d4a020',
 };
 
