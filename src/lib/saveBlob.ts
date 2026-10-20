@@ -1,8 +1,9 @@
 /**
  * saveBlob.ts
  * Salva um Blob como arquivo. Na web usa um link temporário com `download`.
- * No app desktop (Tauri) este é o ponto onde entram plugin-dialog + plugin-fs (ver TAURI.md),
- * porque a webview não trata `download` de forma confiável.
+ * No app desktop (Tauri) este é o ponto onde entram plugin-dialog + plugin-fs,
+ * porque a webview não trata `download` de forma confiável. O adiamento e o
+ * critério pendente estão em docs/adr/ADR-009-export-desktop.md.
  */
 
 export function saveBlob(blob: Blob, filename: string): void {
