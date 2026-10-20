@@ -1,5 +1,4 @@
-import { type ClipboardEvent, type FormEvent, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { useRef, useState } from 'react';
 import { ClipboardPanelIcon, LinkPanelIcon, UploadPanelIcon } from '@/components/icons/AppIcons';
 import {
   Button,
@@ -10,14 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui';
+import { useSourceEntry } from '@/hooks/useSourceEntry';
 import { useI18n } from '@/i18n/useI18n';
-import { isAppRoute } from '@/lib/appPath';
-import {
-  SourceResolutionError,
-  detectSourceMode,
-  resolveFileSource,
-  resolveSourceFromUrl,
-} from '@/lib/sourceResolver';
 import { cn } from '@/lib/utils';
 import { useStore } from '@/store/useStore';
 import type { CaptureDelay } from '@/types/app';
@@ -26,133 +19,23 @@ interface SourceControlsProps {
   variant?: 'home' | 'editor';
 }
 
-function getErrorMessage(error: unknown, fallbackMessage: string) {
-  if (error instanceof SourceResolutionError) {
-    return {
-      code: error.code,
-      message: error.message,
-    };
-  }
-
-  return {
-    code: 'unknown',
-    message: fallbackMessage,
-  };
-}
-
 export function SourceControls({ variant = 'home' }: SourceControlsProps) {
-  const navigate = useNavigate();
-  const location = useLocation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
   const { copy } = useI18n();
   const isEditor = variant === 'editor';
 
-  const source = useStore((state) => state.source);
-  const frame = useStore((state) => state.frame);
-  const setDraftUrl = useStore((state) => state.setDraftUrl);
+  const {
+    source,
+    setDraftUrl,
+    clearSourceError,
+    handleFile,
+    handleUrlSubmit,
+    handleClipboardRead,
+    handlePaste,
+  } = useSourceEntry();
   const setCaptureDelay = useStore((state) => state.setCaptureDelay);
   const setCaptureSelector = useStore((state) => state.setCaptureSelector);
-  const startSourceLoading = useStore((state) => state.startSourceLoading);
-  const commitResolvedSource = useStore((state) => state.commitResolvedSource);
-  const failSourceLoading = useStore((state) => state.failSourceLoading);
-  const clearSourceError = useStore((state) => state.clearSourceError);
-
-  const goToEditor = () => {
-    // From the public site the capture lands on the dedicated canvas; the
-    // mockup composer keeps its own capture in place. `isAppRoute` strips the
-    // deploy base, so the check holds whatever `useLocation` reports.
-    if (!isAppRoute(location.pathname, '/editor') && !isAppRoute(location.pathname, '/mockup')) {
-      navigate('/editor');
-    }
-  };
-
-  const handleResolved = async (task: Promise<Awaited<ReturnType<typeof resolveSourceFromUrl>>>) => {
-    clearSourceError();
-    try {
-      const resolved = await task;
-      commitResolvedSource(resolved);
-      goToEditor();
-    } catch (error) {
-      const { code, message } = getErrorMessage(error, copy.source.genericError);
-      failSourceLoading(code, message);
-    }
-  };
-
-  const handleFile = async (file: File, mode: 'upload' | 'clipboard-image' = 'upload') => {
-    startSourceLoading(mode);
-    await handleResolved(resolveFileSource(file, mode));
-  };
-
-  const handleUrlSubmit = async (event?: FormEvent) => {
-    event?.preventDefault();
-    if (!source.draftUrl.trim()) return;
-
-    try {
-      const mode = detectSourceMode(source.draftUrl);
-      startSourceLoading(mode, source.draftUrl.trim());
-      await handleResolved(
-        resolveSourceFromUrl(
-          source.draftUrl,
-          mode === 'website-url'
-            ? {
-                viewportWidth: frame.windowWidth,
-                viewportHeight: frame.windowHeight,
-                captureDelayMs: source.captureDelayMs,
-                captureSelector: source.captureSelector,
-              }
-            : {},
-        ),
-      );
-    } catch (error) {
-      const { code, message } = getErrorMessage(error, copy.source.genericError);
-      failSourceLoading(code, message);
-    }
-  };
-
-  const handleClipboardRead = async () => {
-    try {
-      if (!navigator.clipboard?.read) {
-        throw new SourceResolutionError(
-          'clipboard-unavailable',
-          'Clipboard image read is not supported here. Paste directly or upload a screenshot.',
-        );
-      }
-
-      const items = await navigator.clipboard.read();
-      const imageItem = items.find((item) => item.types.some((type) => type.startsWith('image/')));
-
-      if (!imageItem) {
-        throw new SourceResolutionError(
-          'clipboard-empty',
-          'No image was found in your clipboard. Copy a screenshot and try again.',
-        );
-      }
-
-      const imageType = imageItem.types.find((type) => type.startsWith('image/'));
-      if (!imageType) {
-        throw new SourceResolutionError('clipboard-empty', 'No image was found in your clipboard.');
-      }
-
-      const blob = await imageItem.getType(imageType);
-      const file = new File([blob], 'clipboard-image.png', { type: blob.type });
-      await handleFile(file, 'clipboard-image');
-    } catch (error) {
-      const { code, message } = getErrorMessage(error, copy.source.genericError);
-      failSourceLoading(code, message);
-    }
-  };
-
-  const handlePaste = async (event: ClipboardEvent<HTMLDivElement>) => {
-    const imageItem = Array.from(event.clipboardData.items).find((item) => item.type.startsWith('image/'));
-    if (!imageItem) return;
-
-    const file = imageItem.getAsFile();
-    if (!file) return;
-
-    event.preventDefault();
-    await handleFile(file, 'clipboard-image');
-  };
 
   const hasUrlValue = source.draftUrl.trim().length > 0;
 

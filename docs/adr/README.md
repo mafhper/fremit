@@ -17,6 +17,7 @@ configuração indicada em *Onde isso é verificável* — o documento não subs
 | [ADR-006](ADR-006-animate-sem-audio.md) | Animação por presets sem áudio (schema + preview; export fica na Fatia 3) | rascunho | 2026-10-17 |
 | [ADR-007](ADR-007-webp-default.md) | WebP como formato default de export do `/editor` (estático); SVG para vetores | rascunho | 2026-10-18 |
 | [ADR-008](ADR-008-runeicons.md) | Runeicons vendorizada como dados (ícones Apache-2.0) + workspace switch em Stickers | rascunho | 2026-10-18 |
+| [ADR-009](ADR-009-export-desktop.md) | Export na web por download do navegador; app desktop (Tauri) adiado | aceita | 2026-10-19 |
 
 **Status:** `aceita` = decisão vigente; `rascunho` = proposta registrada, ainda não aprovada nem
 implementada.

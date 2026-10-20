@@ -2,6 +2,8 @@
  * Browser download of an export artifact: object URL plus a synthetic anchor
  * click. The anchor is attached to the DOM for the click — Safari and Firefox
  * ignore the click of a detached anchor.
+ * O caminho desktop (plugin-dialog + plugin-fs) e o motivo de ele ser adiado
+ * estão em docs/adr/ADR-009-export-desktop.md.
  */
 
 import type { ExportArtifact } from '@/lib/export/exporter';

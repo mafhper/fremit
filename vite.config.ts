@@ -99,6 +99,10 @@ const lastCommit = getLastCommit()
 const repositoryUrl = getRepositoryUrl()
 const developerProfile = await getDeveloperProfile()
 
+// O Tauri define TAURI_ENV_PLATFORM ao rodar beforeDevCommand/beforeBuildCommand. No app desktop os
+// assets são servidos da raiz; no GitHub Pages o site vive em /fremit/.
+const isTauri = Boolean(process.env.TAURI_ENV_PLATFORM)
+
 // `fremit` ja tem portas autorais (preview 4273, e2e 4275) e por isso nao disputa
 // 5173 com o resto da frota — mas o `dev` nao declara NENHUMA e herda o default
 // do Vite, que e exatamente a classe de colisao que a frota esta corrigindo.
@@ -111,7 +115,7 @@ export default defineConfig(async ({ command }) => {
   if (devPort !== DEV_PORT) console.warn(formatPortFallback(DEV_PORT, devPort, 'fremit'))
 
   return {
-  base: '/fremit/',
+  base: isTauri ? '/' : '/fremit/',
   server: {
     host: '127.0.0.1',
     port: devPort,
@@ -126,7 +130,7 @@ export default defineConfig(async ({ command }) => {
   test: {
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.{ts,tsx}'],
   },
   resolve: {
     alias: {

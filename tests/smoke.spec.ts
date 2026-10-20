@@ -210,7 +210,7 @@ test('home hero and source controls stay inside the first viewport', async ({ pa
   test.slow();
   await page.goto('/fremit/');
 
-  await expect(page.getByRole('heading', { name: /Paste, edit, and export\.|Cole, edite e exporte\./i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Paste\. Drop\. Create\.|Cole\. Solte\. Crie\.|Pega\. Suelta\. Crea\./i })).toBeVisible();
   await expect(page.getByTestId('home-source')).toBeVisible();
   await expect(page.getByLabel(/Enter a link|Insira um link|Insertar un enlace/i)).toBeVisible();
 
@@ -232,15 +232,15 @@ test('public mobile menu exposes navigation and open app', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/fremit/');
 
-  await expect(page.getByRole('heading', { name: /Paste, edit, and export\.|Cole, edite e exporte\./i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Paste\. Drop\. Create\.|Cole\. Solte\. Crie\.|Pega\. Suelta\. Crea\./i })).toBeVisible();
 
   const menu = page.getByRole('button', { name: /Menu|Menú/i });
   await expect(menu.locator('svg')).toHaveAttribute('aria-hidden', 'true');
   await menu.click();
   await expect(menu).toHaveAttribute('aria-expanded', 'true');
 
-  await expect(page.getByRole('link', { name: /Home|Início|Inicio/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /About|Sobre/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /^(Home|Início|Inicio)$/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /^(About|Sobre)$/ })).toBeVisible();
   await expect(page.getByRole('link', { name: /Open app|Abrir app/i }).first()).toBeVisible();
 });
 
