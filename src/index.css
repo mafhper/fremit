@@ -101,6 +101,27 @@
     --input: var(--border);
   }
 
+  /* Clima chrome da home. Fica depois de `.dark` de propósito: o atributo vive no
+     <html>, junto da classe de tema — mesma especificidade (0,1,0), vence a última
+     regra. Como os tokens são herdados, header, footer e body respondem; um
+     data-mood no <main> não os alcançaria porque são irmãos dele. */
+  [data-mood="chrome"] {
+    --background: 0 40% 8%;
+    --surface: 0 35% 12%;
+    --surface-muted: 0 30% 15%;
+    --foreground: 0 10% 95%;
+    --text-muted: 0 8% 75%;
+    --text-soft: 0 6% 60%;
+    --primary: 0 71% 42%;
+    --primary-foreground: 0 0% 100%;
+    --accent: 43 74% 48%;
+    --accent-foreground: 0 40% 8%;
+    --border: 0 25% 25%;
+    --ring: 43 74% 48%;
+    --destructive: 0 80% 50%;
+    --destructive-foreground: 0 0% 100%;
+  }
+
   * {
     @apply border-border;
   }
@@ -240,6 +261,16 @@
       radial-gradient(circle at 35% 45%, hsl(200 85% 50% / 0.14), transparent 45%),
       radial-gradient(circle at 70% 60%, hsl(215 55% 18% / 0.48), transparent 40%),
       linear-gradient(160deg, hsl(215 35% 5%), hsl(215 28% 7%) 55%, hsl(215 28% 4%));
+  }
+
+  /* O fallback do herói não usa token semântico (é cor fixa por tema). No clima chrome
+     ele repete a paleta ouro/vermelho do shader, senão o clima "volta ao azul" quando
+     o WebGL não está disponível. */
+  [data-mood="chrome"] .hero__fallback {
+    background:
+      radial-gradient(circle at 35% 45%, hsl(0 71% 42% / 0.28), transparent 45%),
+      radial-gradient(circle at 70% 60%, hsl(43 74% 48% / 0.18), transparent 40%),
+      linear-gradient(160deg, hsl(0 40% 8%), hsl(0 35% 12%) 55%, hsl(0 40% 6%));
   }
 
   /* ─── About Page Redesign ───────────────────────────────────────────── */

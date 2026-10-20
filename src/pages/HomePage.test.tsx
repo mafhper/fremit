@@ -130,6 +130,27 @@ describe('HomePage', () => {
     expect(useStore.getState().appShell.themePreference).toBe('light');
   });
 
+  it('troca os tokens do documento no clima chrome e limpa ao sair ou desmontar', () => {
+    const root = document.documentElement;
+    const { unmount } = renderHome();
+    expect(root).not.toHaveAttribute('data-mood');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cromo' }));
+    expect(root).toHaveAttribute('data-mood', 'chrome');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Manhã' }));
+    expect(root).not.toHaveAttribute('data-mood');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cromo' }));
+    act(() => useStore.getState().setThemePreference('light'));
+    expect(root).not.toHaveAttribute('data-mood');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cromo' }));
+    expect(root).toHaveAttribute('data-mood', 'chrome');
+    unmount();
+    expect(root).not.toHaveAttribute('data-mood');
+  });
+
   it('rejeita no seletor arquivos que não são imagem e acima de 25 MB', () => {
     renderHome();
     const input = screen.getByLabelText('Enviar imagem') as HTMLInputElement;

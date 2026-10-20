@@ -5,7 +5,7 @@
  * editor; link e "Abrir no editor" usam o mesmo fluxo de fonte do restante do app.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Artboard, type ArtboardHandle } from '@/components/canvas/Artboard';
 import { ArtboardDock } from '@/components/canvas/ArtboardDock';
 import { composeArtboardExport, canvasToBlob } from '@/components/canvas/exportComposite';
@@ -61,6 +61,19 @@ export function HomePage() {
 
   const mood: LiquidMood | undefined = pick && pick.theme === themePreference ? pick.mood : undefined;
   const activeMood: LiquidMood = mood ?? (themePreference === 'dark' ? 'night' : 'morning');
+
+  // O clima chrome troca os tokens de superfície do site inteiro (header, footer e body
+  // são irmãos do <main>, então um data-mood aqui dentro não os alcançaria). O atributo
+  // vive no <html> só enquanto chrome está ativo e sai ao trocar de clima ou desmontar.
+  // Layout effect para a paleta trocar no mesmo frame do shader.
+  useLayoutEffect(() => {
+    const root = window.document.documentElement;
+    if (mood !== 'chrome') return;
+    root.dataset.mood = 'chrome';
+    return () => {
+      delete root.dataset.mood;
+    };
+  }, [mood]);
 
   const chooseMood = (next: LiquidMood) => {
     // Manhã é um clima claro; Noite e Cromo são escuros. O tema acompanha para manter o contraste do texto.
