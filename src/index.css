@@ -109,6 +109,10 @@
     --background: 0 40% 8%;
     --surface: 0 35% 12%;
     --surface-muted: 0 30% 15%;
+    /* --secondary é literal no .dark (215 22% 14%), então herdava azul: o botão
+       secundário e o trilho do slider apareciam azuis sobre a home vermelha.
+       Fica 3 pontos de luminosidade acima de --surface-muted para se destacar. */
+    --secondary: 0 28% 18%;
     --foreground: 0 10% 95%;
     --text-muted: 0 8% 75%;
     --text-soft: 0 6% 60%;
@@ -120,6 +124,17 @@
     --ring: 43 74% 48%;
     --destructive: 0 80% 50%;
     --destructive-foreground: 0 0% 100%;
+    /* Único token de canvas com literal azul no .dark (215 24% 10%). Não aparece na
+       home, mas herdá-lo deixaria o tema chrome com resíduo azul em qualquer tela
+       futura que use a mesma paleta. */
+    --canvas-workspace: 0 24% 10%;
+
+    /* Sem entrada aqui, de propósito: --muted → --secondary, --card e --popover →
+       --surface, --input → --border, --muted-foreground → --text-muted e
+       --card-foreground/--popover-foreground → --foreground. Como os aliases são
+       declarados no <html>, o var() deles resolve contra os valores deste bloco.
+       --secondary-foreground também não existe como token: @theme inline liga
+       --color-secondary-foreground a --muted-foreground. */
   }
 
   * {
