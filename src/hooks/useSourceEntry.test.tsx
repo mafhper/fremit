@@ -80,6 +80,26 @@ describe('useSourceEntry', () => {
     expect(probe.pathname).toBe('/editor');
   });
 
+  it('mantém a captura no /mockup, que tem o próprio compositor', async () => {
+    vi.mocked(resolveSourceFromUrl).mockResolvedValue(resolved);
+    const mockupWrapper = ({ children }: { children: ReactNode }) => (
+      <MemoryRouter initialEntries={['/mockup']}>
+        <I18nProvider>
+          <LocationProbe />
+          {children}
+        </I18nProvider>
+      </MemoryRouter>
+    );
+
+    const { result } = renderHook(() => useSourceEntry(), { wrapper: mockupWrapper });
+
+    act(() => result.current.setDraftUrl('https://example.com/a.png'));
+    await act(() => result.current.handleUrlSubmit());
+
+    expect(useStore.getState().source.status).toBe('ready');
+    expect(probe.pathname).toBe('/mockup');
+  });
+
   it('ignora o envio quando o campo de link está vazio', async () => {
     const { result } = renderHook(() => useSourceEntry(), { wrapper });
 
