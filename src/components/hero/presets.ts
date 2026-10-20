@@ -135,7 +135,9 @@ const chromeMood: LiquidPreset = {
 };
 
 export const liquidMoods: Record<LiquidMood, LiquidPreset> = {
-  morning: liquidPresets.home.light,
-  night: liquidPresets.home.dark,
+  // Cópias rasas: os climas da home não compartilham a referência dos presets
+  // originais, então um ajuste local não vaza para as outras telas.
+  morning: { ...liquidPresets.home.light },
+  night: { ...liquidPresets.home.dark },
   chrome: chromeMood,
 };
