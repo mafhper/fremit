@@ -239,8 +239,8 @@ test('public mobile menu exposes navigation and open app', async ({ page }) => {
   await menu.click();
   await expect(menu).toHaveAttribute('aria-expanded', 'true');
 
-  await expect(page.getByRole('link', { name: /Home|Início|Inicio/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /About|Sobre/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /^(Home|Início|Inicio)$/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /^(About|Sobre)$/ })).toBeVisible();
   await expect(page.getByRole('link', { name: /Open app|Abrir app/i }).first()).toBeVisible();
 });
 
