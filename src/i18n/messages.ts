@@ -180,6 +180,7 @@ export interface MessageSchema {
     clear: string;
     openInEditor: string;
     exportFailed: string;
+    imageRejected: string;
     formats: {
       hero: string;
       banner: string;
@@ -723,6 +724,7 @@ export const messages: Record<Locale, MessageSchema> = {
       clear: 'Clear',
       openInEditor: 'Open in editor',
       exportFailed: 'Could not export the image.',
+      imageRejected: 'Choose an image of 25 MB or less.',
       formats: {
         hero: 'Hero',
         banner: 'Banner',
@@ -1313,6 +1315,7 @@ export const messages: Record<Locale, MessageSchema> = {
       clear: 'Limpar',
       openInEditor: 'Abrir no editor',
       exportFailed: 'Não foi possível exportar a imagem.',
+      imageRejected: 'Escolha uma imagem de até 25 MB.',
       formats: {
         hero: 'Hero',
         banner: 'Banner',
@@ -1903,6 +1906,7 @@ export const messages: Record<Locale, MessageSchema> = {
       clear: 'Limpiar',
       openInEditor: 'Abrir en el editor',
       exportFailed: 'No se pudo exportar la imagen.',
+      imageRejected: 'Elige una imagen de 25 MB o menos.',
       formats: {
         hero: 'Hero',
         banner: 'Banner',

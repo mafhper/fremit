@@ -14,6 +14,7 @@ import {
   DEFAULT_ARTBOARD_FORMAT,
   computeExportLayout,
   getArtboardFormat,
+  isAcceptedImage,
   type ArtboardFormatId,
 } from '@/components/canvas/formats';
 import { LiquidMeshBackdrop, type LiquidMeshHandle } from '@/components/hero/LiquidMeshBackdrop';
@@ -70,6 +71,12 @@ export function HomePage() {
 
   const frameFile = (file: File) => {
     setNotice(null);
+    // O seletor tambem aceita "todos os arquivos" em alguns sistemas; o limite de 25 MB
+    // vale para ele como vale para drop e paste na prancheta.
+    if (!isAcceptedImage(file)) {
+      setNotice(copy.canvas.imageRejected);
+      return;
+    }
     setPreview({ file, src: URL.createObjectURL(file) });
   };
 
@@ -163,6 +170,11 @@ export function HomePage() {
               {entry.source.errorMessage ? (
                 <p role="alert" className="text-sm text-destructive">
                   {entry.source.errorMessage}
+                </p>
+              ) : null}
+              {notice ? (
+                <p role="alert" className="text-sm text-destructive">
+                  {notice}
                 </p>
               ) : null}
             </div>

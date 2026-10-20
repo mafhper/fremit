@@ -7,6 +7,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
+import { MAX_IMAGE_BYTES } from '@/components/canvas/formats';
 import { I18nProvider } from '@/i18n/provider';
 import { resolveFileSource, resolveSourceFromUrl } from '@/lib/sourceResolver';
 import { useStore } from '@/store/useStore';
@@ -127,6 +128,25 @@ describe('HomePage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Manhã' }));
     expect(backdrop).toHaveAttribute('data-mood', 'morning');
     expect(useStore.getState().appShell.themePreference).toBe('light');
+  });
+
+  it('rejeita no seletor arquivos que não são imagem e acima de 25 MB', () => {
+    renderHome();
+    const input = screen.getByLabelText('Enviar imagem') as HTMLInputElement;
+
+    const tooBig = png('grande.png');
+    Object.defineProperty(tooBig, 'size', { value: MAX_IMAGE_BYTES + 1 });
+    fireEvent.change(input, { target: { files: [tooBig] } });
+    expect(screen.getByRole('alert')).toHaveTextContent('Escolha uma imagem de até 25 MB.');
+    expect(screen.queryByAltText('grande.png')).not.toBeInTheDocument();
+
+    const notImage = new File([new Uint8Array([1])], 'doc.pdf', { type: 'application/pdf' });
+    fireEvent.change(input, { target: { files: [notImage] } });
+    expect(screen.getByRole('alert')).toHaveTextContent('Escolha uma imagem de até 25 MB.');
+
+    fireEvent.change(input, { target: { files: [png('ok.png')] } });
+    expect(screen.getByAltText('ok.png')).toHaveAttribute('src', 'blob:preview');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('emoldura a imagem solta sem navegar e oferece as ações', async () => {
